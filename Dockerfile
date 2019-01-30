@@ -15,7 +15,7 @@ RUN set -x && \
         cmake \
 		git \
 		mosquitto-dev \
-		rapidjson \
+		rapidjson-dev \
         util-linux-dev && \
 		mkdir -p /build && \
 		cd /build && \
