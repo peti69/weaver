@@ -1,0 +1,283 @@
+{
+	// Logging of all received events (STATE_IND , WRITE_REQ, READ_REQ).
+	// Optional, default is false. 
+	//"logEvents": true,
+
+	"items": [
+		{ "id": "strom_zaehlerstand" },
+		{ "id": "strom_zaehlerstand_mqtt" },
+		{ "id": "strom_verbrauch_gesamt" },
+		{ "id": "strom_verbrauch_phase1" },
+		{ "id": "strom_verbrauch_phase2" },
+		{ "id": "strom_verbrauch_phase3" },
+			
+		{ "id": "helligkeit_aussen_ost" },
+		{ "id": "helligkeit_aussen_sued" },
+		{ "id": "helligkeit_aussen_west" },
+		{ "id": "helligkeit_aussen_daemmerung" },
+		{ "id": "wind_geschwindigkeit" },
+		{ "id": "regen_status" },
+			
+		{ "id": "aussen_temp" },
+		
+		{ "id": "puffer_sp1_temp" },
+		{ "id": "puffer_sp2_temp" },
+		{ "id": "puffer_td2_temp" },
+
+		{ "id": "fbh_modus" },
+		{ "id": "fbh_raum_soll_temp" },
+		{ "id": "fbh_absenk_temp" },
+		{ "id": "fbh_heizkurve" },
+		{ "id": "fbh_abschalt_temp" },
+		{ "id": "fbh_vorlauf_soll_temp" },
+		{ "id": "fbh_vorlauf_ist_temp" },
+		{ "id": "fbh_vorlauf_puffer_temp" },
+
+		{ "id": "ww_modus" },
+		{ "id": "ww_zk_soll_temp" },
+		{ "id": "ww_zk_volumenstrom" },
+		{ "id": "ww_pk_vorlauf_temp" },
+		{ "id": "ww_pk_ruecklauf_temp" },
+		{ "id": "ww_zk_vorlauf_temp" },
+
+		{ "id": "st_tagesertrag" },
+		{ "id": "st_gesamtertrag" },
+		{ "id": "st_kk_vorlauf_temp" },
+		{ "id": "st_kk_ruecklauf_temp" },
+		{ "id": "st_kk_pumpe_status" },
+		{ "id": "st_kk_pumpe_laufzeit" },
+		{ "id": "st_pk_vorlauf_temp" },
+		{ "id": "st_pk_ruecklauf_temp" },
+		{ "id": "st_pk_pumpe_status" },
+		{ "id": "st_pk_pumpe_laufzeit" },
+		{ "id": "st_pk_volumenstrom" },
+	],
+	
+	"links": [
+		{
+			// Identifier for the link.
+			"id": "stromzaehler",
+
+			// Link type specific parametrization.
+			"port":	{
+				"name": "/dev/smartmeter",
+				"baudRate": 9600,
+				"dataBits": 7,
+				"stopBits": 1,
+				"parity": "even",
+				"msgPattern": "/.*!\r\n",
+				//"logRawData": true,
+				//"logRawDataInHex": true,
+				"bindings": [
+					{ "itemId": "strom_zaehlerstand", "pattern": ".*1-0:1\\.8\\.0\\*255\\(([0-9]{8}\\.[0-9]{7}).*" }, // nnnnnnnn.nnnnnnn, kWh
+					{ "itemId": "strom_verbrauch_phase1", "pattern": ".*1-0:21\\.7\\.255\\*255\\(([0-9]{6}\\.[0-9]{2}).*" }, // nnnnnn.nn, Watt
+					{ "itemId": "strom_verbrauch_phase2", "pattern": ".*1-0:41\\.7\\.255\\*255\\(([0-9]{6}\\.[0-9]{2}).*" }, // nnnnnn.nn, Watt
+					{ "itemId": "strom_verbrauch_phase3", "pattern": ".*1-0:61\\.7\\.255\\*255\\(([0-9]{6}\\.[0-9]{2}).*" }, // nnnnnn.nn, Watt
+					{ "itemId": "strom_verbrauch_gesamt", "pattern": ".*1-0:1\\.7\\.255\\*255\\(([0-9]{6}\\.[0-9]{2}).*" } // nnnnnn.nn, Watt
+				]
+			}
+		},
+		{
+			// Identifier for the link.
+			"id": "wetterstation", 
+			
+			"transformations" : [ 
+				// Values received over the link are multiplied with the given factor and value passed over link 
+				// are divided by it.
+				{ "itemId": "helligkeit_aussen_ost", "factor": 1000 }
+			],
+
+			// Link type specific parametrization.
+			"port":	{
+				"name": "/dev/weatherstation",
+				"baudRate": 9600,
+				"dataBits": 8,
+				"stopBits": 1,
+				"parity": "none",
+				//"msgPattern": "\\x02.*\\x03\r\n",
+				//"msgPattern": "[[.STX.]].*[[.ETX.]]\r\n",
+				"msgPattern": "[[:cntrl:]].{62}*[[:cntrl:]]\r\n",
+				//"logRawData": true,
+				//"logRawDataInHex": false,
+				"bindings": [
+					{ "itemId": "helligkeit_aussen_ost", "pattern": ".{19}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux
+					{ "itemId": "helligkeit_aussen_sued", "pattern": ".{25}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux
+					{ "itemId": "helligkeit_aussen_west", "pattern": ".{31}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux
+					{ "itemId": "helligkeit_aussen_daemmerung", "pattern": ".{37}([0-9]{3}).*" }, // Format nnn, 0...250 Lux, !!! wenn >250 Lux
+					{ "itemId": "wind_geschwindigkeit", "pattern": ".{53}([0-9]{2}\\.[0-9]).*" }, // Format nn.n, 0..40 m/s,
+					{ "itemId": "regen_status", "pattern": ".{51}([0-1]).*" } // 0/1
+				]
+			}
+		},
+		{
+			// Identifier for the link.
+			"id": "knx",
+
+			// Link type specific parametrization.
+			"knx": {
+				// IP address passed to the KNX/IP gateway and used by it to contact weaver. 
+				// It is ignored and not delivered in case the NAT mode is enabled. 
+				"localIpAddr": "192.168.25.10",
+			
+				// Usage of network address translation (NAT mode) for accessing the KNX/IP gateway.
+				// This mode is usually needed when the gateway is located on another network behind 
+				// a router. Optional, default is false.
+				"natMode": true,
+			
+				// IP address of KNX/IP gateway.
+				"ipAddr": "192.168.25.12",
+			
+				// IP port on which KNX/IP gateway accepts tunnel requests. Optional, default is 3671.
+				//"ipPort": "3671",
+			
+				// Delay in seconds between reconnect attempts to the KNX/IP gateway when the link has been 
+				// lost. Optional, default is 60. 
+				//"reconnectInterval": 60,
+			
+				// Delay in seconds between successive seinding of CONNECTION STATE REQUEST messages.
+				// Optional, default is 30. 
+				"connStateReqInterval": 30,
+			
+				// Timeout in seconds when waiting for the response to a CONNECTION REQUEST or 
+				// CONNECTION STATE REQUEST on the control connection. Optional, default is 5.
+				//"controlTimeout": 5,
+
+				// Timeout in seconds when waiting for the corresponding L-Data.con to a L-Data.req on
+				// the data connection. Optional, default is 5. 
+				//"ldataConTimeout": 5,
+			
+				// Physical address used when accessing the KNX bus. Optional, default is 0.0.0.
+				"physicalAddr": "1.1.200",
+
+				// Logging of all received and sent UDP messages as hex dump. Optional, default is false. 
+				//"logRawMsg": true,
+			
+				// Logging of of all received and sent payloads (cEMI frames) including message code, 
+				// group address and physical address. Optional, default is false. 
+				//"logData": true,
+
+				"bindings":	[
+					{ "itemId": "strom_zaehlerstand", "owner": false, "stateGa": "3/4/10", "dpt": "13.013" },
+					{ "itemId": "strom_verbrauch_phase1", "owner": false, "stateGa": "3/4/11", "dpt": "14.056" },
+					{ "itemId": "strom_verbrauch_phase2", "owner": false, "stateGa": "3/4/12", "dpt": "14.056" },
+					{ "itemId": "strom_verbrauch_phase3", "owner": false, "stateGa": "3/4/13", "dpt": "14.056" },
+					{ "itemId": "strom_verbrauch_gesamt", "owner": false, "stateGa": "3/4/14", "dpt": "14.056" },
+
+					{ "itemId": "helligkeit_aussen_ost", "owner": false, "stateGa": "5/5/80", "dpt": "9.004" },
+					{ "itemId": "helligkeit_aussen_sued", "owner": false, "stateGa": "5/5/81", "dpt": "9.004" },
+					{ "itemId": "helligkeit_aussen_west", "owner": false, "stateGa": "5/5/82", "dpt": "9.004" },
+					{ "itemId": "helligkeit_aussen_daemmerung", "owner": false, "stateGa": "5/5/83", "dpt": "7.013" },
+					{ "itemId": "wind_geschwindigkeit", "owner": false, "stateGa": "5/0/10", "dpt": "9.005" },
+					{ "itemId": "regen_status", "owner": false, "stateGa": "5/0/20", "dpt": "1.001" },
+
+					{ "itemId": "aussen_temp", "owner": false, "stateGa": "3/6/18", "dpt": "9.001" },
+
+					{ "itemId": "puffer_sp1_temp", "owner": false, "stateGa": "3/6/10", "dpt": "9.001" },
+					{ "itemId": "puffer_sp2_temp", "owner": false, "stateGa": "3/6/11", "dpt": "9.001" },
+					{ "itemId": "puffer_td2_temp", "owner": false, "stateGa": "3/6/12", "dpt": "9.001" },
+
+					{ "itemId": "fbh_modus", "owner": false, "stateGa": "3/6/23", "writeGa": "3/6/33", "dpt": "5.010" },
+					{ "itemId": "fbh_raum_soll_temp", "owner": false, "stateGa": "3/6/25", "writeGa": "3/6/35", "dpt": "9.001" },
+					{ "itemId": "fbh_absenk_temp", "owner": false, "stateGa": "3/6/27", "dpt": "9.001" },
+					{ "itemId": "fbh_heizkurve", "owner": false, "stateGa": "3/6/24", "writeGa": "3/6/34", "dpt": "9.001" },
+					{ "itemId": "fbh_abschalt_temp", "owner": false, "stateGa": "3/6/26", "dpt": "9.001" },
+					{ "itemId": "fbh_vorlauf_soll_temp", "owner": false, "stateGa": "3/6/20", "dpt": "9.001" },
+					{ "itemId": "fbh_vorlauf_ist_temp", "owner": false, "stateGa": "3/6/22", "dpt": "9.001" },
+					{ "itemId": "fbh_vorlauf_puffer_temp", "owner": false, "stateGa": "3/6/21", "dpt": "9.001" },
+
+					{ "itemId": "ww_modus", "owner": false, "stateGa": "3/6/40", "writeGa": "3/6/50", "dpt": "5.010" },
+					{ "itemId": "ww_zk_soll_temp", "owner": false, "stateGa": "3/6/41", "writeGa": "3/6/51", "dpt": "9.001" },
+					{ "itemId": "ww_zk_vorlauf_temp", "owner": false, "stateGa": "3/6/45", "dpt": "9.001" },
+					{ "itemId": "ww_zk_volumenstrom", "owner": false, "stateGa": "3/6/42", "dpt": "9.001" },
+					{ "itemId": "ww_pk_vorlauf_temp", "owner": false, "stateGa": "3/6/44", "dpt": "9.001" },
+					{ "itemId": "ww_pk_ruecklauf_temp", "owner": false, "stateGa": "3/6/46", "dpt": "9.001" },
+
+					{ "itemId": "st_tagesertrag", "owner": false, "stateGa": "3/6/60", "dpt": "5.010" },
+					{ "itemId": "st_gesamtertrag", "owner": false, "stateGa": "3/6/70", "dpt": "9.001" },
+					{ "itemId": "st_kk_vorlauf_temp", "owner": false, "stateGa": "3/6/61", "dpt": "9.001" },
+					{ "itemId": "st_kk_ruecklauf_temp", "owner": false, "stateGa": "3/6/62", "dpt": "9.001" },
+					{ "itemId": "st_kk_pumpe_status", "owner": false, "stateGa": "3/6/63", "dpt": "5.001" },
+					{ "itemId": "st_kk_pumpe_laufzeit", "owner": false, "stateGa": "3/6/64", "dpt": "7.007" },
+					{ "itemId": "st_pk_vorlauf_temp", "owner": false, "stateGa": "3/6/65", "dpt": "9.001" },
+					{ "itemId": "st_pk_ruecklauf_temp", "owner": false, "stateGa": "3/6/66", "dpt": "9.001" },
+					{ "itemId": "st_pk_pumpe_status", "owner": false, "stateGa": "3/6/67", "dpt": "5.001" },
+					{ "itemId": "st_pk_pumpe_laufzeit", "owner": false, "stateGa": "3/6/68", "dpt": "7.007" },
+					{ "itemId": "st_pk_volumenstrom", "owner": false, "stateGa": "3/6/69", "dpt": "9.001" },
+				]
+			}
+		},
+		{
+			// Identifier for the link.
+			"id": "mqtt",
+
+			// Link type specific parametrization.
+			"mqtt":	{
+				// Id passed to MQTT broker when connecting.
+				"clientId": "weaver",
+
+				// Hostname or IP address of the MQTT broker.
+				"hostname": "timberwolf",
+
+				// IP port on which MQTT broker is listening. Optional, default is 1883.
+				//"port": 1883,
+
+				// Delay in seconds between reconnect attempts to the MQTT broker when link has been lost.
+				// Optional, default is 60. 
+				"reconnectInterval": 60,
+
+				// Retain flag for state publishing. Optional, default is false.
+				"retainFlag": true,
+
+				// Mapping from MQTT to item or vice versa.
+				"bindings":	[
+					{ "itemId": "aussen_temp", "owner": true, "stateSubTopic": "ebus/aussen_temp/wert" },
+
+					{ "itemId": "puffer_sp1_temp", "owner": true, "stateTopic": "ebus/puffer_sp1/temp" },
+					{ "itemId": "puffer_sp2_temp", "owner": true, "stateTopic": "ebus/puffer_sp2/temp" },
+					{ "itemId": "puffer_td2_temp", "owner": true, "stateTopic": "ebus/puffer_td2/temp" },
+
+					{ "itemId": "fbh_modus",				"owner": true, "stateTopic": "ebus/fbh_raum_temp_modus/modus",	"readTopic": "ebus/fbh_raum_temp_modus/modus/get",	"writeTopic": "ebus/fbh_modus/wert/set" },
+					{ "itemId": "fbh_raum_soll_temp",		"owner": true, "stateTopic": "ebus/fbh_raum_temp_modus/temp",	"readTopic": "ebus/fbh_raum_temp_modus/temp/get",	"writeTopic": "ebus/fbh_raum_temp/wert/set" },
+					{ "itemId": "fbh_absenk_temp",			"owner": true, "stateTopic": "ebus/fbh_absenk_temp/wert",		"readTopic": "ebus/fbh_absenk_temp/wert/get" },
+					{ "itemId": "fbh_heizkurve",			"owner": true, "stateTopic": "ebus/fbh_heizkurve/wert", 		"readTopic": "ebus/fbh_heizkurve/wert/get",			"writeTopic": "ebus/fbh_heizkurve/wert/set" },
+					{ "itemId": "fbh_abschalt_temp",		"owner": true, "stateTopic": "ebus/fbh_abschalt_temp/wert", 	"readTopic": "ebus/fbh_abschalt_temp/wert/get" },
+					{ "itemId": "fbh_vorlauf_soll_temp",	"owner": true, "stateTopic": "ebus/fbh_vorlauf_soll_temp/wert",	"readTopic": "ebus/fbh_vorlauf_soll_temp/wert/get" },
+					{ "itemId": "fbh_vorlauf_ist_temp", 	"owner": true, "stateTopic": "ebus/fbh_vf2/temp", 				"readTopic": "ebus/fbh_vf2/temp/get" },
+					{ "itemId": "fbh_vorlauf_puffer_temp", 	"owner": true, "stateTopic": "ebus/fbh_vf1/temp", 				"readTopic": "ebus/fbh_vf1/temp/get" },
+
+					{ "itemId": "ww_modus", 				"owner": true, "stateTopic": "ebus/ww_soll_temp_modus/modus", 	"readTopic": "ebus/ww_soll_temp_modus/modus/get",	"writeTopic": "ebus/ww_modus/wert/set" },
+					{ "itemId": "ww_zk_soll_temp", 			"owner": true, "stateTopic": "ebus/ww_soll_temp_modus/temp", 	"readTopic": "ebus/ww_soll_temp_modus/temp/get",	"writeTopic": "ebus/ww_soll_temp/wert/set" },
+					{ "itemId": "ww_zk_volumenstrom", 		"owner": true, "stateTopic": "ebus/ww_zk_volumenstrom/wert",	"readTopic": "ebus/ww_zk_volumenstrom/wert/get" },
+					{ "itemId": "ww_pk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc1/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
+					{ "itemId": "ww_pk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/ww_ntc2/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
+					{ "itemId": "ww_zk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc3/temp", 				"readTopic": "ebus/ww_ntc3/temp/get" },
+
+					{ "itemId": "st_tagesertrag", 			"owner": true, "stateTopic": "ebus/st_tagesertrag/wert",		"readTopic": "ebus/st_tagesertrag/wert/get" },
+					{ "itemId": "st_gesamtertrag", 			"owner": true, "stateTopic": "ebus/st_gesamtertrag/wert",		"readTopic": "ebus/st_gesamtertrag/wert/get" },
+					{ "itemId": "st_kk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/st_kk_vorlauf/temp", 		"readTopic": "ebus/st_kk_vorlauf/temp/get" },
+					{ "itemId": "st_kk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/st_kk_ruecklauf/temp", 		"readTopic": "ebus/st_kk_ruecklauf/temp/get" },
+					{ "itemId": "st_kk_pumpe_status",		"owner": true, "stateTopic": "ebus/st_kk_pumpe_status/wert", 	"readTopic": "ebus/st_kk_pumpe_status/wert/get" },
+					{ "itemId": "st_kk_pumpe_laufzeit", 	"owner": true, "stateTopic": "ebus/st_kk_pumpe_laufzeit/wert", 	"readTopic": "ebus/st_kk_pumpe_laufzeit/wert/get" },
+					{ "itemId": "st_pk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/st_pk_vorlauf/temp", 		"readTopic": "ebus/st_pk_vorlauf/temp/get" },
+					{ "itemId": "st_pk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/st_pk_ruecklauf/temp", 		"readTopic": "ebus/st_pk_ruecklauf/temp/get" },
+					{ "itemId": "st_pk_pumpe_status", 		"owner": true, "stateTopic": "ebus/st_pk_pumpe_status/wert", 	"readTopic": "ebus/st_pk_pumpe_status/wert/get" },
+					{ "itemId": "st_pk_pumpe_laufzeit", 	"owner": true, "stateTopic": "ebus/st_pk_pumpe_laufzeit/wert", 	"readTopic": "ebus/st_pk_pumpe_laufzeit/wert/get" },
+					{ "itemId": "st_pk_volumenstrom", 		"owner": true, "stateTopic": "ebus/st_pk_volumenstrom/wert", 	"readTopic": "ebus/st_pk_volumenstrom/wert/get" },
+
+					{ "itemId": "strom_zaehlerstand", "owner": false, "stateTopic": "strom/zaehlerstand" },
+					{ "itemId": "strom_verbrauch_gesamt", "owner": false, "stateTopic": "strom/verbrauch_gesamt" },
+					{ "itemId": "strom_verbrauch_phase1", "owner": false, "stateTopic": "strom/verbrauch_phase1" },
+					{ "itemId": "strom_verbrauch_phase2", "owner": false, "stateTopic": "strom/verbrauch_phase2" },
+					{ "itemId": "strom_verbrauch_phase3", "owner": false, "stateTopic": "strom/verbrauch_phase3" },
+
+					{ "itemId": "helligkeit_aussen_ost", "owner": false, "stateTopic": "helligkeit/aussen/ost" },
+					{ "itemId": "helligkeit_aussen_sued", "owner": false, "stateTopic": "helligkeit/aussen/sued" },
+					{ "itemId": "helligkeit_aussen_west", "owner": false, "stateTopic": "helligkeit/aussen/west" },
+					{ "itemId": "helligkeit_aussen_daemmerung", "owner": false, "stateTopic": "helligkeit/aussen/daemmerung" },
+					{ "itemId": "wind_geschwindigkeit", "owner": false, "stateTopic": "wind/geschwindigkeit" },
+					{ "itemId": "regen_status", "owner": false, "stateTopic": "regen/status" }
+				]
+			}
+		}
+	]
+}
