@@ -767,7 +767,8 @@ ByteString KnxHandler::createConnReq() const
 
 ByteString KnxHandler::createConnStateReq() const
 {
-	return addHeader(ServiceType::CONN_STATE_REQ, createLongHPAI(channelId, config.getLocalIpAddr(), localIpPort));
+	ByteString longHpai = config.getNatMode() ? createLongHPAI(channelId, IpAddr(0), 0) : createLongHPAI(channelId, config.getLocalIpAddr(), localIpPort);
+	return addHeader(ServiceType::CONN_STATE_REQ, longHpai);
 }
 
 ByteString KnxHandler::createDiscReq() const
