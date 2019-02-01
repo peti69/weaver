@@ -1,15 +1,35 @@
 #include <sys/select.h>
-
+#include <signal.h>
+ 
 #include "config.h"
 #include "logger.h"
 
+void sighandler(int signo) 
+{
+}
+
 int main(int argc, char* argv[])
 {
-	Logger logger("MAIN");
+    // install the signal handler for SIGTERM.
+    struct sigaction action;
+    action.sa_handler = sighandler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
+
+    // block SIGTERM
+    sigset_t sigset, oldset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGTERM);
+    sigaddset(&sigset, SIGINT);
+    sigprocmask(SIG_BLOCK, &sigset, &oldset);
 	
+	Logger logger("MAIN");
+
+	// read configuration file
 	std::list<Link> links;
 	GlobalConfig config;
-	
 	try
 	{
 		if (argc < 2)
@@ -54,12 +74,15 @@ int main(int argc, char* argv[])
 				}
 			}
 			
-			struct timeval timeout;
+			struct timespec timeout;
 			timeout.tv_sec = 1;
-			timeout.tv_usec = 0;
-			int rc = ::select(fdMax + 1, &readFds, &writeFds, 0, &timeout);
+			timeout.tv_nsec = 0;
+			int rc = pselect(fdMax + 1, &readFds, &writeFds, 0, &timeout, &oldset);
 			if (rc == -1)
-				logger.errorX() << unixError("select") << endOfMsg();
+				if (errno == EINTR)
+					break;
+				else
+					logger.errorX() << unixError("select") << endOfMsg();
 		}
 		catch (const std::exception& error)
 		{
@@ -109,4 +132,6 @@ int main(int argc, char* argv[])
 				logger.error() << "Error on link " << link.getId() << " when sending events: " << error.what() << endOfMsg();
 			}
 	}
+	
+	links.clear();
 }
