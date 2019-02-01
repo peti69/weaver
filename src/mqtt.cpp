@@ -49,11 +49,12 @@ bool MqttHandler::connect()
 	{
 		auto& binding = pair.second;
 
-		if (binding.stateTopic != "" && binding.owner)
-		{
-			ec = mosquitto_subscribe(client, 0, binding.stateTopic.c_str(), 0);
-			handleError("mosquitto_subscribe", ec);
-		}
+		if (binding.owner)
+			for (string stateTopic : binding.stateTopics)
+			{
+				ec = mosquitto_subscribe(client, 0, stateTopic.c_str(), 0);
+				handleError("mosquitto_subscribe", ec);
+			}
 		if (binding.writeTopic != "" && !binding.owner)
 		{
 			ec = mosquitto_subscribe(client, 0, binding.writeTopic.c_str(), 0);
@@ -101,13 +102,15 @@ void MqttHandler::onMessage(const mosquitto_message* msg)
 	for (auto& pair : config.getBindings())
 	{
 		auto& binding = pair.second;
-		
+
 		string data = string(static_cast<char*>(msg->payload), msg->payloadlen);
-		if (binding.stateTopic == msg->topic && binding.owner)
-		{
-			receivedEvents.add(Event(id, binding.itemId, Event::STATE_IND, data));
-			return;
-		}
+		if (binding.owner)
+			for (string stateTopic : binding.stateTopics)
+				if (stateTopic == msg->topic)
+				{
+					receivedEvents.add(Event(id, binding.itemId, Event::STATE_IND, data));
+					return;
+				}
 		if (binding.writeTopic == msg->topic && !binding.owner)
 		{
 			receivedEvents.add(Event(id, binding.itemId, Event::WRITE_REQ, data));
@@ -119,7 +122,7 @@ void MqttHandler::onMessage(const mosquitto_message* msg)
 			return;
 		}
 	}
-	
+
 	logger.warn() << "No item for topic " << msg->topic << endOfMsg();
 }
 
@@ -185,9 +188,10 @@ void MqttHandler::sendX(const Events& events)
 			auto& binding = bindingIter->second;
 
 			ec = MOSQ_ERR_SUCCESS;
-			if (binding.stateTopic != "" && !binding.owner && event.getType() == Event::STATE_IND)
-				ec = mosquitto_publish(client, 0, binding.stateTopic.c_str(), value.length(), 
-					reinterpret_cast<const uint8_t*>(value.data()), 0, config.getRetainFlag());
+			if (!binding.owner && event.getType() == Event::STATE_IND)
+				for (string stateTopic : binding.stateTopics)
+					ec = mosquitto_publish(client, 0, stateTopic.c_str(), value.length(), 
+						reinterpret_cast<const uint8_t*>(value.data()), 0, config.getRetainFlag());
 			if (binding.writeTopic != "" && binding.owner && event.getType() == Event::WRITE_REQ)
 				ec = mosquitto_publish(client, 0, binding.writeTopic.c_str(), value.length(), 
 					reinterpret_cast<const uint8_t*>(value.data()), 0, false);

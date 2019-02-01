@@ -13,14 +13,15 @@ class MqttConfig
 	public:
 	struct Binding
 	{
+		typedef std::list<string> Topics;
 		string itemId;
 		bool owner;
-		string stateTopic;
+		Topics stateTopics;
 		string writeTopic;
 		string readTopic;
 		
-		Binding(string _itemId, bool _owner, string _stateTopic, string _writeTopic, string _readTopic) :
-			itemId(_itemId), owner(_owner), stateTopic(_stateTopic), writeTopic(_writeTopic), readTopic(_readTopic)
+		Binding(string _itemId, bool _owner, Topics _stateTopics, string _writeTopic, string _readTopic) :
+			itemId(_itemId), owner(_owner), stateTopics(_stateTopics), writeTopic(_writeTopic), readTopic(_readTopic)
 		{}
 	};
 	class Bindings: public std::map<string, Binding>

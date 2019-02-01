@@ -166,7 +166,7 @@ std::list<Link> Config::getLinks(const Items& items) const
 	for (auto& linkValue : linksValue.GetArray())
 	{
 		string id = getString(linkValue, "id");
-	
+
 		std::shared_ptr<Handler> handler;
 		if (hasMember(linkValue, "knx"))
 			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), items), Logger(id)));
@@ -176,10 +176,10 @@ std::list<Link> Config::getLinks(const Items& items) const
 			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), Logger(id)));
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
-		
+
 		links.push_back(Link(id, handler));
 	}
-	
+
 	return links;
 }
 
@@ -199,12 +199,21 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
-		bool owner = getBool(bindingValue, "owner");
-		string stateTopic = getString(bindingValue, "stateTopic", "");
+		bool owner = getBool(bindingValue, "owner", false);
+		MqttConfig::Binding::Topics stateTopics;
+		if (hasMember(bindingValue, "stateTopic"))
+			stateTopics.push_back(getString(bindingValue, "stateTopic"));
+		if (hasMember(bindingValue, "stateTopics"))
+			for (auto& stateValue : getArray(bindingValue, "stateTopics").GetArray())
+			{
+				if (!stateValue.IsString())
+					throw std::runtime_error("Field stateTopics is not a string array");
+				stateTopics.push_back(stateValue.GetString());
+			}
 		string writeTopic = getString(bindingValue, "writeTopic", "");
 		string readTopic = getString(bindingValue, "readTopic", "");
 
-		bindings.add(MqttConfig::Binding(itemId, owner, stateTopic, writeTopic, readTopic));
+		bindings.add(MqttConfig::Binding(itemId, owner, stateTopics, writeTopic, readTopic));
 	}
 
 	return std::make_shared<MqttConfig>(clientId, hostname, port, reconnectInterval, retainFlag, bindings);
@@ -246,7 +255,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 			
-		bool owner = getBool(bindingValue, "owner");
+		bool owner = getBool(bindingValue, "owner", false);
 		string stateGaStr = getString(bindingValue, "stateGa", "");
 		GroupAddr stateGa;
 		if (stateGaStr != "" && !GroupAddr::fromStr(stateGaStr, stateGa))
