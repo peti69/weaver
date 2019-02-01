@@ -1,8 +1,12 @@
 {
-	// Logging of all received events (STATE_IND , WRITE_REQ, READ_REQ).
+	// Logging of all received and distributed events. Event types are:
+	//     STATE_IND = State indication: Notifies the value of an item 
+	//     WRITE_REQ = Write request: Asks to modify the value of an item
+	//     READ_REQ = Read request: Asks to be notified about the value of an item
 	// Optional, default is false. 
-	//"logEvents": true,
+	"logEvents": true,
 
+	// All items for which events can be received and distributed.
 	"items": [
 		{ "id": "strom_zaehlerstand" },
 		{ "id": "strom_zaehlerstand_mqtt" },
@@ -25,7 +29,7 @@
 		{ "id": "puffer_td2_temp" },
 
 		{ "id": "fbh_modus" },
-		{ "id": "fbh_raum_soll_temp" },
+		{ "id": "fbh_raum_temp" },
 		{ "id": "fbh_absenk_temp" },
 		{ "id": "fbh_heizkurve" },
 		{ "id": "fbh_abschalt_temp" },
@@ -36,9 +40,10 @@
 		{ "id": "ww_modus" },
 		{ "id": "ww_zk_soll_temp" },
 		{ "id": "ww_zk_volumenstrom" },
+		{ "id": "ww_zk_vorlauf_temp" },
 		{ "id": "ww_pk_vorlauf_temp" },
 		{ "id": "ww_pk_ruecklauf_temp" },
-		{ "id": "ww_zk_vorlauf_temp" },
+		{ "id": "ww_pk_mischer_status" },
 
 		{ "id": "st_tagesertrag" },
 		{ "id": "st_gesamtertrag" },
@@ -53,6 +58,7 @@
 		{ "id": "st_pk_volumenstrom" },
 	],
 	
+	// Interfaces to other systems and/or devices.
 	"links": [
 		{
 			// Identifier for the link.
@@ -60,7 +66,7 @@
 
 			// Link type specific parametrization.
 			"port":	{
-				"name": "/dev/smartmeter",
+				"name": "/dev/smartmeter2",
 				"baudRate": 9600,
 				"dataBits": 7,
 				"stopBits": 1,
@@ -89,7 +95,7 @@
 
 			// Link type specific parametrization.
 			"port":	{
-				"name": "/dev/weatherstation",
+				"name": "/dev/weatherstation2",
 				"baudRate": 9600,
 				"dataBits": 8,
 				"stopBits": 1,
@@ -177,7 +183,7 @@
 					{ "itemId": "puffer_td2_temp", "owner": false, "stateGa": "3/6/12", "dpt": "9.001" },
 
 					{ "itemId": "fbh_modus", "owner": false, "stateGa": "3/6/23", "writeGa": "3/6/33", "dpt": "5.010" },
-					{ "itemId": "fbh_raum_soll_temp", "owner": false, "stateGa": "3/6/25", "writeGa": "3/6/35", "dpt": "9.001" },
+					{ "itemId": "fbh_raum_temp", "owner": false, "stateGa": "3/6/25", "writeGa": "3/6/35", "dpt": "9.001" },
 					{ "itemId": "fbh_absenk_temp", "owner": false, "stateGa": "3/6/27", "dpt": "9.001" },
 					{ "itemId": "fbh_heizkurve", "owner": false, "stateGa": "3/6/24", "writeGa": "3/6/34", "dpt": "9.001" },
 					{ "itemId": "fbh_abschalt_temp", "owner": false, "stateGa": "3/6/26", "dpt": "9.001" },
@@ -191,6 +197,7 @@
 					{ "itemId": "ww_zk_volumenstrom", "owner": false, "stateGa": "3/6/42", "dpt": "9.001" },
 					{ "itemId": "ww_pk_vorlauf_temp", "owner": false, "stateGa": "3/6/44", "dpt": "9.001" },
 					{ "itemId": "ww_pk_ruecklauf_temp", "owner": false, "stateGa": "3/6/46", "dpt": "9.001" },
+					{ "itemId": "ww_pk_mischer_status", "owner": false, "stateGa": "3/6/47", "dpt": "5.010" },
 
 					{ "itemId": "st_tagesertrag", "owner": false, "stateGa": "3/6/60", "dpt": "5.010" },
 					{ "itemId": "st_gesamtertrag", "owner": false, "stateGa": "3/6/70", "dpt": "9.001" },
@@ -232,12 +239,12 @@
 				"bindings":	[
 					{ "itemId": "aussen_temp", "owner": true, "stateSubTopic": "ebus/aussen_temp/wert" },
 
-					{ "itemId": "puffer_sp1_temp", "owner": true, "stateTopic": "ebus/puffer_sp1/temp" },
-					{ "itemId": "puffer_sp2_temp", "owner": true, "stateTopic": "ebus/puffer_sp2/temp" },
-					{ "itemId": "puffer_td2_temp", "owner": true, "stateTopic": "ebus/puffer_td2/temp" },
+					{ "itemId": "puffer_sp1_temp", "owner": true, "stateTopic": "ebus/puffer_sp1/temp",	"readTopic": "ebus/puffer_sp1/temp/get" },
+					{ "itemId": "puffer_sp2_temp", "owner": true, "stateTopic": "ebus/puffer_sp2/temp",	"readTopic": "ebus/puffer_sp2/temp/get" },
+					{ "itemId": "puffer_td2_temp", "owner": true, "stateTopic": "ebus/puffer_td2/temp",	"readTopic": "ebus/puffer_td2/temp/get" },
 
 					{ "itemId": "fbh_modus",				"owner": true, "stateTopic": "ebus/fbh_raum_temp_modus/modus",	"readTopic": "ebus/fbh_raum_temp_modus/modus/get",	"writeTopic": "ebus/fbh_modus/wert/set" },
-					{ "itemId": "fbh_raum_soll_temp",		"owner": true, "stateTopic": "ebus/fbh_raum_temp_modus/temp",	"readTopic": "ebus/fbh_raum_temp_modus/temp/get",	"writeTopic": "ebus/fbh_raum_temp/wert/set" },
+					{ "itemId": "fbh_raum_temp",			"owner": true, "stateTopic": "ebus/fbh_raum_temp_modus/temp",	"readTopic": "ebus/fbh_raum_temp_modus/temp/get",	"writeTopic": "ebus/fbh_raum_temp/wert/set" },
 					{ "itemId": "fbh_absenk_temp",			"owner": true, "stateTopic": "ebus/fbh_absenk_temp/wert",		"readTopic": "ebus/fbh_absenk_temp/wert/get" },
 					{ "itemId": "fbh_heizkurve",			"owner": true, "stateTopic": "ebus/fbh_heizkurve/wert", 		"readTopic": "ebus/fbh_heizkurve/wert/get",			"writeTopic": "ebus/fbh_heizkurve/wert/set" },
 					{ "itemId": "fbh_abschalt_temp",		"owner": true, "stateTopic": "ebus/fbh_abschalt_temp/wert", 	"readTopic": "ebus/fbh_abschalt_temp/wert/get" },
@@ -248,9 +255,10 @@
 					{ "itemId": "ww_modus", 				"owner": true, "stateTopic": "ebus/ww_soll_temp_modus/modus", 	"readTopic": "ebus/ww_soll_temp_modus/modus/get",	"writeTopic": "ebus/ww_modus/wert/set" },
 					{ "itemId": "ww_zk_soll_temp", 			"owner": true, "stateTopic": "ebus/ww_soll_temp_modus/temp", 	"readTopic": "ebus/ww_soll_temp_modus/temp/get",	"writeTopic": "ebus/ww_soll_temp/wert/set" },
 					{ "itemId": "ww_zk_volumenstrom", 		"owner": true, "stateTopic": "ebus/ww_zk_volumenstrom/wert",	"readTopic": "ebus/ww_zk_volumenstrom/wert/get" },
+					{ "itemId": "ww_zk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc3/temp", 				"readTopic": "ebus/ww_ntc3/temp/get" },
 					{ "itemId": "ww_pk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc1/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
 					{ "itemId": "ww_pk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/ww_ntc2/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
-					{ "itemId": "ww_zk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc3/temp", 				"readTopic": "ebus/ww_ntc3/temp/get" },
+					{ "itemId": "ww_pk_mischer_status", 	"owner": true, "stateTopic": "ebus/ww_pk_mischer_status/wert", 	"readTopic": "ebus/ww_pk_mischer_status/wert/get" },
 
 					{ "itemId": "st_tagesertrag", 			"owner": true, "stateTopic": "ebus/st_tagesertrag/wert",		"readTopic": "ebus/st_tagesertrag/wert/get" },
 					{ "itemId": "st_gesamtertrag", 			"owner": true, "stateTopic": "ebus/st_gesamtertrag/wert",		"readTopic": "ebus/st_gesamtertrag/wert/get" },
@@ -263,7 +271,7 @@
 					{ "itemId": "st_pk_pumpe_status", 		"owner": true, "stateTopic": "ebus/st_pk_pumpe_status/wert", 	"readTopic": "ebus/st_pk_pumpe_status/wert/get" },
 					{ "itemId": "st_pk_pumpe_laufzeit", 	"owner": true, "stateTopic": "ebus/st_pk_pumpe_laufzeit/wert", 	"readTopic": "ebus/st_pk_pumpe_laufzeit/wert/get" },
 					{ "itemId": "st_pk_volumenstrom", 		"owner": true, "stateTopic": "ebus/st_pk_volumenstrom/wert", 	"readTopic": "ebus/st_pk_volumenstrom/wert/get" },
-
+					
 					{ "itemId": "strom_zaehlerstand", "owner": false, "stateTopic": "strom/zaehlerstand" },
 					{ "itemId": "strom_verbrauch_gesamt", "owner": false, "stateTopic": "strom/verbrauch_gesamt" },
 					{ "itemId": "strom_verbrauch_phase1", "owner": false, "stateTopic": "strom/verbrauch_phase1" },
