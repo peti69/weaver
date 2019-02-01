@@ -6,7 +6,7 @@
 #include <regex.h>
 #include <rapidjson/document.h>
 
-#include "basic.h"
+#include "link.h"
 
 class KnxConfig;
 class MqttConfig;
@@ -38,6 +38,8 @@ class Config
 	string getString(const Value& value, string name, string defaultValue) const;
 	int getInt(const Value& value, string name) const;
 	int getInt(const Value& value, string name, int defaultValue) const;
+	float getFloat(const Value& value, string name) const;
+	float getFloat(const Value& value, string name, float defaultValue) const;
 	bool getBool(const Value& value, string name) const;
 	bool getBool(const Value& value, string name, bool defaultVaue) const;
 	const Value& getObject(const Value& value, string name) const;

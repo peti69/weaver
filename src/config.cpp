@@ -72,6 +72,26 @@ int Config::getInt(const Value& value, string name, int defaultValue) const
 	return intIter->value.GetInt();
 }
 
+float Config::getFloat(const Value& value, string name) const
+{
+	Iterator iter = value.FindMember(name.c_str());
+	if (iter == value.MemberEnd())
+		throw std::runtime_error("Field " + name + " not found");
+	if (!iter->value.IsNumber())
+		throw std::runtime_error("Field " + name + " is not a floating point number");
+	return iter->value.GetFloat();
+}
+
+float Config::getFloat(const Value& value, string name, float defaultValue) const
+{
+	Iterator iter = value.FindMember(name.c_str());
+	if (iter == value.MemberEnd())
+		return defaultValue;
+	if (!iter->value.IsNumber())
+		throw std::runtime_error("Field " + name + " is not a floating point number");
+	return iter->value.GetFloat();
+}
+
 bool Config::getBool(const Value& value, string name) const
 {
 	Iterator boolIter = value.FindMember(name.c_str());
@@ -166,6 +186,22 @@ std::list<Link> Config::getLinks(const Items& items) const
 	for (auto& linkValue : linksValue.GetArray())
 	{
 		string id = getString(linkValue, "id");
+		
+		Transformations transformations;
+		if (hasMember(linkValue, "transformations"))
+		{
+			const Value& transformationsValue = getArray(linkValue, "transformations"); 
+			for (auto& transformationValue : transformationsValue.GetArray())
+			{
+				string itemId = getString(transformationValue, "itemId");
+				if (!items.exists(itemId))
+					throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+				
+				float factor = getFloat(transformationValue, "factor");
+				
+				transformations.add(Transformation(itemId, factor));
+			}
+		}
 
 		std::shared_ptr<Handler> handler;
 		if (hasMember(linkValue, "knx"))
@@ -177,7 +213,7 @@ std::list<Link> Config::getLinks(const Items& items) const
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
 
-		links.push_back(Link(id, handler));
+		links.push_back(Link(id, transformations, handler));
 	}
 
 	return links;
@@ -200,6 +236,7 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 		bool owner = getBool(bindingValue, "owner", false);
+
 		MqttConfig::Binding::Topics stateTopics;
 		if (hasMember(bindingValue, "stateTopic"))
 			stateTopics.push_back(getString(bindingValue, "stateTopic"));
@@ -256,6 +293,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 			
 		bool owner = getBool(bindingValue, "owner", false);
+
 		string stateGaStr = getString(bindingValue, "stateGa", "");
 		GroupAddr stateGa;
 		if (stateGaStr != "" && !GroupAddr::fromStr(stateGaStr, stateGa))

@@ -5,7 +5,7 @@
 
 #include <mosquitto.h>
 
-#include "basic.h"
+#include "link.h"
 #include "logger.h"
 
 class MqttConfig

@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 			int fdMax = 0;
 			for (auto& link : links)
 			{
-				int readFd = link.getHandler().getReadDescriptor();
+				int readFd = link.getReadDescriptor();
 				if (readFd >= 0)
 				{
 					if (readFd > fdMax)
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 					FD_SET(readFd, &readFds);
 				}
 
-				int writeFd = link.getHandler().getWriteDescriptor();
+				int writeFd = link.getWriteDescriptor();
 				if (writeFd >= 0)
 				{
 					if (writeFd > fdMax)
@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
 		for (auto& link : links)
 			try
 			{		
-				events.splice(events.begin(), link.getHandler().receive());
+				events.splice(events.begin(), link.receive());
 			}
 			catch (const std::exception& error)
 			{
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
 		for (auto& link : links)
 			try
 			{
-				link.getHandler().send(events);
+				link.send(events);
 			}
 			catch (const std::exception& error)
 			{

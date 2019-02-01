@@ -1,12 +1,12 @@
 {
-	// Logging of all received and distributed events. Event types are:
+	// Enables logging of all received and distributed events. Event types are:
 	//     STATE_IND = State indication: Notifies the value of an item 
 	//     WRITE_REQ = Write request: Asks to modify the value of an item
 	//     READ_REQ = Read request: Asks to be notified about the value of an item
 	// Optional, default is false. 
-	"logEvents": true,
+	//"logEvents": true,
 
-	// All items for which events can be received and distributed.
+	// Registry of items for which events (STATE_IND, WRITE_REQ, READ_REQ) can potentially be received or sent.
 	"items": [
 		{ "id": "strom_zaehlerstand" },
 		{ "id": "strom_zaehlerstand_mqtt" },
@@ -66,14 +66,34 @@
 
 			// Link type specific parametrization.
 			"port":	{
-				"name": "/dev/smartmeter2",
+				// Name of serial device/port. For example /dev/ttyUSB0.
+				"name": "/dev/smartmeter",
+				
+				// Speed as baud/bit rate. Possible values are 1200, 1800, 2400, 4800, 9600 or 19200.
 				"baudRate": 9600,
+
+				// Number of data bits per character. Possible values are 5, 6, 7 or 8.
 				"dataBits": 7,
+
+				// Number of stop bits per character. Possible values are 1 or 2.
 				"stopBits": 1,
+
+				// Parity. Possible values are even, odd or none.
 				"parity": "even",
+
+				// Regular expression for splitting the received byte stream into messages. The syntax must
+				// match the one of POSIX extended regular expressions. For parsing and evaluation of the expression
+				// regcomp and regexec are used. The expression must not have any marked subexpression.
 				"msgPattern": "/.*!\r\n",
+
+				// Enables logging of the received byte stream. Optional, default is false.
 				//"logRawData": true,
+				
+				// Indicates whether the received byte stream has to be logged in hexadecimal representation.
+				// Optional, default is false.
 				//"logRawDataInHex": true,
+
+				// Mapping of received message to one or more items.
 				"bindings": [
 					{ "itemId": "strom_zaehlerstand", "pattern": ".*1-0:1\\.8\\.0\\*255\\(([0-9]{8}\\.[0-9]{7}).*" }, // nnnnnnnn.nnnnnnn, kWh
 					{ "itemId": "strom_verbrauch_phase1", "pattern": ".*1-0:21\\.7\\.255\\*255\\(([0-9]{6}\\.[0-9]{2}).*" }, // nnnnnn.nn, Watt
@@ -87,15 +107,18 @@
 			// Identifier for the link.
 			"id": "wetterstation", 
 			
+			// Conversions for item values which are sent or received over the link (STATE_IND and WRITE_REQ).
 			"transformations" : [ 
-				// Values received over the link are multiplied with the given factor and value passed over link 
+				// Received values are multiplied with the given factor and values which are going to be sent
 				// are divided by it.
-				{ "itemId": "helligkeit_aussen_ost", "factor": 1000 }
+				{ "itemId": "helligkeit_aussen_ost", "factor": 1000 },
+				{ "itemId": "helligkeit_aussen_sued", "factor": 1000 },
+				{ "itemId": "helligkeit_aussen_west", "factor": 1000 }
 			],
 
 			// Link type specific parametrization.
 			"port":	{
-				"name": "/dev/weatherstation2",
+				"name": "/dev/weatherstation",
 				"baudRate": 9600,
 				"dataBits": 8,
 				"stopBits": 1,
@@ -104,7 +127,6 @@
 				//"msgPattern": "[[.STX.]].*[[.ETX.]]\r\n",
 				"msgPattern": "[[:cntrl:]].{62}*[[:cntrl:]]\r\n",
 				//"logRawData": true,
-				//"logRawDataInHex": false,
 				"bindings": [
 					{ "itemId": "helligkeit_aussen_ost", "pattern": ".{19}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux
 					{ "itemId": "helligkeit_aussen_sued", "pattern": ".{25}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux
@@ -155,13 +177,15 @@
 				// Physical address used when accessing the KNX bus. Optional, default is 0.0.0.
 				"physicalAddr": "1.1.200",
 
-				// Logging of all received and sent UDP messages as hex dump. Optional, default is false. 
+				// Enables logging of all received and sent UDP messages in hexadecimal format. 
+				// Optional, default is false. 
 				//"logRawMsg": true,
 			
-				// Logging of of all received and sent payloads (cEMI frames) including message code, 
+				// Enables logging of of all received and sent payloads (cEMI frames) including message code, 
 				// group address and physical address. Optional, default is false. 
 				//"logData": true,
 
+				// Mapping from KNX to items and vice versa.
 				"bindings":	[
 					{ "itemId": "strom_zaehlerstand", "stateGa": "3/4/10", "dpt": "13.013" },
 					{ "itemId": "strom_verbrauch_phase1", "stateGa": "3/4/11", "dpt": "14.056" },
@@ -220,7 +244,7 @@
 			// Link type specific parametrization.
 			"mqtt":	{
 				// Id passed to MQTT broker when connecting.
-				"clientId": "weaver",
+				"clientId": "weaver/test",
 
 				// Hostname or IP address of the MQTT broker.
 				"hostname": "timberwolf",
@@ -232,10 +256,10 @@
 				// Optional, default is 60. 
 				"reconnectInterval": 60,
 
-				// Retain flag for state publishing. Optional, default is false.
+				// Retain flag for state notifications (STATE_IND). Optional, default is false.
 				"retainFlag": true,
 
-				// Mapping from MQTT to item or vice versa.
+				// Mapping from MQTT to items and vice versa.
 				"bindings":	[
 					{ "itemId": "aussen_temp", "owner": true, "stateSubTopic": "ebus/aussen_temp/wert" },
 
@@ -246,7 +270,7 @@
 					{ 
 						"itemId": "fbh_modus",
 						"owner": true,
-						"stateTopics": [ "ebus/fbh_raum_temp_modus/modus",	"ebus/fbh_modus/wert" ],
+						"stateTopics": [ "ebus/fbh_raum_temp_modus/modus", "ebus/fbh_modus/wert" ],
 						"readTopic": "ebus/fbh_raum_temp_modus/modus/get",
 						"writeTopic": "ebus/fbh_modus/wert/set"
 					},
@@ -296,18 +320,18 @@
 					{ "itemId": "st_pk_pumpe_laufzeit", 	"owner": true, "stateTopic": "ebus/st_pk_pumpe_laufzeit/wert", 	"readTopic": "ebus/st_pk_pumpe_laufzeit/wert/get" },
 					{ "itemId": "st_pk_volumenstrom", 		"owner": true, "stateTopic": "ebus/st_pk_volumenstrom/wert", 	"readTopic": "ebus/st_pk_volumenstrom/wert/get" },
 					
-					{ "itemId": "strom_zaehlerstand", "stateTopic": "strom/zaehlerstand" },
-					{ "itemId": "strom_verbrauch_gesamt", "stateTopic": "strom/verbrauch_gesamt" },
-					{ "itemId": "strom_verbrauch_phase1", "stateTopic": "strom/verbrauch_phase1" },
-					{ "itemId": "strom_verbrauch_phase2", "stateTopic": "strom/verbrauch_phase2" },
-					{ "itemId": "strom_verbrauch_phase3", "stateTopic": "strom/verbrauch_phase3" },
+					//{ "itemId": "strom_zaehlerstand", "stateTopic": "strom/zaehlerstand" },
+					//{ "itemId": "strom_verbrauch_gesamt", "stateTopic": "strom/verbrauch_gesamt" },
+					//{ "itemId": "strom_verbrauch_phase1", "stateTopic": "strom/verbrauch_phase1" },
+					//{ "itemId": "strom_verbrauch_phase2", "stateTopic": "strom/verbrauch_phase2" },
+					//{ "itemId": "strom_verbrauch_phase3", "stateTopic": "strom/verbrauch_phase3" },
 
-					{ "itemId": "helligkeit_aussen_ost", "stateTopic": "helligkeit/aussen/ost" },
-					{ "itemId": "helligkeit_aussen_sued", "stateTopic": "helligkeit/aussen/sued" },
-					{ "itemId": "helligkeit_aussen_west", "stateTopic": "helligkeit/aussen/west" },
-					{ "itemId": "helligkeit_aussen_daemmerung", "stateTopic": "helligkeit/aussen/daemmerung" },
-					{ "itemId": "wind_geschwindigkeit", "stateTopic": "wind/geschwindigkeit" },
-					{ "itemId": "regen_status", "stateTopic": "regen/status" }
+					//{ "itemId": "helligkeit_aussen_ost", "stateTopic": "helligkeit/aussen/ost" },
+					//{ "itemId": "helligkeit_aussen_sued", "stateTopic": "helligkeit/aussen/sued" },
+					//{ "itemId": "helligkeit_aussen_west", "stateTopic": "helligkeit/aussen/west" },
+					//{ "itemId": "helligkeit_aussen_daemmerung", "stateTopic": "helligkeit/aussen/daemmerung" },
+					//{ "itemId": "wind_geschwindigkeit", "stateTopic": "wind/geschwindigkeit" },
+					//{ "itemId": "regen_status", "stateTopic": "regen/status" }
 				]
 			}
 		}

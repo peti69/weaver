@@ -3,7 +3,7 @@
 
 #include <ctime>
 
-#include "basic.h"
+#include "link.h"
 #include "logger.h"
 
 typedef unsigned short IpPort; // in host byte order

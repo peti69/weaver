@@ -35,16 +35,6 @@ extern string cnvToHexStr(Byte b);
 extern string cnvToHexStr(ByteString s);
 extern string cnvToHexStr(string s);
 
-class UnixError: public std::exception
-{
-	private:
-	string str;
-	
-	public:
-	UnixError(string funcName);
-	const char* what() const throw() { return str.c_str(); }
-};
-
 class Item
 {
 	private:
@@ -80,33 +70,13 @@ class Event
 	string getItemId() const { return itemId; }
 	Type getType() const { return type; }
 	string getValue() const { return value; }
+	void setValue(string _value) { value = _value; }
 };
 
 class Events: public std::list<Event>
 {
 	public:
 	void add(Event event) { push_back(event); }
-};
-
-class Handler
-{
-	public:
-	virtual int getReadDescriptor() = 0;
-	virtual int getWriteDescriptor() = 0;
-	virtual Events receive() = 0;
-	virtual void send(const Events& events) = 0;
-};
-
-class Link
-{
-	private:
-	string id;
-	std::shared_ptr<Handler> handler;
-	
-	public:
-	Link(string _id, std::shared_ptr<Handler> _handler) : id(_id), handler(_handler) {}
-	string getId() const { return id; }
-	Handler& getHandler() { return *handler; }
 };
 
 #endif

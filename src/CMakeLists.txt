@@ -1,4 +1,4 @@
-add_executable(weaver main.cpp port.cpp mqtt.cpp config.cpp basic.cpp knx.cpp logger.cpp)
+add_executable(weaver main.cpp port.cpp mqtt.cpp config.cpp basic.cpp knx.cpp logger.cpp link.cpp)
 
 target_link_libraries(weaver mosquitto)
 

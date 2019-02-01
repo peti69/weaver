@@ -26,10 +26,3 @@ string cnvToHexStr(string s)
 	return stream.str();
 }
 
-UnixError::UnixError(string funcName)
-{
-	std::ostringstream stream;
-	stream << "Function " << funcName << "() returned error " << errno << " (" << strerror(errno) << ")";
-	str = stream.str();
-}
-
