@@ -436,7 +436,7 @@ Events KnxHandler::receiveX()
 			{
 				auto& binding = pair.second;
 	
-				if ((ga == binding.stateGa || ga == binding.writeGa) && !binding.owner && data == ByteString({0x40}))
+				if ((ga == binding.stateGa || ga == binding.writeGa) && !binding.owner && data.length() == 1 && (data[0] & 0x80) == 0)
 					events.add(Event(id, binding.itemId, Event::READ_REQ, ""));
 				else if ((ga == binding.stateGa && binding.owner) || (ga == binding.writeGa && !binding.owner))
 				{
@@ -530,7 +530,7 @@ void KnxHandler::sendX(const Events& events)
 
 			ByteString data;
 			if (event.getType() == Event::READ_REQ)
-				data = ByteString({0x40});
+				data = ByteString({0x00});
 			else
 			{
 				data = binding.dpt.exportValue(value);
