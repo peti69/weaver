@@ -326,6 +326,8 @@ void KnxHandler::disconnect()
 	{
 		lastConnectTry = 0;
 
+		sendControlMsg(createDiscReq());
+
 		logger.info() << "Disconnected from gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
 	else
@@ -488,8 +490,6 @@ Events KnxHandler::receiveX()
 		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " for remote data endpoint" << endOfMsg();
 		logger.info() << "Connected to gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
-	else if (state == WAIT_FOR_DISC_RESP && serviceType == ServiceType::DISC_RESP)
-		disconnect();
 	else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
 		logger.errorX() << "DISCONNECT REQUEST received" << endOfMsg();
 	else
@@ -634,7 +634,7 @@ ByteString addHeader(ServiceType type, ByteString body)
 	return ByteString(header, sizeof(header)) + body;
 }
 
-ByteString createHPAI(IpAddr addr, IpPort port)
+ByteString createHpai(IpAddr addr, IpPort port)
 {
 	Byte hpai[8];
 	hpai[0] = 0x08; 				// Host protocol address information (HPAI) length 
@@ -668,9 +668,9 @@ ByteString createTunnelHeader(Byte channelId, Byte seqNo)
 	return ByteString(header, sizeof(header));
 }
 
-ByteString createLongHPAI(Byte channelId, IpAddr addr, IpPort port)
+ByteString createLongHpai(Byte channelId, IpAddr addr, IpPort port)
 {
-	return ByteString({channelId}) + ByteString({0x00}) + createHPAI(addr, port);
+	return ByteString({channelId}) + ByteString({0x00}) + createHpai(addr, port);
 }
 
 ByteString createCemiFrame(PhysicalAddr pa, GroupAddr ga, ByteString data)
@@ -697,6 +697,8 @@ void KnxHandler::checkMsg(ByteString msg) const
 	ByteString header = msg.substr(0, 6);
 	if (header[0] != 0x06)
 		logger.errorX() << "Received message contains header length " << cnvToStr(int(header[0])) << " (expected: 6)" << endOfMsg();
+	if (header[1] != 0x10)
+		logger.errorX() << "Received CONNECTION RESPONSE has KNXnet/IP version 0x" << cnvToHexStr(header[1]) << " (expected: 0x10)" << endOfMsg();
 	unsigned short totalLength = header[4] << 8 | header[5];
 	if (totalLength != msg.length())
 		logger.errorX() << "Received message contains total length " << cnvToStr(totalLength) << " (actual length: " << msg.length() << ")" << endOfMsg();
@@ -708,7 +710,7 @@ void KnxHandler::checkTunnelReq(ByteString msg) const
 		logger.errorX() << "Received TUNNEL REQUEST has length " << msg.length() << " (expected: >=20)" << endOfMsg();
 	Byte receivedChannelId = msg[7];
 	if (receivedChannelId != channelId)
-		logger.errorX() << "Received TUNNEL REQUEST has channel id " << cnvToHexStr(receivedChannelId) << " (expected: " << cnvToHexStr(channelId) << ")" << endOfMsg();
+		logger.errorX() << "Received TUNNEL REQUEST has channel id 0x" << cnvToHexStr(receivedChannelId) << " (expected: 0x" << cnvToHexStr(channelId) << ")" << endOfMsg();
 }
 
 void KnxHandler::checkTunnelResp(ByteString msg) const
@@ -716,7 +718,7 @@ void KnxHandler::checkTunnelResp(ByteString msg) const
 	if (msg.length() != 10)
 		logger.errorX() << "Received TUNNEL RESPONSE has length " << msg.length() << " (expected: 10)" << endOfMsg();
 	if (msg[9] != 0x00)
-		logger.errorX() << "Received TUNNEL RESPONSE has status code " << cnvToHexStr(msg[9]) << " (expected: 00)" << endOfMsg();
+		logger.errorX() << "Received TUNNEL RESPONSE has status code 0x" << cnvToHexStr(msg[9]) << " (expected: 0x00)" << endOfMsg();
 }
 
 void KnxHandler::checkConnResp(ByteString msg) const
@@ -724,17 +726,19 @@ void KnxHandler::checkConnResp(ByteString msg) const
 	if (msg.length() != 20)
 		logger.errorX() << "Received CONNECTION RESPONSE has length " << msg.length() << " (expected: 20)" << endOfMsg();
 	if (msg[7] != 0x00)
-		logger.errorX() << "Received CONNECTION RESPONSE has status code " << cnvToHexStr(msg[7]) << " (expected: 00)" << endOfMsg();
-	if (msg[1] != 0x10)
-		logger.errorX() << "Received CONNECTION RESPONSE has KNXnet/IP version " << cnvToHexStr(msg[1]) << " (expected: 10)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION RESPONSE has status code 0x" << cnvToHexStr(msg[7]) << " (expected: 0x00)" << endOfMsg();
+	if (msg[8] != 0x08)
+		logger.errorX() << "Received CONNECTION RESPONSE has HPAI length " << cnvToStr(int(msg[8])) << " (expected: 8)" << endOfMsg();
+	if (msg[9] != 0x01)
+		logger.errorX() << "Received CONNECTION RESPONSE has protocol code 0x" << cnvToHexStr(msg[9]) << " (expected: 0x01 = IPV4_UDP)" << endOfMsg();
 }
 
 void KnxHandler::checkConnStateResp(ByteString msg, Byte channelId) const
 {
 	if (msg[6] != channelId)
-		logger.errorX() << "Received CONNECTION STATE RESPONSE has channel id " << cnvToHexStr(msg[7]) << " (expected: " << cnvToHexStr(channelId) << ")" << endOfMsg();
+		logger.errorX() << "Received CONNECTION STATE RESPONSE has channel id 0x" << cnvToHexStr(msg[7]) << " (expected: 0x" << cnvToHexStr(channelId) << ")" << endOfMsg();
 	if (msg[7] != 0x00)
-		logger.errorX() << "Received CONNECTION STATE RESPONSE has status code " << cnvToHexStr(msg[7]) << " (expected: 00)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION STATE RESPONSE has status code 0x" << cnvToHexStr(msg[7]) << " (expected: 0x00)" << endOfMsg();
 }
 
 void KnxHandler::logMsg(ByteString msg, bool received) const
@@ -761,19 +765,20 @@ void KnxHandler::logTunnelReq(ByteString msg) const
 
 ByteString KnxHandler::createConnReq() const
 {
-	ByteString hpai = config.getNatMode() ? createHPAI(IpAddr(0), 0) : createHPAI(config.getLocalIpAddr(), localIpPort);
+	ByteString hpai = config.getNatMode() ? createHpai(IpAddr(0), 0) : createHpai(config.getLocalIpAddr(), localIpPort);
 	return addHeader(ServiceType::CONN_REQ, hpai + hpai + createCRI());
 }
 
 ByteString KnxHandler::createConnStateReq() const
 {
-	ByteString longHpai = config.getNatMode() ? createLongHPAI(channelId, IpAddr(0), 0) : createLongHPAI(channelId, config.getLocalIpAddr(), localIpPort);
+	ByteString longHpai = config.getNatMode() ? createLongHpai(channelId, IpAddr(0), 0) : createLongHpai(channelId, config.getLocalIpAddr(), localIpPort);
 	return addHeader(ServiceType::CONN_STATE_REQ, longHpai);
 }
 
 ByteString KnxHandler::createDiscReq() const
 {
-	return addHeader(ServiceType::DISC_REQ, createLongHPAI(channelId, config.getLocalIpAddr(), localIpPort));
+	ByteString longHpai = config.getNatMode() ? createLongHpai(channelId, IpAddr(0), 0) : createLongHpai(channelId, config.getLocalIpAddr(), localIpPort);
+	return addHeader(ServiceType::DISC_REQ, longHpai);
 }
 
 ByteString KnxHandler::createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data) const

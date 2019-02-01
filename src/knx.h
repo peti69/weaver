@@ -189,7 +189,6 @@ class KnxHandler: public Handler
 	{ 
 		DISCONNECTED, 
 		WAIT_FOR_CONN_RESP, 
-		WAIT_FOR_DISC_RESP, 
 		CONNECTED 
 	};
 	struct LDataReq
