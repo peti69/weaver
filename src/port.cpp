@@ -163,7 +163,7 @@ void PortHandler::close()
 	
 	::close(port);
 	port = -1;
-	lastOpenTry = 0;
+	//lastOpenTry = 0;
 
 	logger.info() << "Port closed" << endOfMsg();
 }

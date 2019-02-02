@@ -244,7 +244,7 @@
 			// Link type specific parametrization.
 			"mqtt":	{
 				// Id passed to MQTT broker when connecting.
-				"clientId": "weaver/test",
+				"clientId": "weaver",
 
 				// Hostname or IP address of the MQTT broker.
 				"hostname": "timberwolf",
@@ -261,7 +261,7 @@
 
 				// Mapping from MQTT to items and vice versa.
 				"bindings":	[
-					{ "itemId": "aussen_temp", "owner": true, "stateSubTopic": "ebus/aussen_temp/wert" },
+					{ "itemId": "aussen_temp", "owner": true, "stateTopic": "ebus/aussen_temp/wert", "readTopic": "ebus/aussen_temp/wert/get" },
 
 					{ "itemId": "puffer_sp1_temp", "owner": true, "stateTopic": "ebus/puffer_sp1/temp",	"readTopic": "ebus/puffer_sp1/temp/get" },
 					{ "itemId": "puffer_sp2_temp", "owner": true, "stateTopic": "ebus/puffer_sp2/temp",	"readTopic": "ebus/puffer_sp2/temp/get" },

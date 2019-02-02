@@ -324,7 +324,7 @@ void KnxHandler::disconnect()
 
 	if (state == CONNECTED)
 	{
-		lastConnectTry = 0;
+		//lastConnectTry = 0;
 
 		sendControlMsg(createDiscReq());
 
@@ -381,7 +381,7 @@ Events KnxHandler::receiveX()
 			logger.errorX() << unixError("getsockname") << endOfMsg();
 		localIpPort = ntohs(clientAddr.sin_port);
 
-		logger.debug() << "Using port " << localIpPort << " for local control and data endpoint " << endOfMsg();
+		logger.debug() << "Using port " << localIpPort << " as local control and data endpoint " << endOfMsg();
 		if (config.getNatMode())
 			logger.debug() << "Using NAT mode" << endOfMsg();
 		
@@ -487,7 +487,7 @@ Events KnxHandler::receiveX()
 		lastSentSeqNo = 0xFF;
 		
 		logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
-		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " for remote data endpoint" << endOfMsg();
+		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
 		logger.info() << "Connected to gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)

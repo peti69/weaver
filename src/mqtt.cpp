@@ -17,6 +17,10 @@ MqttHandler::MqttHandler(string _id, MqttConfig _config, Logger _logger) :
 	client = mosquitto_new(config.getClientId().c_str(), true, this);
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
+	
+	int major, minor, revision;
+	mosquitto_lib_version(&major, &minor, &revision);
+	logger.info() << "Mosquitto library has version " << major << "." << minor << "." << revision << endOfMsg();
 }
 	
 MqttHandler::~MqttHandler()
@@ -77,7 +81,7 @@ void MqttHandler::disconnect()
 
 	mosquitto_disconnect(client);
 	connected = false;
-	lastConnectTry = 0;
+	//lastConnectTry = 0;
 
 	logger.info() << "Disconnected from broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 }
