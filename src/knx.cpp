@@ -159,6 +159,17 @@ ByteString DatapointType::exportValue(string value) const
 				return ByteString(bytes, sizeof(bytes));
 			}
 		}
+		else if (mainNo == 12)
+		{
+			unsigned long l = std::stod(value);
+			Byte bytes[5];
+			bytes[0] = 0x80;
+			bytes[1] = (l >> 24) & 0xFF;
+			bytes[2] = (l >> 16) & 0xFF;
+			bytes[3] = (l >> 8) & 0xFF;
+			bytes[4] = l & 0xFF;
+			return ByteString(bytes, sizeof(bytes));
+		}
 		else if (mainNo == 13)
 		{
 			long l = std::stod(value);
@@ -214,6 +225,8 @@ string DatapointType::importValue(ByteString bytes) const
 		int M = (bytes[1] & 0x07) << 8 | bytes[2];
 		stream << (M << E) / 100.0;
 	}
+	else if (mainNo == 12 && bytes.length() == 5)
+		stream << (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]);
 	else if (mainNo == 13 && bytes.length() == 5)
 		stream << (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]);
 	else if (mainNo == 14 && bytes.length() == 5)

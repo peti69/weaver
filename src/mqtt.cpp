@@ -1,7 +1,8 @@
 #include <sstream>
 #include <cstring>
 #include <stdexcept>
-
+#include <unistd.h>
+	 
 #include "mqtt.h"
 #include "finally.h"
 
@@ -14,7 +15,7 @@ MqttHandler::MqttHandler(string _id, MqttConfig _config, Logger _logger) :
 	id(_id), config(_config), logger(_logger), client(0), connected(false), lastConnectTry(0)
 {
 	mosquitto_lib_init();
-	client = mosquitto_new(config.getClientId().c_str(), true, this);
+	client = mosquitto_new((config.getClientIdPrefix() + "." + cnvToStr(getpid())).c_str(), true, this);
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
 	

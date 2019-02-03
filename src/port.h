@@ -3,6 +3,7 @@
 
 #include <regex>
 #include <ctime>
+#include <termios.h>  
 
 #include <regex.h>
 
@@ -73,6 +74,7 @@ class PortHandler: public Handler
 	string msgData;
 	int port;
 	std::time_t lastOpenTry;
+	struct termios oldSettings;
 
 	public:
 	PortHandler(string _id, PortConfig _config, Logger _logger);

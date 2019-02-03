@@ -69,7 +69,8 @@
 				// Name of serial device/port. For example /dev/ttyUSB0.
 				"name": "/dev/smartmeter",
 				
-				// Speed as baud/bit rate. Possible values are 1200, 1800, 2400, 4800, 9600 or 19200.
+				// Speed as baud/bit rate. Possible values are 1200, 1800, 2400, 4800, 9600, 19200, 38400, 
+				// 57600 or 115200.
 				"baudRate": 9600,
 
 				// Number of data bits per character. Possible values are 5, 6, 7 or 8.
@@ -111,14 +112,14 @@
 			"transformations" : [ 
 				// Received values are multiplied with the given factor and values which are going to be sent
 				// are divided by it.
-				{ "itemId": "helligkeit_aussen_ost", "factor": 1000 },
-				{ "itemId": "helligkeit_aussen_sued", "factor": 1000 },
-				{ "itemId": "helligkeit_aussen_west", "factor": 1000 }
+				//{ "itemId": "helligkeit_aussen_ost", "factor": 1000 },
+				//{ "itemId": "helligkeit_aussen_sued", "factor": 1000 },
+				//{ "itemId": "helligkeit_aussen_west", "factor": 1000 }
 			],
 
 			// Link type specific parametrization.
 			"port":	{
-				"name": "/dev/weatherstation",
+				"name": "/dev/weatherstation2",
 				"baudRate": 9600,
 				"dataBits": 8,
 				"stopBits": 1,
@@ -196,7 +197,7 @@
 					{ "itemId": "helligkeit_aussen_ost", "stateGa": "5/5/80", "dpt": "9.004" },
 					{ "itemId": "helligkeit_aussen_sued", "stateGa": "5/5/81", "dpt": "9.004" },
 					{ "itemId": "helligkeit_aussen_west", "stateGa": "5/5/82", "dpt": "9.004" },
-					{ "itemId": "helligkeit_aussen_daemmerung", "stateGa": "5/5/83", "dpt": "7.013" },
+					{ "itemId": "helligkeit_aussen_daemmerung", "stateGa": "5/5/83", "dpt": "9.004" },
 					{ "itemId": "wind_geschwindigkeit", "stateGa": "5/0/10", "dpt": "9.005" },
 					{ "itemId": "regen_status", "stateGa": "5/0/20", "dpt": "1.001" },
 
@@ -224,7 +225,7 @@
 					{ "itemId": "ww_pk_mischer_status", "stateGa": "3/6/47", "dpt": "5.010" },
 
 					{ "itemId": "st_tagesertrag", "stateGa": "3/6/60", "dpt": "5.010" },
-					{ "itemId": "st_gesamtertrag", "stateGa": "3/6/70", "dpt": "9.001" },
+					{ "itemId": "st_gesamtertrag", "stateGa": "3/6/70", "dpt": "12.001" },
 					{ "itemId": "st_kk_vorlauf_temp", "stateGa": "3/6/61", "dpt": "9.001" },
 					{ "itemId": "st_kk_ruecklauf_temp", "stateGa": "3/6/62", "dpt": "9.001" },
 					{ "itemId": "st_kk_pumpe_status", "stateGa": "3/6/63", "dpt": "5.001" },
@@ -243,8 +244,9 @@
 
 			// Link type specific parametrization.
 			"mqtt":	{
-				// Id passed to MQTT broker when connecting.
-				"clientId": "weaver",
+				// Prefix of client id passed to MQTT broker when connecting. It is expanded with "." and 
+				// the process id. Optional, default is "weaver".
+				"clientIdPrefix": "weav",
 
 				// Hostname or IP address of the MQTT broker.
 				"hostname": "timberwolf",

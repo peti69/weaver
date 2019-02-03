@@ -10,23 +10,26 @@ void sighandler(int signo)
 
 int main(int argc, char* argv[])
 {
-    // install the signal handler for SIGTERM.
-    struct sigaction action;
-    action.sa_handler = sighandler;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-    sigaction(SIGTERM, &action, NULL);
-    sigaction(SIGINT, &action, NULL);
-
-    // block SIGTERM
-    sigset_t sigset, oldset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGTERM);
-    sigaddset(&sigset, SIGINT);
-    sigprocmask(SIG_BLOCK, &sigset, &oldset);
-	
 	Logger logger("MAIN");
 
+	// first log message
+	logger.info() << "Started" << endOfMsg();
+
+	// install the signal handler for SIGTERM.
+	struct sigaction action;
+	action.sa_handler = sighandler;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	sigaction(SIGTERM, &action, NULL);
+	sigaction(SIGINT, &action, NULL);
+
+	// block SIGTERM
+	sigset_t sigset, oldset;
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGTERM);
+	sigaddset(&sigset, SIGINT);
+	sigprocmask(SIG_BLOCK, &sigset, &oldset);
+	
 	// read configuration file
 	std::list<Link> links;
 	GlobalConfig config;
@@ -132,6 +135,10 @@ int main(int argc, char* argv[])
 				logger.error() << "Error on link " << link.getId() << " when sending events: " << error.what() << endOfMsg();
 			}
 	}
-	
+
+	// shutdown all links
 	links.clear();
+
+	// last log message
+	logger.info() << "Stopped" << endOfMsg();
 }

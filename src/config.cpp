@@ -221,7 +221,7 @@ std::list<Link> Config::getLinks(const Items& items) const
 
 std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Items& items) const
 {
-	string clientId = getString(value, "clientId");
+	string clientIdPrefix = getString(value, "clientIdPrefix", "weaver");
 	string hostname = getString(value, "hostname");
 	int port = getInt(value, "port", 1883);
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
@@ -253,7 +253,7 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 		bindings.add(MqttConfig::Binding(itemId, owner, stateTopics, writeTopic, readTopic));
 	}
 
-	return std::make_shared<MqttConfig>(clientId, hostname, port, reconnectInterval, retainFlag, bindings);
+	return std::make_shared<MqttConfig>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const

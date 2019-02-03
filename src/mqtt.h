@@ -32,7 +32,7 @@ class MqttConfig
 	};
 
 	private:
-	string clientId;
+	string clientIdPrefix;
 	string hostname;
 	int port;
 	int reconnectInterval;
@@ -40,12 +40,12 @@ class MqttConfig
 	Bindings bindings;
 
 	public:
-	MqttConfig(string _clientId, string _hostname, int _port, int _reconnectInterval, 
+	MqttConfig(string _clientIdPrefix, string _hostname, int _port, int _reconnectInterval, 
 		bool _retainFlag, Bindings _bindings) :
-		clientId(_clientId), hostname(_hostname), port(_port), reconnectInterval(_reconnectInterval), 
-		retainFlag(_retainFlag), bindings(_bindings)
+		clientIdPrefix(_clientIdPrefix), hostname(_hostname), port(_port), 
+		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), bindings(_bindings)
 	{}
-	string getClientId() const { return clientId; }
+	string getClientIdPrefix() const { return clientIdPrefix; }
 	string getHostname() const { return hostname; }
 	int getPort() const { return port; }
 	int getReconnectInterval() const { return reconnectInterval; }

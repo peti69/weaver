@@ -5,7 +5,6 @@
 #include <unistd.h>  
 #include <fcntl.h>  
 #include <errno.h> 
-#include <termios.h>  
 
 #include "finally.h"
 #include "port.h"
@@ -13,7 +12,8 @@
 bool PortConfig::isValidBaudRate(int baudRate) 
 {
 	return (  baudRate == 1200 || baudRate == 1800 || baudRate == 2400 
-	       || baudRate == 4800 || baudRate == 9600 || baudRate == 19200
+	       || baudRate == 4800  || baudRate == 9600 || baudRate == 19200
+	       || baudRate == 38400 || baudRate == 76800 || baudRate == 115200
 	       );
 }
 
@@ -63,16 +63,19 @@ bool PortHandler::open()
 	lastOpenTry = now;
 	
 	// open port
-	port = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK);
+	port = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NOCTTY);
 	if (port < 0)
 		logger.errorX() << unixError("open") << endOfMsg();
 	auto autoClose = finally([this] { ::close(port); port = -1; });
 
-	// get port configuration
-	struct termios tty;
-	memset(&tty, 0, sizeof(tty));
-	if (tcgetattr(port, &tty) != 0)
+	// get current port settings
+	memset(&oldSettings, 0, sizeof(oldSettings));
+	if (tcgetattr(port, &oldSettings) != 0)
 		logger.errorX() << unixError("tcgetattr") << endOfMsg();
+
+	// create new port settings
+	struct termios settings;
+	memset(&settings, 0, sizeof(settings));
 	
 	// set baud rate
 	speed_t speed;
@@ -90,25 +93,31 @@ bool PortHandler::open()
 			speed = B9600; break;
 		case 19200:
 			speed = B19200; break;
+		case 38400:
+			speed = B38400; break;
+		case 57600:
+			speed = B57600; break;
+		case 115200:
+			speed = B115200; break;
 		default:
 			assert(false && "invalid baud rate");
 	}
-	cfsetospeed(&tty, speed);
-	cfsetispeed(&tty, speed);
+	cfsetospeed(&settings, speed);
+	cfsetispeed(&settings, speed);
 	
 	// set parity
 	switch (config.getParity())
 	{
 		case PortConfig::NONE:
-			tty.c_cflag &= ~PARENB;
+			settings.c_cflag &= ~PARENB;
 			break;
 		case PortConfig::ODD:
-			tty.c_cflag |= PARENB;
-			tty.c_cflag |= PARODD;
+			settings.c_cflag |= PARENB;
+			settings.c_cflag |= PARODD;
 			break;
 		case PortConfig::EVEN:
-			tty.c_cflag |= PARENB;
-			tty.c_cflag &= ~PARODD;
+			settings.c_cflag |= PARENB;
+			settings.c_cflag &= ~PARODD;
 			break;
 		default:
 			assert(false && "invalid parity");
@@ -129,24 +138,31 @@ bool PortHandler::open()
 		default:
 			assert(false && "invalid data bits");
 	}
-	tty.c_cflag &= ~CSIZE;
-	tty.c_cflag |= cs;
+	settings.c_cflag &= ~CSIZE;
+	settings.c_cflag |= cs;
 		
 	// set stop bits
 	switch (config.getStopBits())
 	{
 		case 1:
-			tty.c_cflag &= ~CSTOPB; break;
+			settings.c_cflag &= ~CSTOPB; break;
 		case 2:
-			tty.c_cflag |= CSTOPB; break;
+			settings.c_cflag |= CSTOPB; break;
 		default:
 			assert(false && "invalid stop bits");
 	}
-
-	tty.c_lflag = ICANON;
 	
-	// set port configuration	
-	if (tcsetattr(port, TCSANOW, &tty) != 0)
+	// enable the receiver and set local mode
+	settings.c_cflag |= (CLOCAL | CREAD);
+
+	// ignore parity errors	
+	//settings.c_iflag |= IGNPAR;  
+	  
+	// enable canonical mode
+	settings.c_lflag |= ICANON;
+
+	// enable new settings
+	if (tcsetattr(port, TCSANOW, &settings) != 0)
 		logger.errorX() << unixError("tcsetattr") << endOfMsg();
 	
 	autoClose.disable();
@@ -161,6 +177,7 @@ void PortHandler::close()
 	if (port < 0)
 		return;
 	
+	tcsetattr(port, TCSANOW, &oldSettings);
 	::close(port);
 	port = -1;
 	//lastOpenTry = 0;
