@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <cassert>
 #include <iomanip>
+#include <cstdint>
 
 #include "knx.h"
 #include "finally.h"
@@ -184,16 +185,15 @@ ByteString DatapointType::exportValue(string value) const
 		else if (mainNo == 14)
 		{
 			// assumption: float is encoded in IEEE 754 floating point format
-			cout << "PEW: " << sizeof(long) << " " << sizeof(float) << endl;
-			assert(sizeof(long) == sizeof(float));
-			union { float f; long l; } u; 
+			assert(sizeof(uint32_t) == sizeof(float));
+			union { float f; uint32_t i; } u; 
 			u.f = std::stof(value);
 			Byte bytes[5];
 			bytes[0] = 0x80;
-			bytes[1] = (u.l >> 24) & 0xFF;
-			bytes[2] = (u.l >> 16) & 0xFF;
-			bytes[3] = (u.l >> 8) & 0xFF;
-			bytes[4] = u.l & 0xFF;
+			bytes[1] = (u.i >> 24) & 0xFF;
+			bytes[2] = (u.i >> 16) & 0xFF;
+			bytes[3] = (u.i >> 8) & 0xFF;
+			bytes[4] = u.i & 0xFF;
 			return ByteString(bytes, sizeof(bytes));
 		}
 	}
@@ -233,9 +233,9 @@ string DatapointType::importValue(ByteString bytes) const
 	else if (mainNo == 14 && bytes.length() == 5)
 	{
 		// assumption: float is encoded in IEEE 754 floating point format
-		assert(sizeof(long) == sizeof(float));
-		union { float f; long l; } u; 
-		u.l = bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4];
+		assert(sizeof(uint32_t) == sizeof(float));
+		union { float f; uint32_t i; } u; 
+		u.i = bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4];
 		stream << u.f;
 	}
 	return stream.str();
