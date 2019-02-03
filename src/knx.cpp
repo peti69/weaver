@@ -184,6 +184,7 @@ ByteString DatapointType::exportValue(string value) const
 		else if (mainNo == 14)
 		{
 			// assumption: float is encoded in IEEE 754 floating point format
+			cout << "PEW: " << sizeof(long) << " " << sizeof(float) << endl;
 			assert(sizeof(long) == sizeof(float));
 			union { float f; long l; } u; 
 			u.f = std::stof(value);

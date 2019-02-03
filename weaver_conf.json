@@ -4,7 +4,7 @@
 	//     WRITE_REQ = Write request: Asks to modify the value of an item
 	//     READ_REQ = Read request: Asks to be notified about the value of an item
 	// Optional, default is false. 
-	//"logEvents": true,
+	"logEvents": true,
 
 	// Registry of items for which events (STATE_IND, WRITE_REQ, READ_REQ) can potentially be received or sent.
 	"items": [
@@ -246,7 +246,7 @@
 			"mqtt":	{
 				// Prefix of client id passed to MQTT broker when connecting. It is expanded with "." and 
 				// the process id. Optional, default is "weaver".
-				"clientIdPrefix": "weav",
+				//"clientIdPrefix": "weaver",
 
 				// Hostname or IP address of the MQTT broker.
 				"hostname": "timberwolf",
