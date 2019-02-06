@@ -186,7 +186,10 @@ Items Config::getItems() const
 
 		string ownerId = getString(itemValue, "ownerId"); 
 
-		items.add(Item(itemId, type, ownerId, 0.0, 0.0));
+		float relDelta = getFloat(itemValue, "relDelta", 0.0); 
+		float absDelta = getFloat(itemValue, "absDelta", 0.0); 
+
+		items.add(Item(itemId, type, ownerId, relDelta, absDelta));
 	}
 
 	return items;

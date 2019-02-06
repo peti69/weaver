@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
 				continue;
 			}
 			auto& originLink = originLinkPos->second;
-				
+
 			// provide owner link
 			auto ownerLinkPos = links.find(item.getOwnerId());
 			if (ownerLinkPos == links.end())
@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
 				continue;
 			}
 			auto& ownerLink = ownerLinkPos->second;
-				
+
 			// suppress STATE_IND events in case the item value did not change and the origin link 
 			// only supports STATE_IND
 			if (  event.getType() == Event::STATE_IND 
@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
 				eventPos = events.erase(eventPos);
 				continue;
 			}
-				
+
 			// add STATE_IND event in case the owner link does not support READ_REQ
 			if (event.getType() == Event::READ_REQ && !ownerLink.supports(Event::READ_REQ))
 			{
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
 				if (!value.isNull())
 					events.add(Event("auto", event.getItemId(), Event::STATE_IND, value));
 			}
-
+			
 			eventPos++;
 		}
 

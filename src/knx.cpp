@@ -547,7 +547,7 @@ void KnxHandler::sendX(const Items& items, const Events& events)
 				if (!data.length())
 				{
 					logger.error() << "Unable to convert " << value.getType().toStr() << " value '" << value.toStr() 
-					               << "'  to DPT " << binding.dpt.toStr() << " data for item " << itemId << endOfMsg();
+					               << "' to DPT " << binding.dpt.toStr() << " data for item " << itemId << endOfMsg();
 					continue;
 				}
 				if (event.getType() == Event::WRITE_REQ)

@@ -8,17 +8,17 @@
 
 	// Registry of items for which events (STATE_IND, WRITE_REQ, READ_REQ) can potentially be received or sent.
 	"items": [
-		{ "id": "strom_zaehlerstand", "type": "number", "ownerId": "stromzaehler" },
-		{ "id": "strom_verbrauch_gesamt", "type": "number", "ownerId": "stromzaehler" },
-		{ "id": "strom_verbrauch_phase1", "type": "number", "ownerId": "stromzaehler" },
-		{ "id": "strom_verbrauch_phase2", "type": "number", "ownerId": "stromzaehler" },
-		{ "id": "strom_verbrauch_phase3", "type": "number", "ownerId": "stromzaehler" },
+		{ "id": "strom_zaehlerstand", "type": "number", "ownerId": "stromzaehler", "absDelta": 1 },
+		{ "id": "strom_verbrauch_gesamt", "type": "number", "ownerId": "stromzaehler", "absDelta": 10 },
+		{ "id": "strom_verbrauch_phase1", "type": "number", "ownerId": "stromzaehler", "absDelta": 5 },
+		{ "id": "strom_verbrauch_phase2", "type": "number", "ownerId": "stromzaehler", "absDelta": 5 },
+		{ "id": "strom_verbrauch_phase3", "type": "number", "ownerId": "stromzaehler", "absDelta": 5 },
 			
 		{ "id": "helligkeit_aussen_ost", "type": "number", "ownerId": "wetterstation" },
 		{ "id": "helligkeit_aussen_sued", "type": "number", "ownerId": "wetterstation" },
 		{ "id": "helligkeit_aussen_west", "type": "number", "ownerId": "wetterstation" },
 		{ "id": "helligkeit_aussen_daemmerung", "type": "number", "ownerId": "wetterstation" },
-		{ "id": "wind_geschwindigkeit", "type": "number", "ownerId": "wetterstation" },
+		{ "id": "wind_geschwindigkeit", "type": "number", "ownerId": "wetterstation", "absDelta": 0.5 },
 		{ "id": "regen_status", "type": "boolean", "ownerId": "wetterstation" },
 			
 		{ "id": "aussen_temp", "type": "number", "ownerId": "mqtt" },

@@ -53,7 +53,7 @@ class Link
 	bool supports(Event::Type eventType) const { return handler->supports(eventType); }
 	int getReadDescriptor() const { return handler->getReadDescriptor(); }
 	int getWriteDescriptor() const { return handler->getWriteDescriptor(); }
-	Events receive(Items& items);
+	Events receive(const Items& items);
 	void send(const Items& items, const Events& events);
 };
 

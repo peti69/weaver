@@ -134,7 +134,7 @@ bool Item::updateValue(const Value& newValue)
 	{
 		double oldNum = value.getNumber();
 		double newNum = newValue.getNumber();
-		if (newNum >= oldNum * (100 - relDelta) - absDelta && newNum <= oldNum * (100 + relDelta) + absDelta)
+		if (newNum >= oldNum * (1.0 - relDelta / 100.0) - absDelta && newNum <= oldNum * (1.0 + relDelta / 100.0) + absDelta)
 			return false;
 	}
 	
