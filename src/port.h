@@ -18,7 +18,8 @@ class PortConfig
 	{
 		string itemId;
 		regex_t pattern;
-		Binding(string _itemId, regex_t _pattern) : itemId(_itemId), pattern(_pattern) {};
+		Binding(string _itemId, regex_t _pattern) : 
+			itemId(_itemId), pattern(_pattern) {};
 	};
 	class Bindings: public std::map<string, Binding>
 	{
@@ -52,7 +53,7 @@ class PortConfig
 	int getDataBits() const { return dataBits; }
 	int getStopBits() const { return stopBits; }
 	Parity getParity() const { return parity; }
-	int getReopenInterval() const {return reopenInterval; }
+	int getReopenInterval() const { return reopenInterval; }
 	const regex_t& getMsgPattern() const { return msgPattern; }
 //	const std::regex& getMsgPattern() const { return msgPattern; }
 	bool getLogRawData() const { return logRawData; }
@@ -79,10 +80,11 @@ class PortHandler: public Handler
 	public:
 	PortHandler(string _id, PortConfig _config, Logger _logger);
 	virtual ~PortHandler();
+	virtual bool supports(Event::Type eventType) const { return eventType == Event::STATE_IND; }
 	virtual int getReadDescriptor() { return port; }
 	virtual int getWriteDescriptor() { return -1; }
-	virtual Events receive();
-	virtual void send(const Events& events) {}
+	virtual Events receive(const Items& items);
+	virtual void send(const Items& items, const Events& events) {}
 
 	private:
 	bool open();

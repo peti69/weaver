@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cstring>
 #include <stdexcept>
 
@@ -213,7 +212,7 @@ void PortHandler::receiveData()
 	msgData += receivedData;
 }
 
-Events PortHandler::receive()
+Events PortHandler::receive(const Items& items)
 {
 	try
 	{
@@ -253,9 +252,9 @@ Events PortHandler::receiveX()
 		string msg = msgData.substr(match.rm_so, match.rm_eo - match.rm_so);
 		msgData = msgData.substr(match.rm_eo);
 		
-		for (auto& pair : config.getBindings())
+		for (auto& bindingPair : config.getBindings())
 		{
-			auto& binding = pair.second;
+			auto& binding = bindingPair.second;
 
 			regmatch_t match[2];
 			if (!regexec(&binding.pattern, reinterpret_cast<const char*>(msg.c_str()), 2, match, 0))

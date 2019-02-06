@@ -1,61 +1,60 @@
 {
 	// Enables logging of all received and distributed events. Event types are:
 	//     STATE_IND = State indication: Notifies the value of an item 
-	//     WRITE_REQ = Write request: Asks to modify the value of an item
-	//     READ_REQ = Read request: Asks to be notified about the value of an item
+	//     WRITE_REQ = Write request: Asks the owner to modify the value of an item
+	//     READ_REQ = Read request: Asks the owner to be notified about the value of an item
 	// Optional, default is false. 
 	"logEvents": true,
 
 	// Registry of items for which events (STATE_IND, WRITE_REQ, READ_REQ) can potentially be received or sent.
 	"items": [
-		{ "id": "strom_zaehlerstand" },
-		{ "id": "strom_zaehlerstand_mqtt" },
-		{ "id": "strom_verbrauch_gesamt" },
-		{ "id": "strom_verbrauch_phase1" },
-		{ "id": "strom_verbrauch_phase2" },
-		{ "id": "strom_verbrauch_phase3" },
+		{ "id": "strom_zaehlerstand", "type": "number", "ownerId": "stromzaehler" },
+		{ "id": "strom_verbrauch_gesamt", "type": "number", "ownerId": "stromzaehler" },
+		{ "id": "strom_verbrauch_phase1", "type": "number", "ownerId": "stromzaehler" },
+		{ "id": "strom_verbrauch_phase2", "type": "number", "ownerId": "stromzaehler" },
+		{ "id": "strom_verbrauch_phase3", "type": "number", "ownerId": "stromzaehler" },
 			
-		{ "id": "helligkeit_aussen_ost" },
-		{ "id": "helligkeit_aussen_sued" },
-		{ "id": "helligkeit_aussen_west" },
-		{ "id": "helligkeit_aussen_daemmerung" },
-		{ "id": "wind_geschwindigkeit" },
-		{ "id": "regen_status" },
+		{ "id": "helligkeit_aussen_ost", "type": "number", "ownerId": "wetterstation" },
+		{ "id": "helligkeit_aussen_sued", "type": "number", "ownerId": "wetterstation" },
+		{ "id": "helligkeit_aussen_west", "type": "number", "ownerId": "wetterstation" },
+		{ "id": "helligkeit_aussen_daemmerung", "type": "number", "ownerId": "wetterstation" },
+		{ "id": "wind_geschwindigkeit", "type": "number", "ownerId": "wetterstation" },
+		{ "id": "regen_status", "type": "boolean", "ownerId": "wetterstation" },
 			
-		{ "id": "aussen_temp" },
+		{ "id": "aussen_temp", "type": "number", "ownerId": "mqtt" },
 		
-		{ "id": "puffer_sp1_temp" },
-		{ "id": "puffer_sp2_temp" },
-		{ "id": "puffer_td2_temp" },
+		{ "id": "puffer_sp1_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "puffer_sp2_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "puffer_td2_temp", "type": "number", "ownerId": "mqtt" },
 
-		{ "id": "fbh_modus" },
-		{ "id": "fbh_raum_temp" },
-		{ "id": "fbh_absenk_temp" },
-		{ "id": "fbh_heizkurve" },
-		{ "id": "fbh_abschalt_temp" },
-		{ "id": "fbh_vorlauf_soll_temp" },
-		{ "id": "fbh_vorlauf_ist_temp" },
-		{ "id": "fbh_vorlauf_puffer_temp" },
+		{ "id": "fbh_modus", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_raum_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_absenk_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_heizkurve", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_abschalt_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_vorlauf_soll_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_vorlauf_ist_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_vorlauf_puffer_temp", "type": "number", "ownerId": "mqtt" },
 
-		{ "id": "ww_modus" },
-		{ "id": "ww_zk_soll_temp" },
-		{ "id": "ww_zk_volumenstrom" },
-		{ "id": "ww_zk_vorlauf_temp" },
-		{ "id": "ww_pk_vorlauf_temp" },
-		{ "id": "ww_pk_ruecklauf_temp" },
-		{ "id": "ww_pk_mischer_status" },
+		{ "id": "ww_modus", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_zk_soll_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_zk_volumenstrom", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_zk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_pk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_pk_ruecklauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_pk_mischer_status", "type": "number", "ownerId": "mqtt" },
 
-		{ "id": "st_tagesertrag" },
-		{ "id": "st_gesamtertrag" },
-		{ "id": "st_kk_vorlauf_temp" },
-		{ "id": "st_kk_ruecklauf_temp" },
-		{ "id": "st_kk_pumpe_status" },
-		{ "id": "st_kk_pumpe_laufzeit" },
-		{ "id": "st_pk_vorlauf_temp" },
-		{ "id": "st_pk_ruecklauf_temp" },
-		{ "id": "st_pk_pumpe_status" },
-		{ "id": "st_pk_pumpe_laufzeit" },
-		{ "id": "st_pk_volumenstrom" },
+		{ "id": "st_tagesertrag", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_gesamtertrag", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_ruecklauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_pumpe_status", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_pumpe_laufzeit", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_ruecklauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_pumpe_status", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_pumpe_laufzeit", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_volumenstrom", "type": "number", "ownerId": "mqtt" },
 	],
 	
 	// Interfaces to other systems and/or devices.
@@ -109,7 +108,7 @@
 			"id": "wetterstation", 
 			
 			// Conversions for item values which are sent or received over the link (STATE_IND and WRITE_REQ).
-			"transformations" : [ 
+			"modifiers" : [ 
 				// Received values are multiplied with the given factor and values which are going to be sent
 				// are divided by it.
 				//{ "itemId": "helligkeit_aussen_ost", "factor": 1000 },
@@ -119,7 +118,7 @@
 
 			// Link type specific parametrization.
 			"port":	{
-				"name": "/dev/weatherstation2",
+				"name": "/dev/weatherstation",
 				"baudRate": 9600,
 				"dataBits": 8,
 				"stopBits": 1,
@@ -180,7 +179,7 @@
 
 				// Enables logging of all received and sent UDP messages in hexadecimal format. 
 				// Optional, default is false. 
-				//"logRawMsg": true,
+				//"logRawMessages": true,
 			
 				// Enables logging of of all received and sent payloads (cEMI frames) including message code, 
 				// group address and physical address. Optional, default is false. 
@@ -261,66 +260,66 @@
 				// Retain flag for state notifications (STATE_IND). Optional, default is false.
 				"retainFlag": true,
 
+				// Enables logging of all received and sent messages (payload and topic). 
+				// Optional, default is false. 
+				//"logMessages": true,
+			
 				// Mapping from MQTT to items and vice versa.
 				"bindings":	[
-					{ "itemId": "aussen_temp", "owner": true, "stateTopic": "ebus/aussen_temp/wert", "readTopic": "ebus/aussen_temp/wert/get" },
+					{ "itemId": "aussen_temp", "stateTopic": "ebus/aussen_temp/wert", "readTopic": "ebus/aussen_temp/wert/get" },
 
-					{ "itemId": "puffer_sp1_temp", "owner": true, "stateTopic": "ebus/puffer_sp1/temp",	"readTopic": "ebus/puffer_sp1/temp/get" },
-					{ "itemId": "puffer_sp2_temp", "owner": true, "stateTopic": "ebus/puffer_sp2/temp",	"readTopic": "ebus/puffer_sp2/temp/get" },
-					{ "itemId": "puffer_td2_temp", "owner": true, "stateTopic": "ebus/puffer_td2/temp",	"readTopic": "ebus/puffer_td2/temp/get" },
+					{ "itemId": "puffer_sp1_temp", "stateTopic": "ebus/puffer_sp1/temp",	"readTopic": "ebus/puffer_sp1/temp/get" },
+					{ "itemId": "puffer_sp2_temp", "stateTopic": "ebus/puffer_sp2/temp",	"readTopic": "ebus/puffer_sp2/temp/get" },
+					{ "itemId": "puffer_td2_temp", "stateTopic": "ebus/puffer_td2/temp",	"readTopic": "ebus/puffer_td2/temp/get" },
 
 					{ 
 						"itemId": "fbh_modus",
-						"owner": true,
 						"stateTopics": [ "ebus/fbh_raum_temp_modus/modus", "ebus/fbh_modus/wert" ],
 						"readTopic": "ebus/fbh_raum_temp_modus/modus/get",
 						"writeTopic": "ebus/fbh_modus/wert/set"
 					},
 					{
 						"itemId": "fbh_raum_temp",
-						"owner": true,
 						"stateTopics": [ "ebus/fbh_raum_temp_modus/temp", "ebus/fbh_raum_temp/wert" ],
 						"readTopic": "ebus/fbh_raum_temp_modus/temp/get",
 						"writeTopic": "ebus/fbh_raum_temp/wert/set"
 					},
-					{ "itemId": "fbh_absenk_temp",			"owner": true, "stateTopic": "ebus/fbh_absenk_temp/wert",		"readTopic": "ebus/fbh_absenk_temp/wert/get" },
-					{ "itemId": "fbh_heizkurve",			"owner": true, "stateTopic": "ebus/fbh_heizkurve/wert", 		"readTopic": "ebus/fbh_heizkurve/wert/get",			"writeTopic": "ebus/fbh_heizkurve/wert/set" },
-					{ "itemId": "fbh_abschalt_temp",		"owner": true, "stateTopic": "ebus/fbh_abschalt_temp/wert", 	"readTopic": "ebus/fbh_abschalt_temp/wert/get" },
-					{ "itemId": "fbh_vorlauf_soll_temp",	"owner": true, "stateTopic": "ebus/fbh_vorlauf_soll_temp/wert",	"readTopic": "ebus/fbh_vorlauf_soll_temp/wert/get" },
-					{ "itemId": "fbh_vorlauf_ist_temp", 	"owner": true, "stateTopic": "ebus/fbh_vf2/temp", 				"readTopic": "ebus/fbh_vf2/temp/get" },
-					{ "itemId": "fbh_vorlauf_puffer_temp", 	"owner": true, "stateTopic": "ebus/fbh_vf1/temp", 				"readTopic": "ebus/fbh_vf1/temp/get" },
+					{ "itemId": "fbh_absenk_temp",			"stateTopic": "ebus/fbh_absenk_temp/wert",		"readTopic": "ebus/fbh_absenk_temp/wert/get" },
+					{ "itemId": "fbh_heizkurve",			"stateTopic": "ebus/fbh_heizkurve/wert", 		"readTopic": "ebus/fbh_heizkurve/wert/get",			"writeTopic": "ebus/fbh_heizkurve/wert/set" },
+					{ "itemId": "fbh_abschalt_temp",		"stateTopic": "ebus/fbh_abschalt_temp/wert", 	"readTopic": "ebus/fbh_abschalt_temp/wert/get" },
+					{ "itemId": "fbh_vorlauf_soll_temp",	"stateTopic": "ebus/fbh_vorlauf_soll_temp/wert","readTopic": "ebus/fbh_vorlauf_soll_temp/wert/get" },
+					{ "itemId": "fbh_vorlauf_ist_temp", 	"stateTopic": "ebus/fbh_vf2/temp", 				"readTopic": "ebus/fbh_vf2/temp/get" },
+					{ "itemId": "fbh_vorlauf_puffer_temp",	"stateTopic": "ebus/fbh_vf1/temp", 				"readTopic": "ebus/fbh_vf1/temp/get" },
 
 					{
 						"itemId": "ww_modus",
-						"owner": true,
 						"stateTopics": [ "ebus/ww_soll_temp_modus/modus", "ebus/ww_modus/wert" ],
 						"readTopic": "ebus/ww_soll_temp_modus/modus/get",
 						"writeTopic": "ebus/ww_modus/wert/set"
 					},
 					{
 						"itemId": "ww_zk_soll_temp",
-						"owner": true, 
 						"stateTopics": [ "ebus/ww_soll_temp_modus/temp", "ebus/ww_soll_temp/wert" ],
 						"readTopic": "ebus/ww_soll_temp_modus/temp/get",
 						"writeTopic": "ebus/ww_soll_temp/wert/set"
 					},
-					{ "itemId": "ww_zk_volumenstrom", 		"owner": true, "stateTopic": "ebus/ww_zk_volumenstrom/wert",	"readTopic": "ebus/ww_zk_volumenstrom/wert/get" },
-					{ "itemId": "ww_zk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc3/temp", 				"readTopic": "ebus/ww_ntc3/temp/get" },
-					{ "itemId": "ww_pk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/ww_ntc1/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
-					{ "itemId": "ww_pk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/ww_ntc2/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
-					{ "itemId": "ww_pk_mischer_status", 	"owner": true, "stateTopic": "ebus/ww_pk_mischer_status/wert", 	"readTopic": "ebus/ww_pk_mischer_status/wert/get" },
+					{ "itemId": "ww_zk_volumenstrom", 	"stateTopic": "ebus/ww_zk_volumenstrom/wert",	"readTopic": "ebus/ww_zk_volumenstrom/wert/get" },
+					{ "itemId": "ww_zk_vorlauf_temp", 	"stateTopic": "ebus/ww_ntc3/temp", 				"readTopic": "ebus/ww_ntc3/temp/get" },
+					{ "itemId": "ww_pk_vorlauf_temp", 	"stateTopic": "ebus/ww_ntc1/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
+					{ "itemId": "ww_pk_ruecklauf_temp", "stateTopic": "ebus/ww_ntc2/temp", 				"readTopic": "ebus/ww_ntc2/temp/get" },
+					{ "itemId": "ww_pk_mischer_status", "stateTopic": "ebus/ww_pk_mischer_status/wert",	"readTopic": "ebus/ww_pk_mischer_status/wert/get" },
 
-					{ "itemId": "st_tagesertrag", 			"owner": true, "stateTopic": "ebus/st_tagesertrag/wert",		"readTopic": "ebus/st_tagesertrag/wert/get" },
-					{ "itemId": "st_gesamtertrag", 			"owner": true, "stateTopic": "ebus/st_gesamtertrag/wert",		"readTopic": "ebus/st_gesamtertrag/wert/get" },
-					{ "itemId": "st_kk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/st_kk_vorlauf/temp", 		"readTopic": "ebus/st_kk_vorlauf/temp/get" },
-					{ "itemId": "st_kk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/st_kk_ruecklauf/temp", 		"readTopic": "ebus/st_kk_ruecklauf/temp/get" },
-					{ "itemId": "st_kk_pumpe_status",		"owner": true, "stateTopic": "ebus/st_kk_pumpe_status/wert", 	"readTopic": "ebus/st_kk_pumpe_status/wert/get" },
-					{ "itemId": "st_kk_pumpe_laufzeit", 	"owner": true, "stateTopic": "ebus/st_kk_pumpe_laufzeit/wert", 	"readTopic": "ebus/st_kk_pumpe_laufzeit/wert/get" },
-					{ "itemId": "st_pk_vorlauf_temp", 		"owner": true, "stateTopic": "ebus/st_pk_vorlauf/temp", 		"readTopic": "ebus/st_pk_vorlauf/temp/get" },
-					{ "itemId": "st_pk_ruecklauf_temp", 	"owner": true, "stateTopic": "ebus/st_pk_ruecklauf/temp", 		"readTopic": "ebus/st_pk_ruecklauf/temp/get" },
-					{ "itemId": "st_pk_pumpe_status", 		"owner": true, "stateTopic": "ebus/st_pk_pumpe_status/wert", 	"readTopic": "ebus/st_pk_pumpe_status/wert/get" },
-					{ "itemId": "st_pk_pumpe_laufzeit", 	"owner": true, "stateTopic": "ebus/st_pk_pumpe_laufzeit/wert", 	"readTopic": "ebus/st_pk_pumpe_laufzeit/wert/get" },
-					{ "itemId": "st_pk_volumenstrom", 		"owner": true, "stateTopic": "ebus/st_pk_volumenstrom/wert", 	"readTopic": "ebus/st_pk_volumenstrom/wert/get" },
+					{ "itemId": "st_tagesertrag", 		"stateTopic": "ebus/st_tagesertrag/wert",		"readTopic": "ebus/st_tagesertrag/wert/get" },
+					{ "itemId": "st_gesamtertrag", 		"stateTopic": "ebus/st_gesamtertrag/wert",		"readTopic": "ebus/st_gesamtertrag/wert/get" },
+					{ "itemId": "st_kk_vorlauf_temp", 	"stateTopic": "ebus/st_kk_vorlauf/temp", 		"readTopic": "ebus/st_kk_vorlauf/temp/get" },
+					{ "itemId": "st_kk_ruecklauf_temp",	"stateTopic": "ebus/st_kk_ruecklauf/temp", 		"readTopic": "ebus/st_kk_ruecklauf/temp/get" },
+					{ "itemId": "st_kk_pumpe_status",	"stateTopic": "ebus/st_kk_pumpe_status/wert", 	"readTopic": "ebus/st_kk_pumpe_status/wert/get" },
+					{ "itemId": "st_kk_pumpe_laufzeit",	"stateTopic": "ebus/st_kk_pumpe_laufzeit/wert",	"readTopic": "ebus/st_kk_pumpe_laufzeit/wert/get" },
+					{ "itemId": "st_pk_vorlauf_temp", 	"stateTopic": "ebus/st_pk_vorlauf/temp", 		"readTopic": "ebus/st_pk_vorlauf/temp/get" },
+					{ "itemId": "st_pk_ruecklauf_temp",	"stateTopic": "ebus/st_pk_ruecklauf/temp", 		"readTopic": "ebus/st_pk_ruecklauf/temp/get" },
+					{ "itemId": "st_pk_pumpe_status", 	"stateTopic": "ebus/st_pk_pumpe_status/wert", 	"readTopic": "ebus/st_pk_pumpe_status/wert/get" },
+					{ "itemId": "st_pk_pumpe_laufzeit",	"stateTopic": "ebus/st_pk_pumpe_laufzeit/wert",	"readTopic": "ebus/st_pk_pumpe_laufzeit/wert/get" },
+					{ "itemId": "st_pk_volumenstrom",	"stateTopic": "ebus/st_pk_volumenstrom/wert",	"readTopic": "ebus/st_pk_volumenstrom/wert/get" },
 					
 					//{ "itemId": "strom_zaehlerstand", "stateTopic": "strom/zaehlerstand" },
 					//{ "itemId": "strom_verbrauch_gesamt", "stateTopic": "strom/verbrauch_gesamt" },

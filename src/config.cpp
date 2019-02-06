@@ -165,41 +165,55 @@ GlobalConfig Config::getGlobalConfig() const
 {
 	bool logEvents = getBool(document, "logEvents", false);
 	
+	return GlobalConfig(logEvents);;
+}
+
+Items Config::getItems() const
+{
 	const Value& itemsValue = getArray(document, "items"); 
 	Items items;
+
 	for (auto& itemValue : itemsValue.GetArray())
 	{
 		string itemId = getString(itemValue, "id"); 
 		if (items.find(itemId) != items.end())
 			throw std::runtime_error("Item " + itemId + " defined twice in configuration");
-		items.add(Item(itemId));
+
+		string typeStr = getString(itemValue, "type");
+		ValueType type;
+		if (!ValueType::fromStr(typeStr, type))
+			throw std::runtime_error("Invalid value " + typeStr + " for field type in configuration");
+
+		string ownerId = getString(itemValue, "ownerId"); 
+
+		items.add(Item(itemId, type, ownerId, 0.0, 0.0));
 	}
 
-	return GlobalConfig(logEvents, items);;
+	return items;
 }
 
-std::list<Link> Config::getLinks(const Items& items) const
+Links Config::getLinks(const Items& items) const
 {
 	auto& linksValue = getArray(document, "links"); 
+	Links links;
 
-	std::list<Link> links;
 	for (auto& linkValue : linksValue.GetArray())
 	{
 		string id = getString(linkValue, "id");
 		
-		Transformations transformations;
-		if (hasMember(linkValue, "transformations"))
+		Modifiers modifiers;
+		if (hasMember(linkValue, "modifiers"))
 		{
-			const Value& transformationsValue = getArray(linkValue, "transformations"); 
-			for (auto& transformationValue : transformationsValue.GetArray())
+			const Value& modifiersValue = getArray(linkValue, "modifiers"); 
+			for (auto& modifierValue : modifiersValue.GetArray())
 			{
-				string itemId = getString(transformationValue, "itemId");
+				string itemId = getString(modifierValue, "itemId");
 				if (!items.exists(itemId))
 					throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 				
-				float factor = getFloat(transformationValue, "factor");
+				float factor = getFloat(modifierValue, "factor");
 				
-				transformations.add(Transformation(itemId, factor));
+				modifiers.add(Modifier(itemId, factor));
 			}
 		}
 
@@ -213,8 +227,12 @@ std::list<Link> Config::getLinks(const Items& items) const
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
 
-		links.push_back(Link(id, transformations, handler));
+		links.add(Link(id, modifiers, handler, Logger(id)));
 	}
+	
+	for (auto itemPair : items)
+		if (!links.exists(itemPair.second.getOwnerId()))
+			throw std::runtime_error("Item " + itemPair.first + " associated with unknown link " + itemPair.second.getOwnerId());
 
 	return links;
 }
@@ -226,6 +244,8 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 	int port = getInt(value, "port", 1883);
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
 	bool retainFlag = getBool(value, "retainFlag", false);
+	
+	bool logMsgs = getBool(value, "logMessages", false);
 
 	const Value& bindingsValue = getArray(value, "bindings");
 	MqttConfig::Bindings bindings;
@@ -235,25 +255,23 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
-		bool owner = getBool(bindingValue, "owner", false);
-
 		MqttConfig::Binding::Topics stateTopics;
 		if (hasMember(bindingValue, "stateTopic"))
-			stateTopics.push_back(getString(bindingValue, "stateTopic"));
+			stateTopics.insert(getString(bindingValue, "stateTopic"));
 		if (hasMember(bindingValue, "stateTopics"))
 			for (auto& stateValue : getArray(bindingValue, "stateTopics").GetArray())
 			{
 				if (!stateValue.IsString())
 					throw std::runtime_error("Field stateTopics is not a string array");
-				stateTopics.push_back(stateValue.GetString());
+				stateTopics.insert(stateValue.GetString());
 			}
 		string writeTopic = getString(bindingValue, "writeTopic", "");
 		string readTopic = getString(bindingValue, "readTopic", "");
 
-		bindings.add(MqttConfig::Binding(itemId, owner, stateTopics, writeTopic, readTopic));
+		bindings.add(MqttConfig::Binding(itemId, stateTopics, writeTopic, readTopic));
 	}
 
-	return std::make_shared<MqttConfig>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, bindings);
+	return std::make_shared<MqttConfig>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, logMsgs, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const
@@ -281,7 +299,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	if (!PhysicalAddr::fromStr(physicalAddrStr, physicalAddr))
 		throw std::runtime_error("Invalid value " + physicalAddrStr + " for field physicalAddr in configuration");
 
-	bool logRawMsg = getBool(value, "logRawMsg", false);
+	bool logRawMsg = getBool(value, "logRawMessages", false);
 	bool logData = getBool(value, "logData", false);
 	
 	const Value& bindingsValue = getArray(value, "bindings");
@@ -292,12 +310,11 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 			
-		bool owner = getBool(bindingValue, "owner", false);
-
 		string stateGaStr = getString(bindingValue, "stateGa", "");
 		GroupAddr stateGa;
 		if (stateGaStr != "" && !GroupAddr::fromStr(stateGaStr, stateGa))
 			throw std::runtime_error("Invalid value " + stateGaStr + " for field stateGa in configuration");
+
 		string writeGaStr = getString(bindingValue, "writeGa", "");
 		GroupAddr writeGa;
 		if (writeGaStr != "" && !GroupAddr::fromStr(writeGaStr, writeGa))
@@ -308,7 +325,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		if (!DatapointType::fromStr(dptStr, dpt))
 			throw std::runtime_error("Invalid value " + dptStr + " for field dpt in configuration");
 
-		bindings.add(KnxConfig::Binding(itemId, owner, stateGa, writeGa, dpt));
+		bindings.add(KnxConfig::Binding(itemId, stateGa, writeGa, dpt));
 	}
 
 	return std::make_shared<KnxConfig>(localIpAddr, natMode, ipAddr, ipPort, reconnectInterval, connStateReqInterval, controlRespTimeout, ldataConTimeout, physicalAddr, logRawMsg, logData, bindings);

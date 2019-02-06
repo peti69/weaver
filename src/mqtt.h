@@ -2,6 +2,7 @@
 #define MQTT_H
 
 #include <ctime>
+#include <set>
 
 #include <mosquitto.h>
 
@@ -13,15 +14,14 @@ class MqttConfig
 	public:
 	struct Binding
 	{
-		typedef std::list<string> Topics;
+		typedef std::set<string> Topics;
 		string itemId;
-		bool owner;
 		Topics stateTopics;
 		string writeTopic;
 		string readTopic;
 		
-		Binding(string _itemId, bool _owner, Topics _stateTopics, string _writeTopic, string _readTopic) :
-			itemId(_itemId), owner(_owner), stateTopics(_stateTopics), writeTopic(_writeTopic), readTopic(_readTopic)
+		Binding(string _itemId, Topics _stateTopics, string _writeTopic, string _readTopic) :
+			itemId(_itemId), stateTopics(_stateTopics), writeTopic(_writeTopic), readTopic(_readTopic)
 		{}
 	};
 	class Bindings: public std::map<string, Binding>
@@ -37,19 +37,21 @@ class MqttConfig
 	int port;
 	int reconnectInterval;
 	bool retainFlag;
+	bool logMsgs;
 	Bindings bindings;
 
 	public:
 	MqttConfig(string _clientIdPrefix, string _hostname, int _port, int _reconnectInterval, 
-		bool _retainFlag, Bindings _bindings) :
+		bool _retainFlag, bool _logMsgs, Bindings _bindings) :
 		clientIdPrefix(_clientIdPrefix), hostname(_hostname), port(_port), 
-		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), bindings(_bindings)
+		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), logMsgs(_logMsgs), bindings(_bindings)
 	{}
 	string getClientIdPrefix() const { return clientIdPrefix; }
 	string getHostname() const { return hostname; }
 	int getPort() const { return port; }
 	int getReconnectInterval() const { return reconnectInterval; }
 	bool getRetainFlag() const { return retainFlag; }
+	bool getLogMsgs() const {return logMsgs; }
 	const Bindings& getBindings() const { return bindings; }
 };
 
@@ -62,23 +64,31 @@ class MqttHandler: public Handler
 	struct mosquitto* client;
 	bool connected;
 	std::time_t lastConnectTry;
-	Events receivedEvents;
+	struct Msg 
+	{
+		string topic;
+		string payload;
+		Msg(string _topic, string _payload) : topic(_topic), payload(_payload) {}
+	};
+	std::list<Msg> receivedMsgs;
 	
 	public:
 	MqttHandler(string _id, MqttConfig _config, Logger _logger);
 	virtual ~MqttHandler();
+	virtual bool supports(Event::Type eventType) const { return true; }
 	virtual int getWriteDescriptor() { return mosquitto_want_write(client) ? mosquitto_socket(client) : -1; }
 	virtual int getReadDescriptor() { return mosquitto_socket(client); }
-	virtual Events receive();
-	virtual void send(const Events& events);
+	virtual Events receive(const Items& items);
+	virtual void send(const Items& items, const Events& events);
 
 	private:
-	bool connect();
+	bool connect(const Items& items);
 	void disconnect();
-	Events receiveX();
-	void sendX(const Events& events);
+	Events receiveX(const Items& items);
+	void sendX(const Items& items, const Events& events);
 	void handleError(string funcName, int errorCode);
-	void onMessage(const mosquitto_message* msg);
+	void onMessage(const Msg& msg);
+	void sendMessage(string topic, string payload, bool reatain);
 
 	friend void onMqttMessage(struct mosquitto*, void*, const struct mosquitto_message*);
 };

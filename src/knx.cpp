@@ -4,7 +4,6 @@
 #include <unistd.h>
 
 #include <stdexcept>
-#include <cassert>
 #include <iomanip>
 #include <cstdint>
 
@@ -102,42 +101,41 @@ bool DatapointType::fromStr(string dptStr, DatapointType& dpt)
 	}
 }
 
-ByteString DatapointType::exportValue(string value) const
+ByteString DatapointType::exportValue(const Value& value) const
 {
-	try
+	if (value.isBoolean() && mainNo == 1)
 	{
-		if (mainNo == 1)
+		if (value.getBoolean())
+			return ByteString({0x01});
+		else 
+			return ByteString({0x00});
+	}
+	else if (value.isNumber() || value.isBoolean())
+	{
+		double d = value.isNumber() ? value.getNumber() : value.getBoolean();
+		if (mainNo == 5 && subNo == 1)
 		{
-			if (value == "1" || value == "yes" || value == "YES" || value == "true" || value == "TRUE")
-				return ByteString({0x81});
-			else if (value == "0" || value == "no" || value == "NO" || value == "false" || value == "FALSE")
-				return ByteString({0x80});
-		}
-		else if (mainNo == 5 && subNo == 1)
-		{
-			float f = std::stof(value);
-			if (f >= 0 && f <= 100)
+			if (d >= 0 && d <= 100)
 			{
-				Byte b = f * 255.0 / 100.0;
-				return ByteString({0x80, b});
+				Byte b = d * 255.0 / 100.0;
+				return ByteString({0x00, b});
 			}
 		}
 		else if (mainNo == 5)
 		{
-			long l = std::stof(value);
-			if (l >= 0 && l <= 255)
+			if (d >= 0 && d <= 255)
 			{
-				Byte b = l;
-				return ByteString({0x80, b});
+				Byte b = d;
+				return ByteString({0x00, b});
 			}
 		}
 		else if (mainNo == 7)
 		{
-			long l = std::stod(value);
-			if (l >= 0 && l <= 65535)
+			if (d >= 0 && d <= 65535)
 			{
+				long l = d;
 				Byte bytes[3];
-				bytes[0] = 0x80;
+				bytes[0] = 0x00;
 				bytes[1] = (l >> 8) & 0xFF;
 				bytes[2] = l & 0xFF;
 				return ByteString(bytes, sizeof(bytes));
@@ -145,16 +143,15 @@ ByteString DatapointType::exportValue(string value) const
 		}
 		else if (mainNo == 9)
 		{
-			float f = std::stof(value);
 			int E = 0;
-			while ((f < -20.48 || f > 20.47) && E <= 15) { f = f / 2.0; E++; }
-			if (f >= -20.48 && f <= 20.47)
+			while ((d < -20.48 || d > 20.47) && E <= 15) { d = d / 2.0; E++; }
+			if (d >= -20.48 && d <= 20.47)
 			{
-				int M = f * 100.0;
+				int M = d * 100.0;
 				bool sign = M < 0;
 				if (sign) M *= -1;
 				Byte bytes[3];
-				bytes[0] = 0x80;
+				bytes[0] = 0x00;
 				bytes[1] = (E << 3) | ((M >> 8) & 0x07);
 				bytes[2] = M & 0xFF;
 				return ByteString(bytes, sizeof(bytes));
@@ -162,9 +159,9 @@ ByteString DatapointType::exportValue(string value) const
 		}
 		else if (mainNo == 12)
 		{
-			unsigned long l = std::stod(value);
+			unsigned long l = d;
 			Byte bytes[5];
-			bytes[0] = 0x80;
+			bytes[0] = 0x00;
 			bytes[1] = (l >> 24) & 0xFF;
 			bytes[2] = (l >> 16) & 0xFF;
 			bytes[3] = (l >> 8) & 0xFF;
@@ -173,9 +170,9 @@ ByteString DatapointType::exportValue(string value) const
 		}
 		else if (mainNo == 13)
 		{
-			long l = std::stod(value);
+			long l = d;
 			Byte bytes[5];
-			bytes[0] = 0x80;
+			bytes[0] = 0x00;
 			bytes[1] = (l >> 24) & 0xFF;
 			bytes[2] = (l >> 16) & 0xFF;
 			bytes[3] = (l >> 8) & 0xFF;
@@ -187,9 +184,9 @@ ByteString DatapointType::exportValue(string value) const
 			// assumption: float is encoded in IEEE 754 floating point format
 			assert(sizeof(uint32_t) == sizeof(float));
 			union { float f; uint32_t i; } u; 
-			u.f = std::stof(value);
+			u.f = d;
 			Byte bytes[5];
-			bytes[0] = 0x80;
+			bytes[0] = 0x00;
 			bytes[1] = (u.i >> 24) & 0xFF;
 			bytes[2] = (u.i >> 16) & 0xFF;
 			bytes[3] = (u.i >> 8) & 0xFF;
@@ -197,48 +194,38 @@ ByteString DatapointType::exportValue(string value) const
 			return ByteString(bytes, sizeof(bytes));
 		}
 	}
-	catch (const std::exception& ex)
-	{
-		// ignore
-	}
 	return ByteString();
 }
 
-string DatapointType::importValue(ByteString bytes) const
+Value DatapointType::importValue(ByteString bytes) const
 {
-	std::ostringstream stream;
 	if (mainNo == 1 && bytes.length() == 1)
-	{
-		if (bytes[0] == 0x81)
-			stream << "1";
-		else if (bytes[0] == 0x80)
-			stream << "0";
-	}
+		return Value((bytes[0] & 0x01) == 0x01);
 	else if (mainNo == 5 && subNo == 1 && bytes.length() == 2)
-		stream << bytes[1] * 100.0 / 255.0;
+		return Value(bytes[1] * 100.0 / 255.0);
 	else if (mainNo == 5 && bytes.length() == 2)
-		stream << 1 * bytes[1];
+		return Value(1.0 * bytes[1]);
 	else if (mainNo == 7 && bytes.length() == 3)
-		stream << (bytes[1] << 8 | bytes[2]);
+		return Value(1.0 * (bytes[1] << 8 | bytes[2]));
 	else if (mainNo == 9)
 	{
 		int E = bytes[1] >> 3 & 0x0F;
 		int M = (bytes[1] & 0x07) << 8 | bytes[2];
-		stream << (M << E) / 100.0;
+		return Value((M << E) / 100.0);
 	}
 	else if (mainNo == 12 && bytes.length() == 5)
-		stream << (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]);
+		return Value(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
 	else if (mainNo == 13 && bytes.length() == 5)
-		stream << (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]);
+		return Value(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
 	else if (mainNo == 14 && bytes.length() == 5)
 	{
 		// assumption: float is encoded in IEEE 754 floating point format
 		assert(sizeof(uint32_t) == sizeof(float));
 		union { float f; uint32_t i; } u; 
 		u.i = bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4];
-		stream << u.f;
+		return Value(u.f);
 	}
-	return stream.str();
+	return Value();
 }
 
 string GroupAddr::toStr() const
@@ -344,18 +331,16 @@ void KnxHandler::disconnect()
 
 		logger.info() << "Disconnected from gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
-	else
-		lastConnectTry = std::time(0);
 
 	::close(socket); 
 	state = DISCONNECTED;
 }
 
-Events KnxHandler::receive()
+Events KnxHandler::receive(const Items& items)
 {
 	try
 	{
-		return receiveX();
+		return receiveX(items);
 	}
 	catch (const std::exception& ex)
 	{
@@ -364,7 +349,7 @@ Events KnxHandler::receive()
 	disconnect();
 }
 
-Events KnxHandler::receiveX()
+Events KnxHandler::receiveX(const Items& items)
 {
 	std::time_t now = std::time(0);
 
@@ -446,17 +431,23 @@ Events KnxHandler::receiveX()
 			GroupAddr ga(msg[16], msg[17]);
 			ByteString data = msg.substr(20, msg[18]);
 
-			for (auto& pair : config.getBindings())
+			for (auto bindingPair : config.getBindings())
 			{
-				auto& binding = pair.second;
+				auto& binding = bindingPair.second;
+				bool owner = items.getOwnerId(binding.itemId) == id;
 	
-				if ((ga == binding.stateGa || ga == binding.writeGa) && !binding.owner && data.length() == 1 && (data[0] & 0x80) == 0)
-					events.add(Event(id, binding.itemId, Event::READ_REQ, ""));
-				else if ((ga == binding.stateGa && binding.owner) || (ga == binding.writeGa && !binding.owner))
+				if (  (ga == binding.stateGa || ga == binding.writeGa) && !owner 
+				   && data.length() == 1 && (data[0] & 0xC0) == 0x00
+				   )
 				{
-					string value = binding.dpt.importValue(data);
-					if (value == "")
-						logger.warn() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data) << "' to value for item " << binding.itemId << endOfMsg();
+					events.add(Event(id, binding.itemId, Event::READ_REQ, Value()));
+					waitingReadReqs.insert(binding.itemId);
+				}
+				else if ((ga == binding.stateGa && owner) || (ga == binding.writeGa && !owner))
+				{
+					Value value = binding.dpt.importValue(data);
+					if (value.isNull())
+						logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data) << "' to value for item " << binding.itemId << endOfMsg();
 					else if (ga == binding.stateGa)
 						events.add(Event(id, binding.itemId, Event::STATE_IND, value));
 					else
@@ -467,6 +458,7 @@ Events KnxHandler::receiveX()
 		else if (msgCode == MsgCode::LDATA_CON)
 		{
 			ongoingLDataReq = false;
+
 			sendWaitingLDataReq();
 		}
 	}
@@ -512,14 +504,14 @@ Events KnxHandler::receiveX()
 	return events;
 }
 
-void KnxHandler::send(const Events& events)
+void KnxHandler::send(const Items& items, const Events& events)
 {
 	if (state != CONNECTED)
 		return;
 
 	try
 	{
-		return sendX(events);
+		return sendX(items, events);
 	}
 	catch (const std::exception& ex)
 	{
@@ -528,43 +520,61 @@ void KnxHandler::send(const Events& events)
 	disconnect();
 }
 
-void KnxHandler::sendX(const Events& events)
+void KnxHandler::sendX(const Items& items, const Events& events)
 {
 	auto& bindings = config.getBindings();
 
 	for (auto& event : events)
 	{
 		string itemId = event.getItemId();
-		string value = event.getValue();
 
-		auto bindingIter = bindings.find(itemId);
-		if (bindingIter != bindings.end())
+		auto bindingPos = bindings.find(itemId);
+		if (bindingPos != bindings.end())
 		{
-			auto& binding = bindingIter->second;
+			auto& binding = bindingPos->second;
+			bool owner = items.getOwnerId(itemId) == id;
+			const Value& value = event.getValue();
 
+			// create data/APDU
 			ByteString data;
 			if (event.getType() == Event::READ_REQ)
 				data = ByteString({0x00});
 			else
 			{
+				assert(event.getType() == Event::WRITE_REQ || event.getType() == Event::STATE_IND);
+				
 				data = binding.dpt.exportValue(value);
 				if (!data.length())
 				{
-					logger.error() << "Unable to convert value " << value << " of item " << itemId << " to DPT " << binding.dpt.toStr() << endOfMsg();
+					logger.error() << "Unable to convert " << value.getType().toStr() << " value '" << value.toStr() 
+					               << "'  to DPT " << binding.dpt.toStr() << " data for item " << itemId << endOfMsg();
 					continue;
+				}
+				if (event.getType() == Event::WRITE_REQ)
+					data[0] |= 0x80;
+				else // STATE_IND
+				{
+					auto pos = waitingReadReqs.find(event.getItemId());
+					if (pos != waitingReadReqs.end())
+					{
+						data[0] |= 0x40;
+						waitingReadReqs.erase(pos);
+					}
+					else
+						data[0] |= 0x80;
 				}
 			}
 
-			if (binding.owner && event.getType() == Event::READ_REQ)
+			if (event.getType() == Event::READ_REQ && owner)
 			{
 				if (!binding.stateGa.isNull())
 					waitingLDataReqs.emplace_back(binding.stateGa, data);
 				else if (!binding.writeGa.isNull())
 					waitingLDataReqs.emplace_back(binding.writeGa, data);
 			}
-			else if (!binding.owner && !binding.stateGa.isNull() && event.getType() == Event::STATE_IND)
+			else if (event.getType() == Event::STATE_IND && !owner && !binding.stateGa.isNull())
 				waitingLDataReqs.emplace_back(binding.stateGa, data);
-			else if (binding.owner && !binding.writeGa.isNull() && event.getType() == Event::WRITE_REQ)
+			else if (event.getType() == Event::WRITE_REQ && owner && !binding.writeGa.isNull())
 				waitingLDataReqs.emplace_back(binding.writeGa, data);
 		}
 	}

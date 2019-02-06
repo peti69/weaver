@@ -16,13 +16,11 @@ class GlobalConfig
 {
 	private:
 	bool logEvents;
-	Items items;
 	
 	public:
 	GlobalConfig() : logEvents(false) {}
-	GlobalConfig(bool _logEvents, Items _items) : logEvents(_logEvents), items(_items) {}
+	GlobalConfig(bool _logEvents) : logEvents(_logEvents) {}
 	bool getLogEvents() const { return logEvents; }
-	Items getItems() const { return items; }
 };
 
 class Config
@@ -53,7 +51,8 @@ class Config
 	public:
 	Config(string filename);
 	GlobalConfig getGlobalConfig() const;
-	std::list<Link> getLinks(const Items& items) const;
+	Items getItems() const;
+	Links getLinks(const Items& items) const;
 };
 
 #endif

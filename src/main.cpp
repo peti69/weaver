@@ -31,7 +31,8 @@ int main(int argc, char* argv[])
 	sigprocmask(SIG_BLOCK, &sigset, &oldset);
 	
 	// read configuration file
-	std::list<Link> links;
+	Links links;
+	Items items;
 	GlobalConfig config;
 	try
 	{
@@ -41,7 +42,8 @@ int main(int argc, char* argv[])
 		Config configFile(argv[1]);
 
 		config = configFile.getGlobalConfig();
-		links = configFile.getLinks(config.getItems());
+		items = configFile.getItems();
+		links = configFile.getLinks(items);
 	}
 	catch (const std::exception& error)
 	{
@@ -58,9 +60,9 @@ int main(int argc, char* argv[])
 			FD_ZERO(&readFds);
 			FD_ZERO(&writeFds);
 			int fdMax = 0;
-			for (auto& link : links)
+			for (auto& linkPair : links)
 			{
-				int readFd = link.getReadDescriptor();
+				int readFd = linkPair.second.getReadDescriptor();
 				if (readFd >= 0)
 				{
 					if (readFd > fdMax)
@@ -68,7 +70,7 @@ int main(int argc, char* argv[])
 					FD_SET(readFd, &readFds);
 				}
 
-				int writeFd = link.getWriteDescriptor();
+				int writeFd = linkPair.second.getWriteDescriptor();
 				if (writeFd >= 0)
 				{
 					if (writeFd > fdMax)
@@ -95,44 +97,103 @@ int main(int argc, char* argv[])
 
 		// receive events
 		Events events;
-		for (auto& link : links)
+		for (auto& linkPair : links)
 			try
 			{		
-				events.splice(events.begin(), link.receive());
+				events.splice(events.begin(), linkPair.second.receive(items));
 			}
 			catch (const std::exception& error)
 			{
-				logger.error() << "Error on link " << link.getId() << " when receiving events: " << error.what() << endOfMsg();
+				logger.error() << "Error on link " << linkPair.first << " when receiving events: " << error.what() << endOfMsg();
 			}
+		
+		// process events
+		for (auto eventPos = events.begin(); eventPos != events.end();)
+		{
+			auto& event = *eventPos;
+
+			// provide item
+			auto itemPos = items.find(event.getItemId());
+			if (itemPos == items.end())
+			{
+				eventPos++;
+				continue;
+			}
+			auto& item = itemPos->second;
+
+			// provide origin link
+			auto originLinkPos = links.find(event.getOriginId());
+			if (originLinkPos == links.end())
+			{
+				eventPos++;
+				continue;
+			}
+			auto& originLink = originLinkPos->second;
+				
+			// provide owner link
+			auto ownerLinkPos = links.find(item.getOwnerId());
+			if (ownerLinkPos == links.end())
+			{
+				eventPos++;
+				continue;
+			}
+			auto& ownerLink = ownerLinkPos->second;
+				
+			// suppress STATE_IND events in case the item value did not change and the origin link 
+			// only supports STATE_IND
+			if (  event.getType() == Event::STATE_IND 
+			   && !originLink.supports(Event::READ_REQ)
+			   && !originLink.supports(Event::WRITE_REQ)
+			   && !item.updateValue(event.getValue())
+			   )
+			{
+				// old and new value are identical or within tolerances
+				eventPos = events.erase(eventPos);
+				continue;
+			}
+				
+			// add STATE_IND event in case the owner link does not support READ_REQ
+			if (event.getType() == Event::READ_REQ && !ownerLink.supports(Event::READ_REQ))
+			{
+				const Value& value = item.getValue();
+				if (!value.isNull())
+					events.add(Event("auto", event.getItemId(), Event::STATE_IND, value));
+			}
+
+			eventPos++;
+		}
 
 		// log events
 		if (config.getLogEvents())
 			for (auto& event : events)
 			{
-				string typeStr;
+				LogStream stream = logger.debug();
 				switch (event.getType())
 				{
 					case Event::STATE_IND:
-						typeStr = "STATE_IND"; break;
+						stream << "STATE_IND"; break;
 					case Event::WRITE_REQ:
-						typeStr = "WRITE_REQ"; break;
+						stream << "WRITE_REQ"; break;
 					case Event::READ_REQ:
-						typeStr = "READ_REQ"; break;
+						stream << "READ_REQ"; break;
 					default:
-						typeStr = "???"; break;
+						stream << "?"; break;
 				}
-				logger.debug() << typeStr << " for item " << event.getItemId() << ": " << event.getValue() << endOfMsg();
+				stream << " for item " << event.getItemId();
+				if (event.getType() != Event::READ_REQ)
+					stream << ": " << event.getValue().toStr() << " [" << event.getValue().getType().toStr() << "]";
+				stream << endOfMsg();
 			}
 		
 		// send events
-		for (auto& link : links)
+		for (auto& linkPair : links)
 			try
 			{
-				link.send(events);
+				linkPair.second.send(items, events);
 			}
 			catch (const std::exception& error)
 			{
-				logger.error() << "Error on link " << link.getId() << " when sending events: " << error.what() << endOfMsg();
+				logger.error() << "Error on link " << linkPair.first << " when sending events: " << error.what() << endOfMsg();
 			}
 	}
 

@@ -2,6 +2,7 @@
 #define KNX_H
 
 #include <ctime>
+#include <set>
 
 #include "link.h"
 #include "logger.h"
@@ -78,8 +79,8 @@ struct DatapointType
 	string toStr() const;
 	static bool fromStr(string dptStr, DatapointType& dpt);
 	
-	ByteString exportValue(string value) const;
-	string importValue(ByteString bytes) const;
+	ByteString exportValue(const Value& value) const;
+	Value importValue(ByteString bytes) const;
 };
 
 struct GroupAddr
@@ -131,12 +132,11 @@ class KnxConfig
 	struct Binding
 	{
 		string itemId;
-		bool owner;
 		GroupAddr stateGa;
 		GroupAddr writeGa;
 		DatapointType dpt;
-		Binding(string _itemId, bool _owner, GroupAddr _stateGa, GroupAddr _writeGa, DatapointType _dpt) : 
-			itemId(_itemId), owner(_owner), stateGa(_stateGa), writeGa(_writeGa), dpt(_dpt) {};
+		Binding(string _itemId, GroupAddr _stateGa, GroupAddr _writeGa, DatapointType _dpt) : 
+			itemId(_itemId), stateGa(_stateGa), writeGa(_writeGa), dpt(_dpt) {};
 	};
 	class Bindings: public std::map<string, Binding> 
 	{
@@ -189,7 +189,7 @@ class KnxHandler: public Handler
 	{ 
 		DISCONNECTED, 
 		WAIT_FOR_CONN_RESP, 
-		CONNECTED 
+		CONNECTED,
 	};
 	struct LDataReq
 	{
@@ -208,26 +208,48 @@ class KnxHandler: public Handler
 	IpAddr dataIpAddr;
     Byte channelId;
 	State state;
+	
+	// Time when last connect attempt has been started.
 	std::time_t lastConnectTry;
+	
+	// Has a CONNECTION STATE REQUEST been sent for which a CONNECTION STATE RESPONSE
+	// is pending?
 	bool ongoingConnStateReq;
+	
+	// Time when the last CONNECTION REQUEST or CONNECTION STATE REQUST has been sent.
 	std::time_t controlReqSendTime;
+	
+	// Sequence number of last received TUNNEL REQUEST.
 	Byte lastReceivedSeqNo;
+	
+	// Sequence number of last sent TUNNEL REQUEST.
 	Byte lastSentSeqNo;
+	
+	// Has a L-Data.req been sent for which a L-Data.con is pending?
+	// Attention: Timeouts are currently not detected.
 	bool ongoingLDataReq;
+	
+	// L-Data.req messages which still have to be sent.
 	std::list<LDataReq> waitingLDataReqs;
+
+	// READ_REQ events which have been generated and for which so far no STATE_IND has
+	// been received.
+	// Attention: Timeouts are currently not detected.
+	std::set<string> waitingReadReqs;
 	
 	public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
+	virtual bool supports(Event::Type eventType) const { return true; }
 	virtual int getReadDescriptor() { return state != DISCONNECTED ? socket : -1; }
 	virtual int getWriteDescriptor() { return -1; }
-	virtual Events receive();
-	virtual void send(const Events& events);
+	virtual Events receive(const Items& items);
+	virtual void send(const Items& items, const Events& events);
 	
 	private:
 	void disconnect();
-	Events receiveX();
-	void sendX(const Events& events);
+	Events receiveX(const Items& items);
+	void sendX(const Items& items, const Events& events);
 	void sendWaitingLDataReq();
 	bool receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port);
 	void sendMsg(IpAddr addr, IpPort port, ByteString msg);

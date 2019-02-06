@@ -6,7 +6,8 @@ RUN set -x && \
     apk --no-cache add \
 		libgcc \
 		libstdc++ \
-		mosquitto-libs && \
+		mosquitto-libs \
+		tzdata && \
     apk --no-cache add --virtual build-deps \
         build-base \
         cmake \
@@ -26,7 +27,9 @@ RUN set -x && \
 	install -m644 /build/weaver/weaver_conf.json /weaver/conf && \
 	apk del build-deps && \
 	rm -rf /build
-		
+
+ENV TZ Europe/Berlin
+
 VOLUME ["/weaver/conf", "/weaver/log"]
 
 CMD ["/usr/bin/weaver", "/weaver/conf/weaver_conf.json"]

@@ -1,92 +1,76 @@
 #include "link.h"
 
-string Transformation::exportValue(string value)
+Value Modifier::exportValue(const Value& value) const
 {
-	try
-	{
-		float f = std::stof(value);
-		std::ostringstream stream;
-		stream << f / factor;
-		return stream.str();
-	}
-	catch (const std::exception& ex)
-	{
-		return "";
-	}
-}
-
-string Transformation::importValue(string value)
-{
-	try
-	{
-		float f = std::stof(value);
-		std::ostringstream stream;
-		stream << f * factor;
-		return stream.str();
-	}
-	catch (const std::exception& ex)
-	{
-		return "";
-	}
-}
-
-Event Transformations::exportEvent(const Event& event)
-{
-	if (event.getType() == Event::READ_REQ)
-		return event;
-
-	auto pos = find(event.getItemId());
-	if (pos == end())
-		return event;
+	if (value.isNumber())
+		return Value(value.getNumber() / factor);
 	else
-	{
-		Event newEvent(event);
-		newEvent.setValue(pos->second.exportValue(newEvent.getValue()));
-		return newEvent;
-	}
+		return value;
 }
 
-Event Transformations::importEvent(const Event& event)
+Value Modifier::importValue(const Value& value) const
 {
-	if (event.getType() == Event::READ_REQ)
-		return event;
-
-	auto pos = find(event.getItemId());
-	if (pos == end())
-		return event;
+	if (value.isNumber())
+		return Value(value.getNumber() * factor);
 	else
-	{
-		Event newEvent(event);
-		newEvent.setValue(pos->second.importValue(newEvent.getValue()));
-		return newEvent;
-	}
+		return value;
 }
 
-Events Link::receive()
+Events Link::receive(Items& items)
 {
-	if (!transformations.empty())
+	Events events = handler->receive(items);
+	for (auto eventPos = events.begin(); eventPos != events.end();)
 	{
-		Events events = handler->receive();
-		Events newEvents;
-		for (auto& event : events)
-			newEvents.add(transformations.importEvent(event));
-		return newEvents;
+		auto& event = *eventPos;
+		
+		if (event.getType() != Event::READ_REQ)
+		{
+			// convert event value to item type
+			auto itemPos = items.find(event.getItemId());
+			if (itemPos != items.end())
+			{
+				Value newValue = itemPos->second.getType().convert(event.getValue());
+				if (newValue.isNull())
+					logger.errorX() << "Unable to convert " << event.getValue().getType().toStr() << " value '" << event.getValue().toStr() 
+					                << "' to " << itemPos->second.getType().toStr()  << " value for item " << itemPos->first << endOfMsg();
+				else
+					event.setValue(newValue);
+			}
+
+			// apply modifier
+			auto modifierPos = modifiers.find(event.getItemId());
+			if (modifierPos != modifiers.end())
+				event.setValue(modifierPos->second.importValue(event.getValue()));
+			
+			// suppress unsolicited STATE_IND events in case the item value did not change
+			if (  event.getType() == Event::STATE_IND 
+			   && !handler->supports(Event::READ_REQ)
+			   && !handler->supports(Event::WRITE_REQ)
+			   && itemPos != items.end() && !itemPos->second.updateValue(event.getValue())
+			   )
+			{
+				// old and new value are identical or within tolerances
+				eventPos = events.erase(eventPos);
+				continue;
+			}
+		}
+		else
+			event.setValue(Value());
+
+		eventPos++;
 	}
-	else
-		return handler->receive();
+	return events;
 }
 
-void Link::send(const Events& events)
+void Link::send(const Items& items, const Events& events)
 {
-	if (!transformations.empty())
+	Events newEvents = events;
+	for (auto& event : newEvents)
 	{
-		Events newEvents;
-		for (auto& event : events)
-			newEvents.add(transformations.exportEvent(event));
-		handler->send(newEvents);
+		// apply modifier
+		auto modifierPos = modifiers.find(event.getItemId());
+		if (modifierPos != modifiers.end())
+			event.setValue(modifierPos->second.exportValue(event.getValue()));
 	}
-	else
-		handler->send(events);
+	handler->send(items, newEvents);
 }
-
-
