@@ -127,6 +127,7 @@
 				//"msgPattern": "[[.STX.]].*[[.ETX.]]\r\n",
 				"msgPattern": "[[:cntrl:]].{62}*[[:cntrl:]]\r\n",
 				//"logRawData": true,
+				//"logRawDataInHex": true,
 				"bindings": [
 					{ "itemId": "helligkeit_aussen_ost", "pattern": ".{19}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux
 					{ "itemId": "helligkeit_aussen_sued", "pattern": ".{25}([0-9]{3}\\.[0-9]).*" }, // Format nnn.n, 0...150 kLux

@@ -62,7 +62,7 @@ bool PortHandler::open()
 	lastOpenTry = now;
 	
 	// open port
-	port = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NOCTTY);
+	port = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
 	if (port < 0)
 		logger.errorX() << unixError("open") << endOfMsg();
 	auto autoClose = finally([this] { ::close(port); port = -1; });
@@ -159,6 +159,9 @@ bool PortHandler::open()
 	  
 	// enable canonical mode
 	settings.c_lflag |= ICANON;
+	
+	// generate signals
+	settings.c_lflag |= ISIG;
 
 	// enable new settings
 	if (tcsetattr(port, TCSANOW, &settings) != 0)
@@ -194,6 +197,8 @@ void PortHandler::receiveData()
 			return;
 		else
 			logger.errorX() << unixError("read") << endOfMsg();
+	if (rc == 0)
+		logger.errorX() << "Data transmission stopped" << endOfMsg();
 	string receivedData = string(buffer, rc);
 
 	// remove 0x00 bytes from received data
