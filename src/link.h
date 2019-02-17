@@ -18,23 +18,29 @@ private:
 	// value seen beforehand?
 	bool suppressDups;
 	
-	// An unsolicited STATE_IND event and the associated new item value is suppressed in case it is inside  
-	// the interval defined by this delta percentage.
 	// (current value) * (100 - (variation percentage)) <= new value <= (current value) * (100 + (variation percentage)) => ignore event
 	float relVariation;
 	
-	// An unsolicited STATE_IND event and the associated new item value is suppressed in case it is inside  
-	// the interval defined by this delta value.
+	// New item values are suppressed in case they are inside the interval defined by this delta value.
 	// (current value) - (variation value) <= new value <= (current value) + (variation value) => ignore event
 	float absVariation;
 
+	// New item values are suppressed if they are greater than or equeal to this one.
+	float minimum;
+	
+	// New item values are suppressed if they are smaller than or equeal to this one.
+	float maximum;
+	
+	// New item values are suppressed in case they are inside the interval defined by this delta percentage.
 public:
-	Modifier(string _itemId) : itemId(_itemId), factor(1.0), suppressDups(false), relVariation(0.0), absVariation(0.0) {}
+	Modifier(string _itemId);
 	string getItemId() const { return itemId; }
+	void setFactor(float _factor) { factor = _factor; }
 	void setSuppressDups(bool _suppressDups) { suppressDups = _suppressDups; }
 	void setRelVariation(float _relVariation) { relVariation = _relVariation; }
 	void setAbsVariation(float _absVariation) { absVariation = _absVariation; }
-	void setFactor(float _factor) { factor = _factor; }
+	void setMinimum(float _minimum) { minimum = _minimum; }
+	void setMaximum(float _maximum) { maximum = _maximum; }
 
 	Value exportValue(const Value& value) const;
 	Value importValue(const Value& value) const;

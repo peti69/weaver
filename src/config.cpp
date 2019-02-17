@@ -229,6 +229,10 @@ Links Config::getLinks(const Items& items, Log& log) const
 				{
 					auto& suppressValue = getObject(modifierValue, "suppressDuplicates");
 					modifier.setSuppressDups(true);
+					if (hasMember(suppressValue, "minimum"))
+						modifier.setMinimum(getFloat(suppressValue, "minimum"));
+					if (hasMember(suppressValue, "maximum"))
+						modifier.setMinimum(getFloat(suppressValue, "maximum"));
 					if (hasMember(suppressValue, "absVariation"))
 						modifier.setAbsVariation(getFloat(suppressValue, "absVariation"));
 					if (hasMember(suppressValue, "relVariation"))

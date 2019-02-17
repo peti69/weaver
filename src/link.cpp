@@ -1,4 +1,12 @@
+#include <limits>
+
 #include "link.h"
+
+Modifier::Modifier(string _itemId) : 
+	itemId(_itemId), factor(1.0), suppressDups(false), relVariation(0.0), absVariation(0.0),
+	minimum(std::numeric_limits<float>::lowest()), maximum(std::numeric_limits<float>::max())	 
+{
+}
 
 Value Modifier::exportValue(const Value& value) const
 {
@@ -28,8 +36,10 @@ bool Modifier::suppressValue(const Value& oldValue, const Value& newValue) const
 	{
 		double oldNum = oldValue.getNumber();
 		double newNum = newValue.getNumber();
-		if (newNum >= oldNum * (1.0 - relVariation / 100.0) - absVariation && 
-				newNum <= oldNum * (1.0 + relVariation / 100.0) + absVariation)
+		if (  newNum >= minimum && newNum <= maximum
+		   && newNum >= oldNum * (1.0 - relVariation / 100.0) - absVariation 
+		   && newNum <= oldNum * (1.0 + relVariation / 100.0) + absVariation
+		   )
 			return true;
 	}
 

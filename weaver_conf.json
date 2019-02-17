@@ -94,7 +94,7 @@
 	// Interfaces to other systems and/or devices.
 	"links": [
 		{
-			// Identifier for the link.
+			// Identifier for this link.
 			"id": "stromzaehler",
 
 			// Alteration rules for events and their values which are sent or received over the link.
@@ -111,7 +111,8 @@
 					// Received STATE_IND values for links only supporting STATE_IND can be suppressed in case
 					// the new values do not differ significantly from the former ones. Only in case the values
 					// are outside a tolerance they are stored and distributed to other links. The tolerance is 
-					// adjusted by means of the fields absVariation and relVariation.
+					// defined by means of the fields absVariation and relVariation. STATE_IND suppression only 
+					// takes place for values within the range defined by the fields minimum and maximum.
 					//"suppressDuplicates":
 					//{
 						// Defines the tolerance between stored and received value as an absolute figure. 
@@ -121,6 +122,12 @@
 						// Defines the tolerance between stored and received value as a relative figure in 
 						// percent (0-100). Optional, default is 0.0.
 						//"relVariation": 10.0,
+						
+						// Lower bound of range. Optional, default is a very small negative number.
+						//"minimum": -100.0,
+						
+						// Upper bound of range. Optional, default is a very large positive number.
+						//"minimum": 100.0,
 					//}
 				//},
 
@@ -178,9 +185,10 @@
 				//{ "itemId": "helligkeit_aussen_ost", "factor": 1000 },
 				//{ "itemId": "helligkeit_aussen_sued", "factor": 1000 },
 				//{ "itemId": "helligkeit_aussen_west", "factor": 1000 }
-				{ "itemId": "helligkeit_aussen_ost", "suppressDuplicates": { "absVariation": 0.1 } },
-				{ "itemId": "helligkeit_aussen_sued", "suppressDuplicates": { "absVariation": 0.1 } },
-				{ "itemId": "helligkeit_aussen_west", "suppressDuplicates": { "absVariation": 0.1 } },
+				{ "itemId": "helligkeit_aussen_ost", "suppressDuplicates": { "absVariation": 1, "minimum": 5 } },
+				{ "itemId": "helligkeit_aussen_sued", "suppressDuplicates": { "absVariation": 1, "minimum": 5 } },
+				{ "itemId": "helligkeit_aussen_west", "suppressDuplicates": { "absVariation": 1, "minimum": 5 } },
+				{ "itemId": "helligkeit_aussen_daemmerung", "suppressDuplicates": {} },
 				{ "itemId": "wind_geschwindigkeit", "suppressDuplicates": { "absVariation": 1 } },
 				{ "itemId": "regen_status", "suppressDuplicates": {} },
 			],
@@ -208,7 +216,7 @@
 			}
 		},
 		{
-			// Identifier for the link.
+			// Identifier for this link.
 			"id": "wiregate",
 
 			// Link type specific parametrization.
@@ -308,7 +316,7 @@
 			}
 		},
 		{
-			// Identifier for the link.
+			// Identifier for this link.
 			"id": "mosquitto",
 
 			// Link type specific parametrization.
@@ -414,12 +422,33 @@
 			}
 		},
 		{
-			// Identifier for the link.
+			// Identifier for this link.
 			"id": "heart",
 
-			// Link type specific parametrization.
+			// This link type supports the regular triggering of events.
 			"generator": {
+
+				// Associates event scheduling with items.
 				"bindings":	[
+					//{
+						// Id of item for which the event will be produced.
+						//"itemId": "weaver_herzschlag", 
+
+						// Kind of event which will be produced. Possible values are STATE_IND, WRITE_REQ and 
+						// READ_REQ. For STATE_IND the link needs to be the owner link whereas for WRITE_REQ 
+						// and READ_REQ the link must not be owner link. 
+						//"eventType": "STATE_IND", 
+						
+						// Value which will be assigned to STATE_IND and WRITE_REQ events. 
+						//"value": "42",
+
+						// Frequency in which the events will be generated. That is, the time duration in seconds 
+						// between two successive events. 
+						//"interval": 30,
+
+						// Arriving READ_REQ events for STATE_IND schedules also trigger the STATE_IND event.
+					//},
+
 					{ "itemId": "weaver_herzschlag", "eventType": "STATE_IND", "interval": 30 }
 				]
 			}
