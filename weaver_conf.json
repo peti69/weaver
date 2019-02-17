@@ -8,17 +8,17 @@
 
 	// Enables logging of all received and distributed events. Optional, default is false. 
 	"logEvents": true,
-	
+
 	// Defines the name of the file to which the log messages are written. In case no name is given or in case
 	// an empty name is given the log message are only witten to standard out (stdout). Optional, default is empty.
 	//"logFileName": "/weaver/log/weaver.log",
-	"logFileName": "/home/peter/weaver/weaver.log",
-	
+	//"logFileName": "/home/peter/weaver/weaver.log",
+
 	// Defines the maximum size of the log file in bytes. When the log file becomes bigger it is renamed (for backup) 
 	// and a new empty one is created. If 0 is given the size of the log file is not limited and log file backups are 
 	// not performed. Optional, default is 0. 
 	"maxLogFileSize": 1000000,
-	
+
 	// Defines the maximum number of log file backups. When the number of files becomes larger the oldest file will be deleted. 
 	// If 0 is given log file backups are not performed. Optional, default is 0. 
 	"maxLogFileCount": 3,
@@ -182,6 +182,7 @@
 				{ "itemId": "helligkeit_aussen_sued", "suppressDuplicates": { "absVariation": 0.1 } },
 				{ "itemId": "helligkeit_aussen_west", "suppressDuplicates": { "absVariation": 0.1 } },
 				{ "itemId": "wind_geschwindigkeit", "suppressDuplicates": { "absVariation": 1 } },
+				{ "itemId": "regen_status", "suppressDuplicates": {} },
 			],
 
 			// Link type specific parametrization.

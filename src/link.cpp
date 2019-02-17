@@ -77,7 +77,7 @@ Events Link::receive(Items& items)
 				if (  event.getType() == EventType::STATE_IND 
 				   && !handler->supports(EventType::READ_REQ)
 				   && !handler->supports(EventType::WRITE_REQ)
-				   && !modifierPos->second.suppressValue(item.getValue(), event.getValue())
+				   && modifierPos->second.suppressValue(item.getValue(), event.getValue())
 				   )
 				{
 					// old and new value are equal or equal within tolerances
