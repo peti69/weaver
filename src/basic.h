@@ -40,11 +40,11 @@ class Value;
 
 class ValueType
 {
-	private:
+private:
 	typedef uint8_t Code;
 	Code code;
 
-	public:
+public:
 	ValueType() : code(VOID) {}
 	ValueType(Code _code) : code(_code) {}
 
@@ -62,7 +62,7 @@ class ValueType
 
 class Value
 {
-	private:
+private:
 	double num;
 	bool boo;
 	string str;
@@ -71,7 +71,7 @@ class Value
 
 	Value(bool _null, ValueType _type) : null(_null), type(_type) {}
 	
-	public:
+public:
 	Value() : null(true), type(ValueType::VOID) {}
 	Value(bool _boo) : null(false), boo(_boo), type(ValueType::BOOLEAN) {}
 	Value(double _num) : null(false), num(_num), type(ValueType::NUMBER) {}
@@ -98,7 +98,7 @@ class Value
 
 class Item
 {
-	private:
+private:
 	// Id of item for unique identification purpose.
 	string id;
 	
@@ -109,62 +109,74 @@ class Item
 	// triggers STATE_IND events. 
 	string ownerId;
 
-	// An unsolicited STATE_IND event and the associated new item value is only accepted and forwarded in 
-	// case it is outside of the interval defined by this delta percentage.
-	// (current value) * (100 - (delta percentage)) <= new value <= (current value) * (100 + (delta percentage)) => ignore event
-	float relDelta;
-	
-	// An unsolicited STATE_IND event and the associated new item value is only accepted and forwarded in 
-	// case it is outside of the interval defined by this delta value.
-	// (current value) - (delta value) <= new value <= (current value) + (delta value) => ignore event
-	float absDelta;
-
 	// Value of last seen and accepted STATE_IND event for the item.
 	Value value;
 	
-	public:	
-	Item(string _id, ValueType _type, string _ownerId, float _relDelta, float _absDelta) : 
-		id(_id), type(_type), ownerId(_ownerId), relDelta(_relDelta), absDelta(_absDelta) {}
+public:	
+	Item(string _id, ValueType _type, string _ownerId) :  id(_id), type(_type), ownerId(_ownerId) {}
 	string getId() const { return id; }
 	ValueType getType() const { return type; }
 	string getOwnerId() const { return ownerId; }
 	const Value& getValue() const { return value; }
-	
-	bool updateValue(const Value& newValue);
+	void setValue(const Value& newValue) { value = newValue; }
 };
 
 class Items: public std::map<string, Item>
 {
-	public:
+public:
 	void add(Item item) { insert(value_type(item.getId(), item)); }
 	bool exists(string itemId) const { return find(itemId) != end(); }
 	string getOwnerId(string itemId) const;
 };
 
+class EventType
+{
+private:
+	typedef uint8_t Code;
+	Code code;
+
+public:
+	EventType() : code(STATE_IND) {}
+	EventType(Code _code) : code(_code) {}
+
+	operator Code() const { return code; }
+	string toStr() const;
+	static bool fromStr(string typeStr, EventType& type);
+
+	static const Code STATE_IND = 0;
+	static const Code WRITE_REQ = 1;
+	static const Code READ_REQ = 2;
+};
+
 class Event
 {
-	public:
-	enum Type { STATE_IND, WRITE_REQ, READ_REQ };
-
-	private:
+private:
+	// Id of link which generated the event.
 	string originId;
+	
+	// Id of item for which the event occurs. 
 	string itemId;
-	Type type;
+	
+	// STATE_IND, WRITE_REQ or READ_REQ.
+	EventType type;
+	
+	// In case of STATE_IND the current value of the item. For WRITE_REQ it is the new value which should
+	// be assigned to the item. READ_REQ events do not make use of it. 
 	Value value;
 	
-	public:
-	Event(string _originId, string _itemId, Type _type, const Value& _value) : 
+public:
+	Event(string _originId, string _itemId, EventType _type, const Value& _value) : 
 		originId(_originId), itemId(_itemId), type(_type), value(_value) {}
 	string getOriginId() const { return originId; }
 	string getItemId() const { return itemId; }
-	Type getType() const { return type; }
+	EventType getType() const { return type; }
 	const Value& getValue() const { return value; }
 	void setValue(const Value& _value) { value = _value; }
 };
 
 class Events: public std::list<Event>
 {
-	public:
+public:
 	void add(Event event) { push_back(event); }
 };
 

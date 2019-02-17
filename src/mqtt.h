@@ -11,10 +11,10 @@
 
 class MqttConfig
 {
-	public:
+public:
+	typedef std::set<string> Topics;
 	struct Binding
 	{
-		typedef std::set<string> Topics;
 		string itemId;
 		Topics stateTopics;
 		string writeTopic;
@@ -26,25 +26,27 @@ class MqttConfig
 	};
 	class Bindings: public std::map<string, Binding>
 	{
-		public:
+	public:
 		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
 		bool exists(string itemId) const { return find(itemId) != end(); }
 	};
 
-	private:
+private:
 	string clientIdPrefix;
 	string hostname;
 	int port;
 	int reconnectInterval;
 	bool retainFlag;
 	bool logMsgs;
+	Topics subTopics;
 	Bindings bindings;
 
-	public:
+public:
 	MqttConfig(string _clientIdPrefix, string _hostname, int _port, int _reconnectInterval, 
-		bool _retainFlag, bool _logMsgs, Bindings _bindings) :
+		bool _retainFlag, bool _logMsgs, Topics _subTopics, Bindings _bindings) :
 		clientIdPrefix(_clientIdPrefix), hostname(_hostname), port(_port), 
-		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), logMsgs(_logMsgs), bindings(_bindings)
+		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), logMsgs(_logMsgs), 
+		subTopics(_subTopics), bindings(_bindings)
 	{}
 	string getClientIdPrefix() const { return clientIdPrefix; }
 	string getHostname() const { return hostname; }
@@ -52,12 +54,13 @@ class MqttConfig
 	int getReconnectInterval() const { return reconnectInterval; }
 	bool getRetainFlag() const { return retainFlag; }
 	bool getLogMsgs() const {return logMsgs; }
+	const Topics& getSubTopics() const {return subTopics; }
 	const Bindings& getBindings() const { return bindings; }
 };
 
 class MqttHandler: public Handler
 {
-	private:
+private:
 	string id;
 	MqttConfig config;
 	Logger logger;
@@ -72,20 +75,20 @@ class MqttHandler: public Handler
 	};
 	std::list<Msg> receivedMsgs;
 	
-	public:
+public:
 	MqttHandler(string _id, MqttConfig _config, Logger _logger);
 	virtual ~MqttHandler();
-	virtual bool supports(Event::Type eventType) const { return true; }
-	virtual int getWriteDescriptor() { return mosquitto_want_write(client) ? mosquitto_socket(client) : -1; }
-	virtual int getReadDescriptor() { return mosquitto_socket(client); }
-	virtual Events receive(const Items& items);
-	virtual void send(const Items& items, const Events& events);
+	virtual bool supports(EventType eventType) const override { return true; }
+	virtual int getWriteDescriptor() override { return mosquitto_want_write(client) ? mosquitto_socket(client) : -1; }
+	virtual int getReadDescriptor() override { return mosquitto_socket(client); }
+	virtual Events receive(const Items& items) override;
+	virtual Events send(const Items& items, const Events& events) override;
 
-	private:
+private:
 	bool connect(const Items& items);
 	void disconnect();
 	Events receiveX(const Items& items);
-	void sendX(const Items& items, const Events& events);
+	Events sendX(const Items& items, const Events& events);
 	void handleError(string funcName, int errorCode);
 	void onMessage(const Msg& msg);
 	void sendMessage(string topic, string payload, bool reatain);

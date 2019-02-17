@@ -12,7 +12,7 @@
 
 class PortConfig
 {
-	public:
+public:
 	enum Parity { NONE, ODD, EVEN };
 	struct Binding
 	{
@@ -23,12 +23,11 @@ class PortConfig
 	};
 	class Bindings: public std::map<string, Binding>
 	{
-		public:
+	public:
 		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
-		bool exists(string itemId) const { return find(itemId) != end(); }
 	};
 	
-	private:
+private:
 	string name;
 	int baudRate;
 	int dataBits;
@@ -41,7 +40,7 @@ class PortConfig
 	bool logRawDataInHex;
 	Bindings bindings;
 	
-	public:
+public:
 	PortConfig(string _name, int _baudRate, int _dataBits, int _stopBits, Parity _parity, int _reopenInterval,
 		regex_t _msgPattern, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
 		name(_name), baudRate(_baudRate), dataBits(_dataBits), stopBits(_stopBits), parity(_parity), 
@@ -68,25 +67,25 @@ class PortConfig
 
 class PortHandler: public Handler
 {
-	private:
+private:
 	string id;
 	PortConfig config;
 	Logger logger;
 	string msgData;
-	int port;
+	int fd;
 	std::time_t lastOpenTry;
 	struct termios oldSettings;
 
-	public:
+public:
 	PortHandler(string _id, PortConfig _config, Logger _logger);
 	virtual ~PortHandler();
-	virtual bool supports(Event::Type eventType) const { return eventType == Event::STATE_IND; }
-	virtual int getReadDescriptor() { return port; }
-	virtual int getWriteDescriptor() { return -1; }
-	virtual Events receive(const Items& items);
-	virtual void send(const Items& items, const Events& events) {}
+	virtual bool supports(EventType eventType) const override { return eventType == EventType::STATE_IND; }
+	virtual int getReadDescriptor() override { return fd; }
+	virtual int getWriteDescriptor() override { return -1; }
+	virtual Events receive(const Items& items) override;
+	virtual Events send(const Items& items, const Events& events) override { return Events(); }
 
-	private:
+private:
 	bool open();
 	void close();	
 	Events receiveX();

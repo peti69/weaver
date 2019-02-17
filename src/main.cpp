@@ -10,11 +10,6 @@ void sighandler(int signo)
 
 int main(int argc, char* argv[])
 {
-	Logger logger("MAIN");
-
-	// first log message
-	logger.info() << "Started" << endOfMsg();
-
 	// install the signal handler for SIGTERM.
 	struct sigaction action;
 	action.sa_handler = sighandler;
@@ -31,19 +26,45 @@ int main(int argc, char* argv[])
 	sigprocmask(SIG_BLOCK, &sigset, &oldset);
 	
 	// read configuration file
+	Config configFile;
+	try
+	{
+		if (argc < 2)
+			throw std::runtime_error("Configuration file name not specified");
+		configFile.read(argv[1]);
+	}
+	catch (const std::exception& error)
+	{
+		cout << "Reading configuration file failed: " << error.what() << endl;
+		return 1;
+	}
+
+	// initialize logging 
+	Log log;
+	try
+	{
+		log.init(configFile.getLogConfig());
+	}
+	catch (const std::exception& error)
+	{
+		cout << "Logging initialization failed: " << error.what() << endl;
+		return 1;
+	}
+	Logger logger = log.newLogger("MAIN");
+
+	// first log messages
+	logger.info() << "Started" << endOfMsg();
+	logger.info() << "Using configuration file " << argv[1] << endOfMsg();
+
+	// initialize
 	Links links;
 	Items items;
 	GlobalConfig config;
 	try
 	{
-		if (argc < 2)
-			logger.errorX() << "File name for configuration missing" << endOfMsg();
-		logger.info() << "Reading configuration from " << argv[1] << endOfMsg();
-		Config configFile(argv[1]);
-
 		config = configFile.getGlobalConfig();
 		items = configFile.getItems();
-		links = configFile.getLinks(items);
+		links = configFile.getLinks(items, log);
 	}
 	catch (const std::exception& error)
 	{
@@ -60,6 +81,7 @@ int main(int argc, char* argv[])
 			FD_ZERO(&readFds);
 			FD_ZERO(&writeFds);
 			int fdMax = 0;
+			long timeoutMs = 1000;
 			for (auto& linkPair : links)
 			{
 				int readFd = linkPair.second.getReadDescriptor();
@@ -77,17 +99,20 @@ int main(int argc, char* argv[])
 						fdMax = writeFd;
 					FD_SET(writeFd, &writeFds);
 				}
+				
+				timeoutMs = std::min(timeoutMs, linkPair.second.getTimeout());
 			}
-			
+
 			struct timespec timeout;
-			timeout.tv_sec = 1;
-			timeout.tv_nsec = 0;
+			timeout.tv_sec = timeoutMs / 1000;
+			timeout.tv_nsec = (timeoutMs % 1000) * 1000000;
 			int rc = pselect(fdMax + 1, &readFds, &writeFds, 0, &timeout, &oldset);
 			if (rc == -1)
 				if (errno == EINTR)
 					break;
 				else
 					logger.errorX() << unixError("select") << endOfMsg();
+			//logger.info() << "pselect() done" << endOfMsg();
 		}
 		catch (const std::exception& error)
 		{
@@ -106,83 +131,16 @@ int main(int argc, char* argv[])
 			{
 				logger.error() << "Error on link " << linkPair.first << " when receiving events: " << error.what() << endOfMsg();
 			}
-		
-		// process events
-		for (auto eventPos = events.begin(); eventPos != events.end();)
-		{
-			auto& event = *eventPos;
-
-			// provide item
-			auto itemPos = items.find(event.getItemId());
-			if (itemPos == items.end())
-			{
-				eventPos++;
-				continue;
-			}
-			auto& item = itemPos->second;
-
-			// provide origin link
-			auto originLinkPos = links.find(event.getOriginId());
-			if (originLinkPos == links.end())
-			{
-				eventPos++;
-				continue;
-			}
-			auto& originLink = originLinkPos->second;
-
-			// provide owner link
-			auto ownerLinkPos = links.find(item.getOwnerId());
-			if (ownerLinkPos == links.end())
-			{
-				eventPos++;
-				continue;
-			}
-			auto& ownerLink = ownerLinkPos->second;
-
-			// suppress STATE_IND events in case the item value did not change and the origin link 
-			// only supports STATE_IND
-			if (  event.getType() == Event::STATE_IND 
-			   && !originLink.supports(Event::READ_REQ)
-			   && !originLink.supports(Event::WRITE_REQ)
-			   && !item.updateValue(event.getValue())
-			   )
-			{
-				// old and new value are identical or within tolerances
-				eventPos = events.erase(eventPos);
-				continue;
-			}
-
-			// add STATE_IND event in case the owner link does not support READ_REQ
-			if (event.getType() == Event::READ_REQ && !ownerLink.supports(Event::READ_REQ))
-			{
-				const Value& value = item.getValue();
-				if (!value.isNull())
-					events.add(Event("auto", event.getItemId(), Event::STATE_IND, value));
-			}
-			
-			eventPos++;
-		}
 
 		// log events
 		if (config.getLogEvents())
 			for (auto& event : events)
 			{
-				LogStream stream = logger.debug();
-				switch (event.getType())
-				{
-					case Event::STATE_IND:
-						stream << "STATE_IND"; break;
-					case Event::WRITE_REQ:
-						stream << "WRITE_REQ"; break;
-					case Event::READ_REQ:
-						stream << "READ_REQ"; break;
-					default:
-						stream << "?"; break;
-				}
-				stream << " for item " << event.getItemId();
-				if (event.getType() != Event::READ_REQ)
-					stream << ": " << event.getValue().toStr() << " [" << event.getValue().getType().toStr() << "]";
-				stream << endOfMsg();
+				LogMsg logMsg = logger.debug();
+				logMsg << event.getType().toStr() << " from " << event.getOriginId() << " for " << event.getItemId();
+				if (event.getType() != EventType::READ_REQ)
+					logMsg << ": " << event.getValue().toStr() << " [" << event.getValue().getType().toStr() << "]";
+				logMsg << endOfMsg();
 			}
 		
 		// send events

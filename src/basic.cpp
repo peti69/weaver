@@ -69,7 +69,7 @@ Value ValueType::convert(const Value& value) const
 		switch (code)
 		{
 			case VOID:
-				return Value();
+				return Value::newVoid();
 			case NUMBER:
 				try
 				{
@@ -104,7 +104,7 @@ string Value::toStr() const
 			case ValueType::NUMBER:
 				return cnvToStr(num);
 			case ValueType::VOID:
-				return "void";
+				return "-";
 			default:
 				return "?";
 		}
@@ -125,23 +125,6 @@ bool Value::operator==(const Value& x) const
 	       );
 }
 
-bool Item::updateValue(const Value& newValue)
-{
-	if (value == newValue)
-		return false;
-
-	if (newValue.isNumber() && value.isNumber())
-	{
-		double oldNum = value.getNumber();
-		double newNum = newValue.getNumber();
-		if (newNum >= oldNum * (1.0 - relDelta / 100.0) - absDelta && newNum <= oldNum * (1.0 + relDelta / 100.0) + absDelta)
-			return false;
-	}
-	
-	value = newValue;
-	return true;
-}
-
 string Items::getOwnerId(string itemId) const 
 { 
 	auto pos = find(itemId); 
@@ -149,3 +132,30 @@ string Items::getOwnerId(string itemId) const
 	return pos->second.getOwnerId();
 }
 
+string EventType::toStr() const
+{
+	switch (code)
+	{
+		case STATE_IND:
+			return "STATE_IND";
+		case WRITE_REQ:
+			return "WRITE_REQ";
+		case READ_REQ:
+			return "READ_REQ";
+		default:
+			return "?";
+	}
+}
+
+bool EventType::fromStr(string typeStr, EventType& type)
+{
+	if (typeStr == "STATE_IND")
+		type = STATE_IND;
+	else if (typeStr == "WRITE_REQ")
+		type = WRITE_REQ;
+	else if (typeStr == "READ_REQ")
+		type = READ_REQ;
+	else
+		return false;
+	return true;
+}

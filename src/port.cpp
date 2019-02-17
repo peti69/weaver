@@ -40,7 +40,7 @@ bool PortConfig::isValidParity(string parityStr, Parity& parity)
 }
 
 PortHandler::PortHandler(string _id, PortConfig _config, Logger _logger) : 
-	id(_id), config(_config), logger(_logger), port(-1), lastOpenTry(0)
+	id(_id), config(_config), logger(_logger), fd(-1), lastOpenTry(0)
 {
 }
 
@@ -52,7 +52,7 @@ PortHandler::~PortHandler()
 bool PortHandler::open()
 {
 	// port already open?
-	if (port >= 0)
+	if (fd >= 0)
 		return true;
 
 	// shell we perform another attempt to open the port?
@@ -62,14 +62,14 @@ bool PortHandler::open()
 	lastOpenTry = now;
 	
 	// open port
-	port = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
-	if (port < 0)
+	fd = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
+	if (fd < 0)
 		logger.errorX() << unixError("open") << endOfMsg();
-	auto autoClose = finally([this] { ::close(port); port = -1; });
+	auto autoClose = finally([this] { ::close(fd); fd = -1; });
 
 	// get current port settings
 	memset(&oldSettings, 0, sizeof(oldSettings));
-	if (tcgetattr(port, &oldSettings) != 0)
+	if (tcgetattr(fd, &oldSettings) != 0)
 		logger.errorX() << unixError("tcgetattr") << endOfMsg();
 
 	// create new port settings
@@ -164,34 +164,34 @@ bool PortHandler::open()
 	settings.c_lflag |= ISIG;
 
 	// enable new settings
-	if (tcsetattr(port, TCSANOW, &settings) != 0)
+	if (tcsetattr(fd, TCSANOW, &settings) != 0)
 		logger.errorX() << unixError("tcsetattr") << endOfMsg();
 	
 	autoClose.disable();
 	
-	logger.info() << "Port open" << endOfMsg();
+	logger.info() << "Serial port " << config.getName() << " open" << endOfMsg();
 	
 	return true;
 }
 
 void PortHandler::close()
 {
-	if (port < 0)
+	if (fd < 0)
 		return;
 	
-	tcsetattr(port, TCSANOW, &oldSettings);
-	::close(port);
-	port = -1;
+	tcsetattr(fd, TCSANOW, &oldSettings);
+	::close(fd);
+	fd = -1;
 	//lastOpenTry = 0;
 
-	logger.info() << "Port closed" << endOfMsg();
+	logger.info() << "Serial port " << config.getName() << " closed" << endOfMsg();
 }
 
 void PortHandler::receiveData()
 {
 	// receive data
 	char buffer[256];
-	int rc = ::read(port, buffer, sizeof(buffer));
+	int rc = ::read(fd, buffer, sizeof(buffer));
 	if (rc < 0)
 		if (errno == EWOULDBLOCK || errno == EAGAIN)
 			return;
@@ -227,7 +227,9 @@ Events PortHandler::receive(const Items& items)
 	{
 		logger.error() << ex.what() << endOfMsg();
 	}
+
 	close();
+	return Events();
 }
 
 Events PortHandler::receiveX()
@@ -263,7 +265,7 @@ Events PortHandler::receiveX()
 
 			regmatch_t match[2];
 			if (!regexec(&binding.pattern, reinterpret_cast<const char*>(msg.c_str()), 2, match, 0))
-				events.add(Event(id, binding.itemId, Event::STATE_IND, msg.substr(match[1].rm_so, match[1].rm_eo - match[1].rm_so)));
+				events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.substr(match[1].rm_so, match[1].rm_eo - match[1].rm_so)));
 		}
 	}
 

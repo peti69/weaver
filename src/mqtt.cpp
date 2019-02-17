@@ -47,7 +47,7 @@ bool MqttHandler::connect(const Items& items)
 	handleError("mosquitto_connect", ec);
 	connected = true;
 
-	logger.info() << "Connected to broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+	logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 
 	mosquitto_message_callback_set(client, onMqttMessage);
 
@@ -73,7 +73,13 @@ bool MqttHandler::connect(const Items& items)
 			handleError("mosquitto_subscribe", ec);
 		}
 	}
-	
+
+	for (auto topic : config.getSubTopics())
+	{
+		ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
+		handleError("mosquitto_subscribe", ec);
+	}
+
 	return true;
 }
 	
@@ -86,18 +92,18 @@ void MqttHandler::disconnect()
 	connected = false;
 	//lastConnectTry = 0;
 
-	logger.info() << "Disconnected from broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+	logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 }
 
 void MqttHandler::handleError(string funcName, int errorCode)
 {
 	if (errorCode != MOSQ_ERR_SUCCESS)
 	{
-		LogStream stream = logger.errorX();
-		stream << "Function " << funcName << "() returned error " << errorCode << " (" << mosquitto_strerror(errorCode) << ")";
+		LogMsg logMsg = logger.errorX();
+		logMsg << "Function " << funcName << "() returned error " << errorCode << " (" << mosquitto_strerror(errorCode) << ")";
 		if (errorCode == MOSQ_ERR_ERRNO)
-			stream << " due to system error " << errno << " (" << strerror(errno) << ")";
-		stream << endOfMsg();
+			logMsg << " due to system error " << errno << " (" << strerror(errno) << ")";
+		logMsg << endOfMsg();
 
 //		if (errorCode == MOSQ_ERR_CONN_LOST)
 //			disconnect();
@@ -145,14 +151,14 @@ Events MqttHandler::receiveX(const Items& items)
 			bool owner = items.getOwnerId(binding.itemId) == id;
 
 			if (binding.writeTopic == msg.topic && !owner)
-				events.add(Event(id, binding.itemId, Event::WRITE_REQ, msg.payload));
+				events.add(Event(id, binding.itemId, EventType::WRITE_REQ, msg.payload));
 			else if (binding.readTopic == msg.topic && !owner)
-				events.add(Event(id, binding.itemId, Event::READ_REQ, Value()));
+				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
 			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end() && owner)
-				events.add(Event(id, binding.itemId, Event::STATE_IND, msg.payload));
+				events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.payload));
 		}
-		
-		if (eventCount == events.size())
+
+		if (eventCount == events.size() && config.getSubTopics().size() == 0)
 			logger.warn() << "No item for topic " << msg.topic << endOfMsg();
 	}
 
@@ -161,10 +167,10 @@ Events MqttHandler::receiveX(const Items& items)
 	return events;
 }
 
-void MqttHandler::send(const Items& items, const Events& events)
+Events MqttHandler::send(const Items& items, const Events& events)
 {
 	if (!connected)
-		return;
+		return Events();
 
 	try
 	{
@@ -174,10 +180,12 @@ void MqttHandler::send(const Items& items, const Events& events)
 	{
 		logger.error() << ex.what() << endOfMsg();
 	}
+
 	disconnect();
+	return Events();
 }
 
-void MqttHandler::sendX(const Items& items, const Events& events)
+Events MqttHandler::sendX(const Items& items, const Events& events)
 {
 	int ec = mosquitto_loop(client, 0, 1);
 	handleError("mosquitto_loop", ec);
@@ -195,15 +203,17 @@ void MqttHandler::sendX(const Items& items, const Events& events)
 			string payload = event.getValue().toStr();
 
 			ec = MOSQ_ERR_SUCCESS;
-			if (!owner && event.getType() == Event::STATE_IND)
+			if (!owner && event.getType() == EventType::STATE_IND)
 				for (string stateTopic : binding.stateTopics)
 					sendMessage(stateTopic, payload, config.getRetainFlag());
-			if (binding.writeTopic != "" && owner && event.getType() == Event::WRITE_REQ)
+			if (binding.writeTopic != "" && owner && event.getType() == EventType::WRITE_REQ)
 				sendMessage(binding.writeTopic, payload, false);
-			if (binding.readTopic != "" && owner && event.getType() == Event::READ_REQ)
+			if (binding.readTopic != "" && owner && event.getType() == EventType::READ_REQ)
 				sendMessage(binding.readTopic, "", false);
 		}
 	}
+	
+	return Events();
 }
 
 void MqttHandler::sendMessage(string topic, string payload, bool retain)

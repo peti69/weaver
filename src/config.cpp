@@ -7,25 +7,8 @@
 #include "knx.h"
 #include "mqtt.h"
 #include "port.h"
+#include "generator.h"
 #include "finally.h"
-
-Config::Config(string filename)
-{
-	FILE* file = fopen(filename.c_str(), "r");
-	if (!file)
-		throw std::runtime_error("Could not open file " + filename);
-	auto autoClose = finally([file] { fclose(file); });
-
-	char buffer[4096];
-	rapidjson::FileReadStream stream(file, buffer, sizeof(buffer));
-	rapidjson::ParseResult result = document.ParseStream<rapidjson::kParseCommentsFlag|rapidjson::kParseTrailingCommasFlag>(stream);
-	if (result.IsError())
-	{
-		std::ostringstream stream;
-		stream << "Parse error '" << rapidjson::GetParseError_En(result.Code()) << "' at offset " << result.Offset() << " in file " << filename;
-		throw std::runtime_error(stream.str());
-	}
-}
 
 int Config::hasMember(const Value& value, string name) const
 {
@@ -161,11 +144,38 @@ regex_t Config::convertPattern2(string fieldName, string pattern) const
 	return regExpr;
 }
 
+void Config::read(string fileName)
+{
+	FILE* file = fopen(fileName.c_str(), "r");
+	if (!file)
+		throw std::runtime_error("Can not open file " + fileName);
+	auto autoClose = finally([file] { fclose(file); });
+
+	char buffer[4096];
+	rapidjson::FileReadStream stream(file, buffer, sizeof(buffer));
+	rapidjson::ParseResult result = document.ParseStream<rapidjson::kParseCommentsFlag|rapidjson::kParseTrailingCommasFlag>(stream);
+	if (result.IsError())
+	{
+		std::ostringstream stream;
+		stream << "Parse error '" << rapidjson::GetParseError_En(result.Code()) << "' at offset " << result.Offset() << " in file " << fileName;
+		throw std::runtime_error(stream.str());
+	}
+}
+
 GlobalConfig Config::getGlobalConfig() const
 {
 	bool logEvents = getBool(document, "logEvents", false);
 	
-	return GlobalConfig(logEvents);;
+	return GlobalConfig(logEvents);
+}
+
+LogConfig Config::getLogConfig() const
+{
+	string fileName = getString(document, "logFileName", "");
+	int maxFileSize = getInt(document, "maxLogFileSize", 0);
+	int maxFileCount = getInt(document, "maxLogFileCount", 0);
+	
+	return LogConfig(fileName, maxFileSize, maxFileCount);
 }
 
 Items Config::getItems() const
@@ -186,16 +196,13 @@ Items Config::getItems() const
 
 		string ownerId = getString(itemValue, "ownerId"); 
 
-		float relDelta = getFloat(itemValue, "relDelta", 0.0); 
-		float absDelta = getFloat(itemValue, "absDelta", 0.0); 
-
-		items.add(Item(itemId, type, ownerId, relDelta, absDelta));
+		items.add(Item(itemId, type, ownerId));
 	}
 
 	return items;
 }
 
-Links Config::getLinks(const Items& items) const
+Links Config::getLinks(const Items& items, Log& log) const
 {
 	auto& linksValue = getArray(document, "links"); 
 	Links links;
@@ -213,24 +220,38 @@ Links Config::getLinks(const Items& items) const
 				string itemId = getString(modifierValue, "itemId");
 				if (!items.exists(itemId))
 					throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
-				
-				float factor = getFloat(modifierValue, "factor");
-				
-				modifiers.add(Modifier(itemId, factor));
+
+				Modifier modifier(itemId);
+
+				if (hasMember(modifierValue, "factor"))
+					modifier.setFactor(getFloat(modifierValue, "factor"));
+				if (hasMember(modifierValue, "suppressDuplicates"))
+				{
+					auto& suppressValue = getObject(modifierValue, "suppressDuplicates");
+					modifier.setSuppressDups(true);
+					if (hasMember(suppressValue, "absVariation"))
+						modifier.setAbsVariation(getFloat(suppressValue, "absVariation"));
+					if (hasMember(suppressValue, "relVariation"))
+						modifier.setRelVariation(getFloat(suppressValue, "relVariation"));
+				}
+
+				modifiers.add(modifier);
 			}
 		}
 
 		std::shared_ptr<Handler> handler;
+		Logger logger = log.newLogger(id);
 		if (hasMember(linkValue, "knx"))
-			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), items), Logger(id)));
+			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), items), logger));
 		else if (hasMember(linkValue, "mqtt"))
-			handler.reset(new MqttHandler(id, *getMqttConfig(getObject(linkValue, "mqtt"), items), Logger(id)));
+			handler.reset(new MqttHandler(id, *getMqttConfig(getObject(linkValue, "mqtt"), items), logger));
 		else if (hasMember(linkValue, "port"))
-			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), Logger(id)));
+			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), logger));
+		else if (hasMember(linkValue, "generator"))
+			handler.reset(new Generator(id, *getGeneratorConfig(getObject(linkValue, "generator"), items), logger));
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
-
-		links.add(Link(id, modifiers, handler, Logger(id)));
+		links.add(Link(id, modifiers, handler, logger));
 	}
 	
 	for (auto itemPair : items)
@@ -250,6 +271,15 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 	
 	bool logMsgs = getBool(value, "logMessages", false);
 
+	MqttConfig::Topics subTopics;
+	if (hasMember(value, "subTopics"))
+		for (auto& topicValue : getArray(value, "subTopics").GetArray())
+		{
+			if (!topicValue.IsString())
+				throw std::runtime_error("Field subTopics is not a string array");
+			subTopics.insert(topicValue.GetString());
+		}
+
 	const Value& bindingsValue = getArray(value, "bindings");
 	MqttConfig::Bindings bindings;
 	for (auto& bindingValue : bindingsValue.GetArray())
@@ -258,15 +288,15 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
-		MqttConfig::Binding::Topics stateTopics;
+		MqttConfig::Topics stateTopics;
 		if (hasMember(bindingValue, "stateTopic"))
 			stateTopics.insert(getString(bindingValue, "stateTopic"));
 		if (hasMember(bindingValue, "stateTopics"))
-			for (auto& stateValue : getArray(bindingValue, "stateTopics").GetArray())
+			for (auto& topicValue : getArray(bindingValue, "stateTopics").GetArray())
 			{
-				if (!stateValue.IsString())
+				if (!topicValue.IsString())
 					throw std::runtime_error("Field stateTopics is not a string array");
-				stateTopics.insert(stateValue.GetString());
+				stateTopics.insert(topicValue.GetString());
 			}
 		string writeTopic = getString(bindingValue, "writeTopic", "");
 		string readTopic = getString(bindingValue, "readTopic", "");
@@ -274,7 +304,7 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 		bindings.add(MqttConfig::Binding(itemId, stateTopics, writeTopic, readTopic));
 	}
 
-	return std::make_shared<MqttConfig>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, logMsgs, bindings);
+	return std::make_shared<MqttConfig>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, logMsgs, subTopics, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const
@@ -350,7 +380,7 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 	int dataBits = getInt(value, "dataBits");
 	if (!PortConfig::isValidDataBits(dataBits))
 		throw std::runtime_error("Invalid value for field dataBits in configuration");
-		
+
 	int stopBits = getInt(value, "stopBits");
 	if (!PortConfig::isValidStopBits(stopBits))
 		throw std::runtime_error("Invalid value for field stopBits in configuration");
@@ -360,7 +390,7 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 	if (!PortConfig::isValidParity(parityStr, parity))
 		throw std::runtime_error("Invalid value " + parityStr + " for field parity in configuration");
 
-		int reopenInterval = getInt(value, "reopenInterval", 60);
+	int reopenInterval = getInt(value, "reopenInterval", 60);
 		
 	const Value& bindingsValue = getArray(value, "bindings");
 	PortConfig::Bindings bindings;
@@ -376,5 +406,27 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 	}
 	
 	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, reopenInterval, msgPattern, logRawData, logRawDataInHex, bindings);
+}
+
+std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, const Items& items) const 
+{ 
+	const Value& bindingsValue = getArray(value, "bindings");
+	GeneratorConfig::Bindings bindings;
+	for (auto& bindingValue : bindingsValue.GetArray())
+	{
+		string itemId = getString(bindingValue, "itemId");
+		if (!items.exists(itemId))
+			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+		string value = getString(bindingValue, "value", "");
+		int interval = getInt(bindingValue, "interval");
+		string eventTypeStr = getString(bindingValue, "eventType");
+		EventType eventType;
+		if (!EventType::fromStr(eventTypeStr, eventType))
+			throw std::runtime_error("Invalid value " + eventTypeStr + " for field eventType in configuration");
+		
+		bindings.add(GeneratorConfig::Binding(itemId, eventType, value, interval));
+	}
+	
+	return std::make_shared<GeneratorConfig>(bindings);
 }
 

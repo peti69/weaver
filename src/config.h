@@ -11,13 +11,14 @@
 class KnxConfig;
 class MqttConfig;
 class PortConfig;
+class GeneratorConfig;
 
 class GlobalConfig
 {
-	private:
+private:
 	bool logEvents;
 	
-	public:
+public:
 	GlobalConfig() : logEvents(false) {}
 	GlobalConfig(bool _logEvents) : logEvents(_logEvents) {}
 	bool getLogEvents() const { return logEvents; }
@@ -25,12 +26,12 @@ class GlobalConfig
 
 class Config
 {
-	private:
+private:
 	rapidjson::Document document;
 	typedef rapidjson::Value::ConstMemberIterator Iterator;
 	typedef rapidjson::Value Value;
 	
-	private:
+private:
 	int hasMember(const Value& value, string name) const;
 	string getString(const Value& value, string name) const;
 	string getString(const Value& value, string name, string defaultValue) const;
@@ -47,12 +48,15 @@ class Config
 	std::shared_ptr<MqttConfig> getMqttConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<KnxConfig> getKnxConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<PortConfig> getPortConfig(const Value& value, const Items& items) const;
+	std::shared_ptr<GeneratorConfig> getGeneratorConfig(const Value& value, const Items& items) const;
 	
-	public:
-	Config(string filename);
+public:
+	Config() {}
+	void read(string fileName);
 	GlobalConfig getGlobalConfig() const;
+	LogConfig getLogConfig() const;
 	Items getItems() const;
-	Links getLinks(const Items& items) const;
+	Links getLinks(const Items& items, Log& log) const;
 };
 
 #endif

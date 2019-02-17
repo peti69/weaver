@@ -128,7 +128,7 @@ struct PhysicalAddr
 
 class KnxConfig
 {
-	public:
+public:
 	struct Binding
 	{
 		string itemId;
@@ -140,12 +140,11 @@ class KnxConfig
 	};
 	class Bindings: public std::map<string, Binding> 
 	{
-		public:
+	public:
 		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
-		bool exists(string itemId) const { return find(itemId) != end(); }
 	};
 	
-	private:
+private:
 	IpAddr localIpAddr;
 	bool natMode;
 	IpAddr ipAddr;
@@ -159,7 +158,7 @@ class KnxConfig
 	bool logData;
 	Bindings bindings;
 
-	public:
+public:
 	KnxConfig(IpAddr _localIpAddr, bool _natMode, IpAddr _ipAddr, IpPort _ipPort, 
 		int _reconnectInterval, int _connStateReqInterval, int _controlRespTimeout, int _ldataConTimeout, 
 		PhysicalAddr _physicalAddr, bool _logRawMsg, bool _logData, Bindings _bindings) :
@@ -184,7 +183,7 @@ class KnxConfig
 
 class KnxHandler: public Handler
 {
-	private:
+private:
 	enum State
 	{ 
 		DISCONNECTED, 
@@ -197,8 +196,6 @@ class KnxHandler: public Handler
 		ByteString data;
 		LDataReq(GroupAddr _ga, ByteString _data) : ga(_ga), data(_data) {}
 	};
-	
-	private:
 	string id;
 	KnxConfig config;
 	Logger logger;
@@ -237,19 +234,19 @@ class KnxHandler: public Handler
 	// Attention: Timeouts are currently not detected.
 	std::set<string> waitingReadReqs;
 	
-	public:
+public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
-	virtual bool supports(Event::Type eventType) const { return true; }
-	virtual int getReadDescriptor() { return state != DISCONNECTED ? socket : -1; }
-	virtual int getWriteDescriptor() { return -1; }
-	virtual Events receive(const Items& items);
-	virtual void send(const Items& items, const Events& events);
+	virtual bool supports(EventType eventType) const override { return true; }
+	virtual int getReadDescriptor() override { return state != DISCONNECTED ? socket : -1; }
+	virtual int getWriteDescriptor() override { return -1; }
+	virtual Events receive(const Items& items) override;
+	virtual Events send(const Items& items, const Events& events) override;
 	
-	private:
+private:
 	void disconnect();
 	Events receiveX(const Items& items);
-	void sendX(const Items& items, const Events& events);
+	Events sendX(const Items& items, const Events& events);
 	void sendWaitingLDataReq();
 	bool receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port);
 	void sendMsg(IpAddr addr, IpPort port, ByteString msg);

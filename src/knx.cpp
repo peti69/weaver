@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <iomanip>
 #include <cstdint>
+#include <limits>
 
 #include "knx.h"
 #include "finally.h"
@@ -103,21 +104,22 @@ bool DatapointType::fromStr(string dptStr, DatapointType& dpt)
 
 ByteString DatapointType::exportValue(const Value& value) const
 {
-	if (value.isBoolean() && mainNo == 1)
+	if (!value.isBoolean() && !value.isVoid() && !value.isNumber())
+		return ByteString();
+		
+	if (mainNo == 1)
 	{
-		if (value.getBoolean())
-			return ByteString({0x01});
-		else 
-			return ByteString({0x00});
+		bool b = value.isBoolean() ? value.getBoolean() : (value.isNumber() ? value.getNumber() > 0 : true);
+		return b ? ByteString({0x01}) : ByteString({0x00});
 	}
-	else if (value.isNumber() || value.isBoolean())
+	else
 	{
-		double d = value.isNumber() ? value.getNumber() : value.getBoolean();
+		double d = value.isBoolean() ? value.getBoolean() : (value.isNumber() ? value.getNumber() : 1);
 		if (mainNo == 5 && subNo == 1)
 		{
 			if (d >= 0 && d <= 100)
 			{
-				Byte b = d * 255.0 / 100.0;
+				uint8_t b = d * 255.0 / 100.0;
 				return ByteString({0x00, b});
 			}
 		}
@@ -125,19 +127,19 @@ ByteString DatapointType::exportValue(const Value& value) const
 		{
 			if (d >= 0 && d <= 255)
 			{
-				Byte b = d;
-				return ByteString({0x00, b});
+				uint8_t i = d;
+				return ByteString({0x00, i});
 			}
 		}
 		else if (mainNo == 7)
 		{
 			if (d >= 0 && d <= 65535)
 			{
-				long l = d;
+				uint16_t i = d;
 				Byte bytes[3];
 				bytes[0] = 0x00;
-				bytes[1] = (l >> 8) & 0xFF;
-				bytes[2] = l & 0xFF;
+				bytes[1] = (i >> 8) & 0xFF;
+				bytes[2] = i & 0xFF;
 				return ByteString(bytes, sizeof(bytes));
 			}
 		}
@@ -159,30 +161,31 @@ ByteString DatapointType::exportValue(const Value& value) const
 		}
 		else if (mainNo == 12)
 		{
-			unsigned long l = d;
+			uint32_t i = d;
 			Byte bytes[5];
 			bytes[0] = 0x00;
-			bytes[1] = (l >> 24) & 0xFF;
-			bytes[2] = (l >> 16) & 0xFF;
-			bytes[3] = (l >> 8) & 0xFF;
-			bytes[4] = l & 0xFF;
+			bytes[1] = (i >> 24) & 0xFF;
+			bytes[2] = (i >> 16) & 0xFF;
+			bytes[3] = (i >> 8) & 0xFF;
+			bytes[4] = i & 0xFF;
 			return ByteString(bytes, sizeof(bytes));
 		}
 		else if (mainNo == 13)
 		{
-			long l = d;
+			int32_t i = d;
 			Byte bytes[5];
 			bytes[0] = 0x00;
-			bytes[1] = (l >> 24) & 0xFF;
-			bytes[2] = (l >> 16) & 0xFF;
-			bytes[3] = (l >> 8) & 0xFF;
-			bytes[4] = l & 0xFF;
+			bytes[1] = (i >> 24) & 0xFF;
+			bytes[2] = (i >> 16) & 0xFF;
+			bytes[3] = (i >> 8) & 0xFF;
+			bytes[4] = i & 0xFF;
 			return ByteString(bytes, sizeof(bytes));
 		}
 		else if (mainNo == 14)
 		{
-			// assumption: float is encoded in IEEE 754 floating point format
-			assert(sizeof(uint32_t) == sizeof(float));
+			static_assert(sizeof(uint32_t) == sizeof(float), "uint32_t and float do not have the same size");
+			static_assert(std::numeric_limits<float>::is_iec559, "float is not IEEE-754 encoded");
+
 			union { float f; uint32_t i; } u; 
 			u.f = d;
 			Byte bytes[5];
@@ -329,7 +332,7 @@ void KnxHandler::disconnect()
 
 		sendControlMsg(createDiscReq());
 
-		logger.info() << "Disconnected from gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
+		logger.info() << "Disconnected from KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
 
 	::close(socket); 
@@ -440,7 +443,7 @@ Events KnxHandler::receiveX(const Items& items)
 				   && data.length() == 1 && (data[0] & 0xC0) == 0x00
 				   )
 				{
-					events.add(Event(id, binding.itemId, Event::READ_REQ, Value()));
+					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
 					waitingReadReqs.insert(binding.itemId);
 				}
 				else if ((ga == binding.stateGa && owner) || (ga == binding.writeGa && !owner))
@@ -449,9 +452,9 @@ Events KnxHandler::receiveX(const Items& items)
 					if (value.isNull())
 						logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data) << "' to value for item " << binding.itemId << endOfMsg();
 					else if (ga == binding.stateGa)
-						events.add(Event(id, binding.itemId, Event::STATE_IND, value));
+						events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
 					else
-						events.add(Event(id, binding.itemId, Event::WRITE_REQ, value));
+						events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
 				}
 			}
 		}
@@ -494,7 +497,7 @@ Events KnxHandler::receiveX(const Items& items)
 		
 		logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
 		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
-		logger.info() << "Connected to gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
+		logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
 		logger.errorX() << "DISCONNECT REQUEST received" << endOfMsg();
@@ -504,10 +507,10 @@ Events KnxHandler::receiveX(const Items& items)
 	return events;
 }
 
-void KnxHandler::send(const Items& items, const Events& events)
+Events KnxHandler::send(const Items& items, const Events& events)
 {
 	if (state != CONNECTED)
-		return;
+		return Events();
 
 	try
 	{
@@ -517,10 +520,12 @@ void KnxHandler::send(const Items& items, const Events& events)
 	{
 		logger.error() << ex.what() << endOfMsg();
 	}
+
 	disconnect();
+	return Events();
 }
 
-void KnxHandler::sendX(const Items& items, const Events& events)
+Events KnxHandler::sendX(const Items& items, const Events& events)
 {
 	auto& bindings = config.getBindings();
 
@@ -537,11 +542,11 @@ void KnxHandler::sendX(const Items& items, const Events& events)
 
 			// create data/APDU
 			ByteString data;
-			if (event.getType() == Event::READ_REQ)
+			if (event.getType() == EventType::READ_REQ)
 				data = ByteString({0x00});
 			else
 			{
-				assert(event.getType() == Event::WRITE_REQ || event.getType() == Event::STATE_IND);
+				assert(event.getType() == EventType::WRITE_REQ || event.getType() == EventType::STATE_IND);
 				
 				data = binding.dpt.exportValue(value);
 				if (!data.length())
@@ -550,7 +555,7 @@ void KnxHandler::sendX(const Items& items, const Events& events)
 					               << "' to DPT " << binding.dpt.toStr() << " data for item " << itemId << endOfMsg();
 					continue;
 				}
-				if (event.getType() == Event::WRITE_REQ)
+				if (event.getType() == EventType::WRITE_REQ)
 					data[0] |= 0x80;
 				else // STATE_IND
 				{
@@ -565,21 +570,23 @@ void KnxHandler::sendX(const Items& items, const Events& events)
 				}
 			}
 
-			if (event.getType() == Event::READ_REQ && owner)
+			if (event.getType() == EventType::READ_REQ && owner)
 			{
 				if (!binding.stateGa.isNull())
 					waitingLDataReqs.emplace_back(binding.stateGa, data);
 				else if (!binding.writeGa.isNull())
 					waitingLDataReqs.emplace_back(binding.writeGa, data);
 			}
-			else if (event.getType() == Event::STATE_IND && !owner && !binding.stateGa.isNull())
+			else if (event.getType() == EventType::STATE_IND && !owner && !binding.stateGa.isNull())
 				waitingLDataReqs.emplace_back(binding.stateGa, data);
-			else if (event.getType() == Event::WRITE_REQ && owner && !binding.writeGa.isNull())
+			else if (event.getType() == EventType::WRITE_REQ && owner && !binding.writeGa.isNull())
 				waitingLDataReqs.emplace_back(binding.writeGa, data);
 		}
 	}
 	
 	sendWaitingLDataReq();
+	
+	return Events();
 }
 
 void KnxHandler::sendWaitingLDataReq()
@@ -781,9 +788,19 @@ void KnxHandler::logTunnelReq(ByteString msg) const
 		PhysicalAddr pa(msg[14], msg[15]);
 		GroupAddr ga(msg[16], msg[17]);
 		MsgCode msgCode(msg[10]);
+		ByteString data(msg.substr(20, msg[18]));
+
+		string type = "?";
+		if (data.length() > 0)
+			if ((data[0] & 0xC0) == 0x00)
+				type = "Read";
+			else if ((data[0] & 0x80) == 0x80)
+				type = "Write";
+			else if ((data[0] & 0x40) == 0x40)
+				type = "Response";
 
 		logger.debug() << msgCode.toStr() << " " << pa.toStr() << " -> " << ga.toStr() << ": " 
-		               << cnvToHexStr(msg.substr(20, msg[18])) << endOfMsg();
+		               << cnvToHexStr(data) << " (" << type << ")" << endOfMsg();
 	}
 }
 
