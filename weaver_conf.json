@@ -17,7 +17,7 @@
 	// Defines the maximum size of the log file in bytes. When the log file becomes bigger it is renamed (for backup) 
 	// and a new empty one is created. If 0 is given the size of the log file is not limited and log file backups are 
 	// not performed. Optional, default is 0. 
-	"maxLogFileSize": 20000,
+	"maxLogFileSize": 1000000,
 	
 	// Defines the maximum number of log file backups. When the number of files becomes larger the oldest file will be deleted. 
 	// If 0 is given log file backups are not performed. Optional, default is 0. 
