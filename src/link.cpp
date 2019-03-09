@@ -113,19 +113,24 @@ void Link::send(const Items& items, const Events& events)
 {
 	Events modifiedEvents = events;
 	for (auto& event : modifiedEvents)
-	{
-		// apply modifier
-		auto modifierPos = modifiers.find(event.getItemId());
-		if (modifierPos != modifiers.end())
-			// convert the value from internal to external representation
-			event.setValue(modifierPos->second.exportValue(event.getValue()));
-		
-		// generate STATE_IND in case the handler does not support READ_REQ
-		if (event.getType() == EventType::READ_REQ && !handler->supports(EventType::READ_REQ))
+		if (event.getType() != EventType::READ_REQ)
 		{
-			// search item
+			// apply modifier
+			auto modifierPos = modifiers.find(event.getItemId());
+			if (modifierPos != modifiers.end())
+				// convert the value from internal to external representation
+				event.setValue(modifierPos->second.exportValue(event.getValue()));
+		}
+		else
+		{
+			// provide item
 			auto itemPos = items.find(event.getItemId());
-			if (itemPos != items.end())
+			if (itemPos == items.end())
+				continue;
+			auto& item = itemPos->second;
+
+			// generate STATE_IND in case the handler does not support READ_REQ
+			if (item.getOwnerId() == id && !handler->supports(EventType::READ_REQ))
 			{
 				// make use of item value
 				const Value& value = itemPos->second.getValue();
@@ -133,7 +138,6 @@ void Link::send(const Items& items, const Events& events)
 					pendingEvents.add(Event("auto", event.getItemId(), EventType::STATE_IND, value));
 			}
 		}
-	}
 	
 	pendingEvents.splice(pendingEvents.begin(), handler->send(items, modifiedEvents));
 }

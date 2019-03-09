@@ -36,6 +36,9 @@ extern string cnvToHexStr(Byte b);
 extern string cnvToHexStr(ByteString s);
 extern string cnvToHexStr(string s);
 
+extern string cnvToAsciiStr(ByteString s);
+extern ByteString cnvFromAsciiStr(string s);
+
 class Value;
 
 class ValueType

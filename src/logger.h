@@ -35,6 +35,10 @@ enum class LogLevel
 class Logger;
 class Log;
 
+class Error: public std::ostringstream
+{
+};
+
 class LogMsg: public std::ostringstream
 {
 	friend Logger;

@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 				if (errno == EINTR)
 					break;
 				else
-					logger.errorX() << unixError("select") << endOfMsg();
+					logger.errorX() << unixError("pselect") << endOfMsg();
 			//logger.info() << "pselect() done" << endOfMsg();
 		}
 		catch (const std::exception& error)

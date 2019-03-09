@@ -369,19 +369,19 @@ Events KnxHandler::receiveX(const Items& items)
 			logger.errorX() << unixError("socket") << endOfMsg();
 		auto autoClose = finally([this] { ::close(socket); state = DISCONNECTED; });
 		
-		sockaddr_in clientAddr;
-		clientAddr.sin_family = AF_INET;
-		clientAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-		clientAddr.sin_port = 0;
-		int rc = bind(socket, reinterpret_cast<sockaddr*>(&clientAddr), sizeof(clientAddr));
+		sockaddr_in localAddr;
+		localAddr.sin_family = AF_INET;
+		localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		localAddr.sin_port = 0;
+		int rc = bind(socket, reinterpret_cast<sockaddr*>(&localAddr), sizeof(localAddr));
 		if (rc == -1)
 			logger.errorX() << unixError("bind") << endOfMsg();
 		
-		socklen_t clientAddrLen = sizeof(clientAddr);
-		rc = getsockname(socket, reinterpret_cast<sockaddr*>(&clientAddr), &clientAddrLen);
+		socklen_t localAddrLen = sizeof(localAddr);
+		rc = getsockname(socket, reinterpret_cast<sockaddr*>(&localAddr), &localAddrLen);
 		if (rc == -1)
 			logger.errorX() << unixError("getsockname") << endOfMsg();
-		localIpPort = ntohs(clientAddr.sin_port);
+		localIpPort = ntohs(localAddr.sin_port);
 
 		logger.debug() << "Using port " << localIpPort << " as local control and data endpoint " << endOfMsg();
 		if (config.getNatMode())
@@ -390,6 +390,7 @@ Events KnxHandler::receiveX(const Items& items)
 		sendControlMsg(createConnReq());
 		state = WAIT_FOR_CONN_RESP;
 		controlReqSendTime = now;
+		
 		autoClose.disable();
 
 		return events;

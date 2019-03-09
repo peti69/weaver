@@ -26,6 +26,16 @@ string cnvToHexStr(string s)
 	return stream.str();
 }
 
+string cnvToAsciiStr(ByteString s)
+{
+	return string(reinterpret_cast<const char*>(s.data()), s.length());
+}
+
+ByteString cnvFromAsciiStr(string s)
+{
+	return ByteString(reinterpret_cast<const unsigned char*>(s.data()), s.length());
+}
+
 string ValueType::toStr() const
 {
 	switch (code)

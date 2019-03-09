@@ -12,6 +12,7 @@ class KnxConfig;
 class MqttConfig;
 class PortConfig;
 class GeneratorConfig;
+class Tr064Config;
 
 class GlobalConfig
 {
@@ -49,6 +50,7 @@ private:
 	std::shared_ptr<KnxConfig> getKnxConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<PortConfig> getPortConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<GeneratorConfig> getGeneratorConfig(const Value& value, const Items& items) const;
+	std::shared_ptr<Tr064Config> getTr064Config(const Value& value, const Items& items) const;
 	
 public:
 	Config() {}

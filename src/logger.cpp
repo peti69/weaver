@@ -18,6 +18,12 @@ void operator<<(std::ostream& stream, endOfMsg)
 	auto pLogMsg = dynamic_cast<LogMsg*>(&stream);
 	if (pLogMsg)
 		pLogMsg->end();
+	else
+	{
+		auto pError = dynamic_cast<Error*>(&stream);
+		if (pError)
+			throw std::runtime_error(pError->str());
+	}
 }
 
 unixError::unixError(string _errorFunc) : errorFunc(_errorFunc), errorNo(errno) 

@@ -8,6 +8,7 @@
 #include "mqtt.h"
 #include "port.h"
 #include "generator.h"
+#include "tr064.h"
 #include "finally.h"
 
 int Config::hasMember(const Value& value, string name) const
@@ -253,6 +254,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), logger));
 		else if (hasMember(linkValue, "generator"))
 			handler.reset(new Generator(id, *getGeneratorConfig(getObject(linkValue, "generator"), items), logger));
+		else if (hasMember(linkValue, "tr064"))
+			handler.reset(new Tr064(id, *getTr064Config(getObject(linkValue, "tr064"), items), logger));
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
 		links.add(Link(id, modifiers, handler, logger));
@@ -434,3 +437,18 @@ std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, 
 	return std::make_shared<GeneratorConfig>(bindings);
 }
 
+std::shared_ptr<Tr064Config> Config::getTr064Config(const Value& value, const Items& items) const
+{
+	const Value& bindingsValue = getArray(value, "bindings");
+	Tr064Config::Bindings bindings;
+	for (auto& bindingValue : bindingsValue.GetArray())
+	{
+		string itemId = getString(bindingValue, "itemId");
+		if (!items.exists(itemId))
+			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+		
+		//bindings.add(GeneratorConfig::Binding(itemId, eventType, value, interval));
+	}
+
+	return std::make_shared<Tr064Config>(bindings);
+}

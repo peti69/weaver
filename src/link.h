@@ -31,7 +31,6 @@ private:
 	// New item values are suppressed if they are smaller than or equeal to this one.
 	float maximum;
 	
-	// New item values are suppressed in case they are inside the interval defined by this delta percentage.
 public:
 	Modifier(string _itemId);
 	string getItemId() const { return itemId; }
