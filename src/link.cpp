@@ -48,9 +48,16 @@ bool Modifier::suppressValue(const Value& oldValue, const Value& newValue) const
 
 Events Link::receive(Items& items)
 {
-	Events events = pendingEvents;
-	pendingEvents.clear();
-	events.splice(events.begin(), handler->receive(items));
+	Events events;
+
+	if (pendingEvents.size())
+	{
+		events = pendingEvents;
+		pendingEvents.clear();
+		return events;
+	}
+
+	events = handler->receive(items);
 
 	for (auto eventPos = events.begin(); eventPos != events.end();)
 	{	
@@ -112,6 +119,7 @@ Events Link::receive(Items& items)
 void Link::send(const Items& items, const Events& events)
 {
 	Events modifiedEvents = events;
+	
 	for (auto& event : modifiedEvents)
 		if (event.getType() != EventType::READ_REQ)
 		{
@@ -132,10 +140,10 @@ void Link::send(const Items& items, const Events& events)
 			// generate STATE_IND in case the handler does not support READ_REQ
 			if (item.getOwnerId() == id && !handler->supports(EventType::READ_REQ))
 			{
-				// make use of item value
+				// make use of stored item value
 				const Value& value = itemPos->second.getValue();
 				if (!value.isNull())
-					pendingEvents.add(Event("auto", event.getItemId(), EventType::STATE_IND, value));
+					pendingEvents.add(Event(id + "/A", event.getItemId(), EventType::STATE_IND, value));
 			}
 		}
 	

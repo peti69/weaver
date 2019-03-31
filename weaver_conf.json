@@ -259,7 +259,7 @@
 				// Optional, default is false. 
 				//"logRawMessages": true,
 			
-				// Enables logging of of all received and sent payloads (cEMI frames) including message code, 
+				// Enables logging of all received and sent payloads (cEMI frames) including message code, 
 				// group address and physical address. Optional, default is false. 
 				//"logData": true,
 
@@ -449,7 +449,17 @@
 						// Arriving READ_REQ events for STATE_IND schedules also trigger the STATE_IND event.
 					//},
 
-					{ "itemId": "weaver_herzschlag", "eventType": "STATE_IND", "interval": 30 }
+					{ "itemId": "weaver_herzschlag", "eventType": "STATE_IND", "interval": 60 }
+				]
+			}
+		},
+		{
+			// Identifier for this link.
+			"id": "fritzbox",
+
+			// This link type supports the TR-064 protocol.
+			"tr064": {
+				"bindings":	[
 				]
 			}
 		}
