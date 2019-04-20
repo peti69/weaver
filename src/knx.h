@@ -214,7 +214,7 @@ private:
 	bool ongoingConnStateReq;
 	
 	// Time when the last CONNECTION REQUEST or CONNECTION STATE REQUST has been sent.
-	std::time_t controlReqSendTime;
+	std::time_t lastControlReqSendTime;
 	
 	// Sequence number of last received TUNNEL REQUEST.
 	Byte lastReceivedSeqNo;
@@ -223,9 +223,11 @@ private:
 	Byte lastSentSeqNo;
 	
 	// Has a L-Data.req been sent for which a L-Data.con is pending?
-	// Attention: Timeouts are currently not detected.
 	bool ongoingLDataReq;
-	
+
+	// Time when the last L-Data.req has been sent.
+	std::time_t lastLDataReqSentTime;
+
 	// L-Data.req messages which still have to be sent.
 	std::list<LDataReq> waitingLDataReqs;
 

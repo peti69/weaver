@@ -56,6 +56,7 @@ public:
 class Handler
 {
 public:
+	virtual ~Handler() {}
 	virtual bool supports(EventType eventType) const = 0;
 	virtual int getReadDescriptor() = 0;
 	virtual int getWriteDescriptor() = 0;

@@ -272,7 +272,7 @@ bool GroupAddr::fromStr(string gaStr, GroupAddr& ga)
 
 bool GroupAddr::operator==(const GroupAddr& x) 
 { 
-	return null && x.null || !null && !x.null && value == x.value; 
+	return (null && x.null) || (!null && !x.null && value == x.value);
 }
 
 string PhysicalAddr::toStr() const
@@ -349,7 +349,9 @@ Events KnxHandler::receive(const Items& items)
 	{
 		logger.error() << ex.what() << endOfMsg();
 	}
+
 	disconnect();
+	return Events();
 }
 
 Events KnxHandler::receiveX(const Items& items)
@@ -389,24 +391,32 @@ Events KnxHandler::receiveX(const Items& items)
 		
 		sendControlMsg(createConnReq());
 		state = WAIT_FOR_CONN_RESP;
-		controlReqSendTime = now;
+		lastControlReqSendTime = now;
 		
 		autoClose.disable();
 
 		return events;
 	}
 	
-	if (state == CONNECTED && !ongoingConnStateReq && controlReqSendTime + config.getConnStateReqInterval() <= now)
+	if (state == CONNECTED && !ongoingConnStateReq && lastControlReqSendTime + config.getConnStateReqInterval() <= now)
 	{
-		controlReqSendTime = now;
+		lastControlReqSendTime = now;
 		ongoingConnStateReq = true;
 		sendControlMsg(createConnStateReq());
 	}
-	else if (state == CONNECTED && ongoingConnStateReq && controlReqSendTime + config.getControlRespTimeout() <= now)
+	else if (state == CONNECTED && ongoingConnStateReq && lastControlReqSendTime + config.getControlRespTimeout() <= now)
 		logger.errorX() << "CONNECTION STATE REQUEST not answered in time" << endOfMsg();
-	else if (state == WAIT_FOR_CONN_RESP && controlReqSendTime + config.getControlRespTimeout() <= now)
+	else if (state == WAIT_FOR_CONN_RESP && lastControlReqSendTime + config.getControlRespTimeout() <= now)
 		logger.errorX() << "CONNECTION REQUEST not answered in time" << endOfMsg();
-	
+
+	if (state == CONNECTED && ongoingLDataReq && lastLDataReqSentTime + config.getLDataConTimeout() <= now)
+	{
+		ongoingLDataReq = false;
+		logger.errorX() << "L-Data.req not confirmed in time" << endOfMsg();
+
+		sendWaitingLDataReq();
+	}
+
 	ByteString msg;
 	IpAddr senderIpAddr;
 	IpPort senderIpPort;
@@ -462,6 +472,7 @@ Events KnxHandler::receiveX(const Items& items)
 		else if (msgCode == MsgCode::LDATA_CON)
 		{
 			ongoingLDataReq = false;
+			waitingLDataReqs.pop_front();
 
 			sendWaitingLDataReq();
 		}
@@ -541,7 +552,7 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 			bool owner = items.getOwnerId(itemId) == id;
 			const Value& value = event.getValue();
 
-			// create data/APDU
+			// create data/APDU for L-Data.req
 			ByteString data;
 			if (event.getType() == EventType::READ_REQ)
 				data = ByteString({0x00});
@@ -571,6 +582,7 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 				}
 			}
 
+			// append L-Data.req to queue
 			if (event.getType() == EventType::READ_REQ && owner)
 			{
 				if (!binding.stateGa.isNull())
@@ -600,8 +612,8 @@ void KnxHandler::sendWaitingLDataReq()
 	ByteString msg = createTunnelReq(lastSentSeqNo, req.ga, req.data);
 	sendDataMsg(msg);
 	
+	lastLDataReqSentTime = std::time(0);
 	ongoingLDataReq = true;
-	waitingLDataReqs.pop_front();
 
 	logTunnelReq(msg);
 }

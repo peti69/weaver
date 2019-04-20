@@ -89,11 +89,13 @@ Value ValueType::convert(const Value& value) const
 				{
 					// ignore
 				}
+				break;
 			case BOOLEAN:
 				if (str == "1" || str == "yes" || str == "YES" || str == "true" || str == "TRUE")
 					return Value(true);
 				else if (str == "0" || str == "no" || str == "NO" || str == "false" || str == "FALSE")
 					return Value(false);
+				break;
 		}
 	}
 
@@ -123,7 +125,7 @@ string Value::toStr() const
 
 bool Value::operator==(const Value& x) const
 {
-	return (  null && x.null
+	return (  (null && x.null)
            || (  !null && !x.null
               && x.type == type 
 	          && (  (type == ValueType::STRING && x.str == str)

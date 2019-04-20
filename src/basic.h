@@ -66,21 +66,21 @@ public:
 class Value
 {
 private:
+	ValueType type;
+	bool null;
 	double num;
 	bool boo;
 	string str;
-	ValueType type;
-	bool null;
 
-	Value(bool _null, ValueType _type) : null(_null), type(_type) {}
-	
+	Value(ValueType _type, bool _null) : type(_type), null(_null), num(0.0), boo(false) {}
+
 public:
-	Value() : null(true), type(ValueType::VOID) {}
-	Value(bool _boo) : null(false), boo(_boo), type(ValueType::BOOLEAN) {}
-	Value(double _num) : null(false), num(_num), type(ValueType::NUMBER) {}
-	Value(string _str) : null(false), str(_str), type(ValueType::STRING) {}
+	Value() : type(ValueType::VOID), null(true), num(0.0), boo(false) {}
+	Value(bool _boo) : type(ValueType::BOOLEAN), null(false), num(0.0), boo(_boo) {}
+	Value(double _num) : type(ValueType::NUMBER), null(false), num(_num), boo(false) {}
+	Value(string _str) : type(ValueType::STRING), null(false), num(0.0), boo(false), str(_str) {}
 
-	static Value newVoid() { return Value(false, ValueType::VOID); }
+	static Value newVoid() { return Value(ValueType::VOID, false); }
 
 	bool isNull() const { return null; }
 	ValueType getType() const { assert(!null); return type; }
@@ -105,7 +105,7 @@ private:
 	// Id of item for unique identification purpose.
 	string id;
 	
-	// Type of item and its values.
+	// Type of item and its value.
 	ValueType type;
 	
 	// Id of link who manages the item. That is, the link over which READ_REQ/WRITE_REQ are sent and which 
