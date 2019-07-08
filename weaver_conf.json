@@ -30,7 +30,7 @@
 			// Unique identifier of item.
 			//"id": "strom_zaehlerstand", 
 
-			// Values assign to the item should have this data type. Possible value types are boolean, number 
+			// Values assigned to the item should have this data type. Possible value types are void, boolean, number 
 			// and string. The value range of the data type number covers integer and floating point numbers.
 			//"type": "number", 
 
@@ -52,45 +52,50 @@
 		{ "id": "wind_geschwindigkeit", "type": "number", "ownerId": "wetterstation" },
 		{ "id": "regen_status", "type": "boolean", "ownerId": "wetterstation" },
 			
-		{ "id": "aussen_temp", "type": "number", "ownerId": "mosquitto" },
+		{ "id": "aussen_temp", "type": "number", "ownerId": "mqtt" },
 		
-		{ "id": "puffer_sp1_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "puffer_sp2_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "puffer_td2_temp", "type": "number", "ownerId": "mosquitto" },
+		{ "id": "puffer_sp1_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "puffer_sp2_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "puffer_td2_temp", "type": "number", "ownerId": "mqtt" },
 
-		{ "id": "fbh_modus", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_raum_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_absenk_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_heizkurve", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_abschalt_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_vorlauf_soll_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_vorlauf_ist_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "fbh_vorlauf_puffer_temp", "type": "number", "ownerId": "mosquitto" },
+		{ "id": "fbh_modus", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_raum_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_absenk_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_heizkurve", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_abschalt_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_vorlauf_soll_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_vorlauf_ist_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "fbh_vorlauf_puffer_temp", "type": "number", "ownerId": "mqtt" },
 
-		{ "id": "ww_modus", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "ww_zk_soll_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "ww_zk_volumenstrom", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "ww_zk_vorlauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "ww_pk_vorlauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "ww_pk_ruecklauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "ww_pk_mischer_status", "type": "number", "ownerId": "mosquitto" },
+		{ "id": "ww_modus", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_zk_soll_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_zk_volumenstrom", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_zk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_pk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_pk_ruecklauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "ww_pk_mischer_status", "type": "number", "ownerId": "mqtt" },
 
-		{ "id": "st_tagesertrag", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_gesamtertrag", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_kk_vorlauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_kk_ruecklauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_kk_pumpe_status", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_kk_pumpe_laufzeit", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_pk_vorlauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_pk_ruecklauf_temp", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_pk_pumpe_status", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_pk_pumpe_laufzeit", "type": "number", "ownerId": "mosquitto" },
-		{ "id": "st_pk_volumenstrom", "type": "number", "ownerId": "mosquitto" },
+		{ "id": "st_tagesertrag", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_gesamtertrag", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_ruecklauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_pumpe_status", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_kk_pumpe_laufzeit", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_vorlauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_ruecklauf_temp", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_pumpe_status", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_pumpe_laufzeit", "type": "number", "ownerId": "mqtt" },
+		{ "id": "st_pk_volumenstrom", "type": "number", "ownerId": "mqtt" },
+		
+		{ "id": "ema_aktiv", "type": "boolean", "ownerId": "storage" },
+		{ "id": "ema_voralarmdauer", "type": "number", "ownerId": "storage" }, // seconds
+		{ "id": "ema_voralarm", "type": "boolean", "ownerId": "storage" },
+		{ "id": "ema_scharf", "type": "boolean", "ownerId": "storage" },
 
-		{ "id": "ebusd_herzschlag", "type": "void", "ownerId": "mosquitto" },
+		{ "id": "ebusd_herzschlag", "type": "void", "ownerId": "mqtt" },
 		{ "id": "weaver_herzschlag", "type": "void", "ownerId": "heart" },
 	],
-	
+
 	// Interfaces to other systems and/or devices.
 	"links": [
 		{
@@ -178,6 +183,7 @@
 				]
 			}
 		},
+
 		{
 			"id": "wetterstation", 
 			
@@ -215,9 +221,10 @@
 				]
 			}
 		},
+
 		{
 			// Identifier for this link.
-			"id": "wiregate",
+			"id": "knx",
 
 			// Link type specific parametrization.
 			"knx": {
@@ -296,13 +303,16 @@
 					{ "itemId": "ww_modus", "stateGa": "3/6/40", "writeGa": "3/6/50", "dpt": "5.010" },
 					{ "itemId": "ww_zk_soll_temp", "stateGa": "3/6/41", "writeGa": "3/6/51", "dpt": "9.001" },
 					{ "itemId": "ww_zk_vorlauf_temp", "stateGa": "3/6/45", "dpt": "9.001" },
-					{ "itemId": "ww_zk_volumenstrom", "stateGa": "3/6/42", "dpt": "9.001" },
+					//{ "itemId": "ww_zk_volumenstrom", "stateGa": "3/6/42", "dpt": "9.001" },
+					{ "itemId": "ww_zk_volumenstrom", "stateGa": "3/6/42", "dpt": "9.025" },
 					{ "itemId": "ww_pk_vorlauf_temp", "stateGa": "3/6/44", "dpt": "9.001" },
 					{ "itemId": "ww_pk_ruecklauf_temp", "stateGa": "3/6/46", "dpt": "9.001" },
 					{ "itemId": "ww_pk_mischer_status", "stateGa": "3/6/47", "dpt": "5.010" },
 
-					{ "itemId": "st_tagesertrag", "stateGa": "3/6/60", "dpt": "5.010" },
-					{ "itemId": "st_gesamtertrag", "stateGa": "3/6/70", "dpt": "12.001" },
+					//{ "itemId": "st_tagesertrag", "stateGa": "3/6/60", "dpt": "5.010" },
+					{ "itemId": "st_tagesertrag", "stateGa": "3/6/60", "dpt": "13.013" },
+					//{ "itemId": "st_gesamtertrag", "stateGa": "3/6/70", "dpt": "12.001" },
+					{ "itemId": "st_gesamtertrag", "stateGa": "3/6/70", "dpt": "13.013" },
 					{ "itemId": "st_kk_vorlauf_temp", "stateGa": "3/6/61", "dpt": "9.001" },
 					{ "itemId": "st_kk_ruecklauf_temp", "stateGa": "3/6/62", "dpt": "9.001" },
 					{ "itemId": "st_kk_pumpe_status", "stateGa": "3/6/63", "dpt": "5.001" },
@@ -311,13 +321,20 @@
 					{ "itemId": "st_pk_ruecklauf_temp", "stateGa": "3/6/66", "dpt": "9.001" },
 					{ "itemId": "st_pk_pumpe_status", "stateGa": "3/6/67", "dpt": "5.001" },
 					{ "itemId": "st_pk_pumpe_laufzeit", "stateGa": "3/6/68", "dpt": "7.007" },
-					{ "itemId": "st_pk_volumenstrom", "stateGa": "3/6/69", "dpt": "9.001" },
+					//{ "itemId": "st_pk_volumenstrom", "stateGa": "3/6/69", "dpt": "9.001" },
+					{ "itemId": "st_pk_volumenstrom", "stateGa": "3/6/69", "dpt": "9.025" },
+
+					{ "itemId": "ema_aktiv", "stateGa": "3/2/41", "writeGa": "3/2/40", "dpt": "1.001" },
+					{ "itemId": "ema_voralarm", "stateGa": "3/2/43", "writeGa": "3/2/42", "dpt": "1.001" },
+					{ "itemId": "ema_voralarmdauer", "stateGa": "3/2/45", "writeGa": "3/2/44", "dpt": "7.005" },
+					{ "itemId": "ema_scharf", "stateGa": "3/2/47", "writeGa": "3/2/46", "dpt": "1.001" },
 				]
 			}
 		},
+
 		{
 			// Identifier for this link.
-			"id": "mosquitto",
+			"id": "mqtt",
 
 			// Link type specific parametrization.
 			"mqtt":	{
@@ -421,6 +438,7 @@
 				]
 			}
 		},
+
 		{
 			// Identifier for this link.
 			"id": "heart",
@@ -453,6 +471,7 @@
 				]
 			}
 		},
+
 		{
 			// Identifier for this link.
 			"id": "fritzbox",
@@ -461,6 +480,17 @@
 			"tr064": {
 				"bindings":	[
 				]
+			}
+		},
+
+		{
+			// Identifier for this link.
+			"id": "storage",
+
+			// This link type supports persistency for the items it owns.
+			"storage": {
+				// File in which the item values are stored.
+				"fileName": "weaver_states.json"
 			}
 		}
 	]

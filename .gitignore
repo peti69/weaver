@@ -3,3 +3,4 @@ build/
 *.log*
 .project
 .cproject
+weaver_states.json

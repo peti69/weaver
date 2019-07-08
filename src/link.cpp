@@ -54,10 +54,9 @@ Events Link::receive(Items& items)
 	{
 		events = pendingEvents;
 		pendingEvents.clear();
-		return events;
 	}
-
-	events = handler->receive(items);
+	else
+		events = handler->receive(items);
 
 	for (auto eventPos = events.begin(); eventPos != events.end();)
 	{
@@ -136,7 +135,10 @@ void Link::send(const Items& items, const Events& events)
 		// provide item
 		auto itemPos = items.find(event.getItemId());
 		if (itemPos == items.end())
+		{
+			eventPos++;
 			continue;
+		}
 		auto& item = itemPos->second;
 
 		// remove READ_REQ and WRITE_REQ in case the link is not the owner of the item

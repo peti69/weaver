@@ -46,9 +46,8 @@ Events Generator::send(const Items& items, const Events& events)
 		if (bindingPos != bindings.end())
 		{
 			auto& binding = bindingPos->second;
-			bool owner = items.getOwnerId(itemId) == id;
 
-			if (event.getType() == EventType::READ_REQ && owner)
+			if (event.getType() == EventType::READ_REQ)
 				newEvents.add(Event(id, itemId, EventType::STATE_IND, Value(binding.value)));
 		}
 	}

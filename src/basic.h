@@ -108,8 +108,8 @@ private:
 	// Type of item and its value.
 	ValueType type;
 	
-	// Id of link who manages the item. That is, the link over which READ_REQ/WRITE_REQ are sent and which 
-	// triggers STATE_IND events. 
+	// Id of link who manages the item. That is, the link over which READ_REQ and WRITE_REQ for the item are sent
+	// and on which STATE_IND for the item are received.
 	string ownerId;
 
 	// Value of last seen and accepted STATE_IND event for the item.
