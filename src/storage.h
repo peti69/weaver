@@ -25,6 +25,7 @@ private:
 
 public:
 	StorageConfig(string _fileName, Bindings _bindings) : fileName(_fileName), bindings(_bindings) {}
+	string getFileName() const { return fileName; }
 	const Bindings& getBindings() const { return bindings; }
 };
 

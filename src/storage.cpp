@@ -26,9 +26,9 @@ Events Storage::receive(const Items& items)
 	if (!fileRead)
 	{
 		// open file
-		FILE* file = fopen(config.fileName.c_str(), "r");
+		FILE* file = fopen(config.getFileName().c_str(), "r");
 		if (!file)
-			logger.errorX() << "Can not open file " << config.fileName << " for reading" << endOfMsg();
+			logger.errorX() << "Can not open file " << config.getFileName() << " for reading" << endOfMsg();
 		auto autoClose = finally([file] { fclose(file); });
 
 		// read file and translate it to a DOM tree
@@ -38,9 +38,9 @@ Events Storage::receive(const Items& items)
 		rapidjson::ParseResult result = document.ParseStream<rapidjson::kParseCommentsFlag|rapidjson::kParseTrailingCommasFlag>(stream);
 		if (result.IsError())
 			logger.errorX() << "JSON parse error '" << rapidjson::GetParseError_En(result.Code()) << "' at offset "
-							<< result.Offset() << " in file " << config.fileName << endOfMsg();
+							<< result.Offset() << " in file " << config.getFileName() << endOfMsg();
 		if (!document.IsObject())
-			logger.errorX() << "JSON document from file " << config.fileName << " is not an object" << endOfMsg();
+			logger.errorX() << "JSON document from file " << config.getFileName() << " is not an object" << endOfMsg();
 
 		// analyze DOM tree
 		for (auto iter = document.MemberBegin(); iter != document.MemberEnd(); iter++)
@@ -124,9 +124,9 @@ Events Storage::send(const Items& items, const Events& events)
 		}
 
 		// create file
-		FILE* file = fopen(config.fileName.c_str(), "w");
+		FILE* file = fopen(config.getFileName().c_str(), "w");
 		if (!file)
-			logger.errorX() << "Can not open file " << config.fileName << " for writing" << endOfMsg();
+			logger.errorX() << "Can not open file " << config.getFileName() << " for writing" << endOfMsg();
 		auto autoClose = finally([file] { fclose(file); });
 
 		// write DOM tree to file
