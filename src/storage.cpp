@@ -14,17 +14,23 @@
 using namespace std::rel_ops;
 
 Storage::Storage(string _id, StorageConfig _config, Logger _logger) :
-	id(_id), config(_config), logger(_logger), fileRead(false)
+	id(_id), config(_config), logger(_logger), fileRead(false), lastFileReadTry(0)
 {
 }
 
-Events Storage::receive(const Items& items)
+Events Storage::receiveX(const Items& items)
 {
 	Events newEvents;
 
 	// if not yet done restore persisted owned items
 	if (!fileRead)
 	{
+		// shell we perform another attempt to read the file?
+		std::time_t now = std::time(0);
+		if (lastFileReadTry + 60 > now)
+			return newEvents;
+		lastFileReadTry = now;
+
 		// open file
 		FILE* file = fopen(config.getFileName().c_str(), "r");
 		if (!file)
@@ -50,17 +56,11 @@ Events Storage::receive(const Items& items)
 			// verify item identifier
 			auto itemPos = items.find(itemId);
 			if (itemPos == items.end())
-			{
-				logger.warn() << "Item " << itemId << " is unknown" << endOfMsg();
-				continue;
-			}
+				logger.errorX() << "Item " << itemId << " is unknown" << endOfMsg();
 
 			// verify that the item is owned
 			if (itemPos->second.getOwnerId() != id)
-			{
-				logger.warn() << "Item " << itemId << " is not owned by the link" << endOfMsg();
-				continue;
-			}
+				logger.errorX() << "Item " << itemId << " is not owned by the link" << endOfMsg();
 
 			// determine item value
 			Value value;
@@ -71,10 +71,7 @@ Events Storage::receive(const Items& items)
 			else if (iter->value.IsNumber())
 				value = Value(iter->value.GetDouble());
 			else
-			{
-				logger.warn() << "Value for item " << itemId << " is not supported" << endOfMsg();
-				continue;
-			}
+				logger.errorX() << "Value for item " << itemId << " is not supported" << endOfMsg();
 
 			// generate STATE_IND for item
 			newEvents.add(Event(id, itemId, EventType::STATE_IND, value));
@@ -84,6 +81,20 @@ Events Storage::receive(const Items& items)
 	}
 
 	return newEvents;
+}
+
+Events Storage::receive(const Items& items)
+{
+	try
+	{
+		return receiveX(items);
+	}
+	catch (const std::exception& ex)
+	{
+		logger.error() << ex.what() << endOfMsg();
+	}
+
+	return Events();
 }
 
 Events Storage::send(const Items& items, const Events& events)
@@ -126,7 +137,10 @@ Events Storage::send(const Items& items, const Events& events)
 		// create file
 		FILE* file = fopen(config.getFileName().c_str(), "w");
 		if (!file)
-			logger.errorX() << "Can not open file " << config.getFileName() << " for writing" << endOfMsg();
+		{
+			logger.error() << "Can not open file " << config.getFileName() << " for writing" << endOfMsg();
+			return Events();
+		}
 		auto autoClose = finally([file] { fclose(file); });
 
 		// write DOM tree to file

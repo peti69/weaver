@@ -363,6 +363,9 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		if (writeGaStr != "" && !GroupAddr::fromStr(writeGaStr, writeGa))
 			throw std::runtime_error("Invalid value " + writeGaStr + " for field writeGa in configuration");
 
+		if (writeGa == stateGa)
+			throw std::runtime_error("Values for fields stateGa and writeGa are equal in configuration");
+
 		string dptStr = getString(bindingValue, "dpt");
 		DatapointType dpt;
 		if (!DatapointType::fromStr(dptStr, dpt))
@@ -460,16 +463,5 @@ std::shared_ptr<StorageConfig> Config::getStorageConfig(const Value& value, cons
 {
 	string fileName = getString(value, "fileName");
 
-	StorageConfig::Bindings bindings;
-//	const Value& bindingsValue = getArray(value, "bindings");
-//	for (auto& bindingValue : bindingsValue.GetArray())
-//	{
-//		string itemId = getString(bindingValue, "itemId");
-//		if (!items.exists(itemId))
-//			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
-//
-//		bindings.add(StorageConfig::Binding(itemId, eventType, value, interval));
-//	}
-
-	return std::make_shared<StorageConfig>(fileName, bindings);
+	return std::make_shared<StorageConfig>(fileName);
 }
