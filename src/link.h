@@ -1,6 +1,8 @@
 #ifndef LINK_H
 #define LINK_H
 
+#include <sys/select.h>
+
 #include "basic.h"
 #include "logger.h"
 
