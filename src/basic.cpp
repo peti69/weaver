@@ -73,13 +73,14 @@ Value ValueType::convert(const Value& value) const
 	if (value.getType() == code)
 		return value;
 
+	if (code == VOID)
+		return Value::newVoid();
+
 	if (value.getType() == STRING)
 	{
 		string str = value.getString();
 		switch (code)
 		{
-			case VOID:
-				return Value::newVoid();
 			case NUMBER:
 				try
 				{
@@ -135,6 +136,39 @@ bool Value::operator==(const Value& x) const
 	             )
 	          )
 	       );
+}
+
+bool Item::isPollRequired(std::time_t now) const
+{
+	return pollInterval && lastPollTime + pollInterval <= now;
+}
+
+bool Item::isSendRequired(std::time_t now) const
+{
+	return sendOnTimer && !lastSendValue.isNull() && lastSendTime + duration <= now;
+}
+
+bool Item::isSendRequired(const Value& value) const
+{
+	if (!sendOnChange)
+		return true;
+
+	if (lastSendValue == value)
+		return false;
+
+	if (value.isNumber() && lastSendValue.isNumber())
+	{
+		double oldNum = lastSendValue.getNumber();
+		double num = value.getNumber();
+		if (  num < minimum
+		   || num > maximum
+		   || num < oldNum * (1.0 - relVariation / 100.0) - absVariation
+		   || num > oldNum * (1.0 + relVariation / 100.0) + absVariation
+		   )
+			return true;
+	}
+
+	return true;
 }
 
 string Items::getOwnerId(string itemId) const 

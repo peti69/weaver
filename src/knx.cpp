@@ -339,6 +339,17 @@ void KnxHandler::disconnect()
 	state = DISCONNECTED;
 }
 
+long KnxHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
+{
+	if (state != DISCONNECTED)
+	{
+		FD_SET(socket, readFds);
+		*maxFd = std::max(*maxFd, socket);
+	}
+
+	return -1;
+}
+
 Events KnxHandler::receive(const Items& items)
 {
 	try
@@ -491,6 +502,7 @@ Events KnxHandler::receiveX(const Items& items)
 	{
 		checkConnResp(msg);
 
+		channelId = msg[6];
 		dataIpAddr = IpAddr(msg[10], msg[11], msg[12], msg[13]);
 		dataIpPort = IpPort(msg[14] << 8 | msg[15]);
 		if (config.getNatMode() && (dataIpAddr == 0 || dataIpPort == 0))
@@ -498,7 +510,10 @@ Events KnxHandler::receiveX(const Items& items)
 			dataIpPort = senderIpPort;
 			dataIpAddr = senderIpAddr;
 		}
-		channelId = msg[6];
+		if (msg[18] != 0 || msg[19] != 0)
+			physicalAddr = PhysicalAddr(msg[18], msg[19]);
+		else
+			physicalAddr = config.getPhysicalAddr();
 		
 		state = CONNECTED;
 		ongoingConnStateReq = false;
@@ -509,7 +524,8 @@ Events KnxHandler::receiveX(const Items& items)
 		
 		logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
 		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
-		logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
+		logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort()
+		              << " with physical address " << physicalAddr.toStr() << endOfMsg();
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
 		logger.errorX() << "DISCONNECT REQUEST received" << endOfMsg();
@@ -767,10 +783,10 @@ void KnxHandler::checkTunnelResp(ByteString msg) const
 
 void KnxHandler::checkConnResp(ByteString msg) const
 {
-	if (msg.length() != 20)
-		logger.errorX() << "Received CONNECTION RESPONSE has length " << msg.length() << " (expected: 20)" << endOfMsg();
 	if (msg[7] != 0x00)
 		logger.errorX() << "Received CONNECTION RESPONSE has status code 0x" << cnvToHexStr(msg[7]) << " (expected: 0x00)" << endOfMsg();
+	if (msg.length() != 20)
+		logger.errorX() << "Received CONNECTION RESPONSE has length " << msg.length() << " (expected: 20)" << endOfMsg();
 	if (msg[8] != 0x08)
 		logger.errorX() << "Received CONNECTION RESPONSE has HPAI length " << cnvToStr(int(msg[8])) << " (expected: 8)" << endOfMsg();
 	if (msg[9] != 0x01)
@@ -790,7 +806,7 @@ void KnxHandler::logMsg(ByteString msg, bool received) const
 	if (config.getLogRawMsg() && msg.length() >= 4)
 	{
 		ServiceType type(msg[2], msg[3]);
-		logger.debug() << (received ? "R " : "S ") << cnvToHexStr(msg) << " (" << type.toStr() << ")" << endOfMsg();
+		logger.debug() << (received ? "R: " : "S: ") << cnvToHexStr(msg) << " (" << type.toStr() << ")" << endOfMsg();
 	}
 }
 

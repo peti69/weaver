@@ -14,16 +14,23 @@ class PortConfig;
 class GeneratorConfig;
 class StorageConfig;
 class Tr064Config;
+class HttpConfig;
 
 class GlobalConfig
 {
 private:
 	bool logEvents;
-	
+	bool logSuppressedEvents;
+	bool logGeneratedEvents;
+
 public:
-	GlobalConfig() : logEvents(false) {}
-	GlobalConfig(bool _logEvents) : logEvents(_logEvents) {}
+	GlobalConfig() : logEvents(false), logSuppressedEvents(false), logGeneratedEvents(false) {}
+	GlobalConfig(bool _logEvents, bool _logSuppressedEvents, bool _logGeneratedEvents) :
+		logEvents(_logEvents), logSuppressedEvents(_logSuppressedEvents), logGeneratedEvents(_logGeneratedEvents)
+	{}
 	bool getLogEvents() const { return logEvents; }
+	bool getLogSuppressedEvents() const { return logSuppressedEvents; }
+	bool getLogGeneratedEvents() const { return logGeneratedEvents; }
 };
 
 class Config
@@ -32,7 +39,7 @@ private:
 	rapidjson::Document document;
 	typedef rapidjson::Value::ConstMemberIterator Iterator;
 	typedef rapidjson::Value Value;
-	
+
 private:
 	int hasMember(const Value& value, string name) const;
 	string getString(const Value& value, string name) const;
@@ -53,7 +60,8 @@ private:
 	std::shared_ptr<GeneratorConfig> getGeneratorConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<Tr064Config> getTr064Config(const Value& value, const Items& items) const;
 	std::shared_ptr<StorageConfig> getStorageConfig(const Value& value, const Items& items) const;
-	
+	std::shared_ptr<HttpConfig> getHttpConfig(const Value& value, const Items& items) const;
+
 public:
 	Config() {}
 	void read(string fileName);

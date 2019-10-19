@@ -105,7 +105,7 @@ Events Storage::send(const Items& items, const Events& events)
 		if (event.getType() == EventType::WRITE_REQ)
 		{
 			auto itemPos = items.find(event.getItemId());
-			if (itemPos != items.end() && itemPos->second.getValue() != event.getValue())
+			if (itemPos != items.end() && itemPos->second.getLastSendValue() != event.getValue())
 				newValues[event.getItemId()] = event.getValue();
 		}
 
@@ -120,7 +120,7 @@ Events Storage::send(const Items& items, const Events& events)
 		{
 			const Item& item = itemPair.second;
 			auto newValuePos = newValues.find(item.getId());
-			const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getValue();
+			const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getLastSendValue();
 			if (item.getOwnerId() == id)
 			{
 				rapidjson::Value name(item.getId().c_str(), allocator);

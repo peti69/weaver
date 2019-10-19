@@ -217,6 +217,17 @@ void PortHandler::receiveData()
 	msgData += receivedData;
 }
 
+long PortHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
+{
+	if (fd != -1)
+	{
+		FD_SET(fd, readFds);
+		*maxFd = std::max(*maxFd, fd);
+	}
+
+	return -1;
+}
+
 Events PortHandler::receive(const Items& items)
 {
 	try

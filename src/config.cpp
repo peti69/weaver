@@ -9,6 +9,7 @@
 #include "port.h"
 #include "generator.h"
 #include "tr064.h"
+#include "http.h"
 #include "storage.h"
 #include "finally.h"
 
@@ -167,8 +168,10 @@ void Config::read(string fileName)
 GlobalConfig Config::getGlobalConfig() const
 {
 	bool logEvents = getBool(document, "logEvents", false);
-	
-	return GlobalConfig(logEvents);
+	bool logSuppressedEvents = getBool(document, "logSuppressedEvents", false);
+	bool logGeneratedEvents = getBool(document, "logGeneratedEvents", false);
+
+	return GlobalConfig(logEvents, logSuppressedEvents, logGeneratedEvents);
 }
 
 LogConfig Config::getLogConfig() const
@@ -198,7 +201,28 @@ Items Config::getItems() const
 
 		string ownerId = getString(itemValue, "ownerId"); 
 
-		items.add(Item(itemId, type, ownerId));
+		Item item(itemId, type, ownerId);
+
+		item.setPollInterval(getInt(itemValue, "pollInterval", 0));
+
+		if (hasMember(itemValue, "sendOnTimer"))
+		{
+			auto& sendOnTimerValue = getObject(itemValue, "sendOnTimer");
+			item.setSendOnTimer(true);
+			item.setDuration(getInt(sendOnTimerValue, "duration", 300));
+		}
+
+		if (hasMember(itemValue, "sendOnChange"))
+		{
+			auto& sendOnChangeValue = getObject(itemValue, "sendOnChange");
+			item.setSendOnChange(true);
+			item.setAbsVariation(getFloat(sendOnChangeValue, "absVariation", 0.0));
+			item.setRelVariation(getFloat(sendOnChangeValue, "relVariation", 0.0));
+			item.setMinimum(getFloat(sendOnChangeValue, "minimum", std::numeric_limits<float>::lowest()));
+			item.setMinimum(getFloat(sendOnChangeValue, "maximum", std::numeric_limits<float>::max()));
+		}
+
+		items.add(item);
 	}
 
 	return items;
@@ -224,23 +248,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 					throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 				Modifier modifier(itemId);
-
-				if (hasMember(modifierValue, "factor"))
-					modifier.setFactor(getFloat(modifierValue, "factor"));
-				if (hasMember(modifierValue, "suppressDuplicates"))
-				{
-					auto& suppressValue = getObject(modifierValue, "suppressDuplicates");
-					modifier.setSuppressDups(true);
-					if (hasMember(suppressValue, "minimum"))
-						modifier.setMinimum(getFloat(suppressValue, "minimum"));
-					if (hasMember(suppressValue, "maximum"))
-						modifier.setMinimum(getFloat(suppressValue, "maximum"));
-					if (hasMember(suppressValue, "absVariation"))
-						modifier.setAbsVariation(getFloat(suppressValue, "absVariation"));
-					if (hasMember(suppressValue, "relVariation"))
-						modifier.setRelVariation(getFloat(suppressValue, "relVariation"));
-				}
-
+				modifier.setFactor(getFloat(modifierValue, "factor", 1.0));
 				modifiers.add(modifier);
 			}
 		}
@@ -253,6 +261,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 			handler.reset(new MqttHandler(id, *getMqttConfig(getObject(linkValue, "mqtt"), items), logger));
 		else if (hasMember(linkValue, "port"))
 			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), logger));
+		else if (hasMember(linkValue, "http"))
+			handler.reset(new HttpHandler(id, *getHttpConfig(getObject(linkValue, "http"), items), logger));
 		else if (hasMember(linkValue, "generator"))
 			handler.reset(new Generator(id, *getGeneratorConfig(getObject(linkValue, "generator"), items), logger));
 		else if (hasMember(linkValue, "tr064"))
@@ -334,8 +344,8 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
 	int connStateReqInterval = getInt(value, "connStateReqInterval", 30);
-	int controlRespTimeout = getInt(value, "controlRespTimeout", 5);
-	int ldataConTimeout = getInt(value, "ldataConTimeout", 5);
+	int controlRespTimeout = getInt(value, "controlRespTimeout", 10);
+	int ldataConTimeout = getInt(value, "ldataConTimeout", 10);
 	
 	string physicalAddrStr = getString(value, "physicalAddr", "0.0.0");
 	PhysicalAddr physicalAddr;
@@ -412,9 +422,9 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 		string itemId = getString(bindingValue, "itemId");
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
-		
+
 		regex_t pattern = convertPattern2("pattern", getString(bindingValue, "pattern"));
-			
+
 		bindings.add(PortConfig::Binding(itemId, pattern));
 	}
 	
@@ -457,6 +467,41 @@ std::shared_ptr<Tr064Config> Config::getTr064Config(const Value& value, const It
 	}
 
 	return std::make_shared<Tr064Config>(bindings);
+}
+
+std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Items& items) const
+{
+	bool logTransfers = getBool(value, "logTransfers", false);
+
+	bool verboseMode = getBool(value, "verboseMode", false);
+
+	const Value& bindingsValue = getArray(value, "bindings");
+	HttpConfig::Bindings bindings;
+	for (auto& bindingValue : bindingsValue.GetArray())
+	{
+		string itemId = getString(bindingValue, "itemId");
+		if (!items.exists(itemId))
+			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+
+		string url = getString(bindingValue, "url");
+
+		std::list<string> headers;
+		if (hasMember(bindingValue, "headers"))
+			for (auto& headerValue : getArray(bindingValue, "headers").GetArray())
+			{
+				if (!headerValue.IsString())
+					throw std::runtime_error("Field headers is not a string array");
+				headers.push_back(headerValue.GetString());
+			}
+
+		string request = getString(bindingValue, "request", "");
+
+		regex_t responsePattern = convertPattern2("pattern", getString(bindingValue, "responsePattern"));
+
+		bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
+	}
+
+	return std::make_shared<HttpConfig>(logTransfers, verboseMode, bindings);
 }
 
 std::shared_ptr<StorageConfig> Config::getStorageConfig(const Value& value, const Items& items) const

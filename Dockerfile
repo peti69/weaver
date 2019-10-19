@@ -1,20 +1,21 @@
 FROM alpine:3.8
 
-LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, MQTT and serial devices"
+LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, HTTP, MQTT and serial devices"
 
 RUN set -x && \
-    apk --no-cache add \
+	apk --no-cache add \
 		libgcc \
 		libstdc++ \
 		mosquitto-libs \
 		tzdata && \
-    apk --no-cache add --virtual build-deps \
-        build-base \
-        cmake \
+	apk --no-cache add --virtual build-deps \
+		build-base \
+		cmake \
 		git \
 		mosquitto-dev \
 		rapidjson-dev \
-        util-linux-dev && \
+		curl-dev \
+		util-linux-dev && \
 	mkdir -p /build && \
 	cd /build && \
 	git clone https://github.com/peti69/weaver && \

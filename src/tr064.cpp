@@ -96,6 +96,17 @@ Tr064::Tr064(string _id, Tr064Config _config, Logger _logger) :
 {
 }
 
+long Tr064::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
+{
+	if (socket != -1)
+	{
+		FD_SET(socket, readFds);
+		*maxFd = std::max(*maxFd, socket);
+	}
+
+	return -1;
+}
+
 void Tr064::sendMSearch()
 {
 	ByteString msg = cnvFromAsciiStr(

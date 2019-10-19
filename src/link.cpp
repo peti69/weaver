@@ -1,12 +1,4 @@
-#include <limits>
-
 #include "link.h"
-
-Modifier::Modifier(string _itemId) : 
-	itemId(_itemId), factor(1.0), suppressDups(false), relVariation(0.0), absVariation(0.0),
-	minimum(std::numeric_limits<float>::lowest()), maximum(std::numeric_limits<float>::max())	 
-{
-}
 
 Value Modifier::exportValue(const Value& value) const
 {
@@ -24,26 +16,14 @@ Value Modifier::importValue(const Value& value) const
 		return value;
 }
 
-bool Modifier::suppressValue(const Value& oldValue, const Value& newValue) const
+bool Link::supports(EventType eventType) const
 {
-	if (!suppressDups)
-		return false;
+	return handler->supports(eventType);
+}
 
-	if (oldValue == newValue)
-		return true;
-
-	if (newValue.isNumber() && oldValue.isNumber())
-	{
-		double oldNum = oldValue.getNumber();
-		double newNum = newValue.getNumber();
-		if (  newNum >= minimum && newNum <= maximum
-		   && newNum >= oldNum * (1.0 - relVariation / 100.0) - absVariation 
-		   && newNum <= oldNum * (1.0 + relVariation / 100.0) + absVariation
-		   )
-			return true;
-	}
-
-	return false;
+long Link::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
+{
+	return pendingEvents.size() ? 0 : handler->collectFds(readFds, writeFds, excpFds, maxFd);
 }
 
 Events Link::receive(Items& items)
@@ -72,6 +52,17 @@ Events Link::receive(Items& items)
 		}
 		auto& item = itemPos->second;
 
+		// provide modifier
+		auto modifierPos = modifiers.find(event.getItemId());
+		auto modifier = modifierPos != modifiers.end() ? &modifierPos->second : 0;
+
+		// remove READ_REQ and WRITE_REQ in case the link is the owner of the item
+		if (event.getType() != EventType::STATE_IND && item.getOwnerId() == id)
+		{
+			eventPos = events.erase(eventPos);
+			continue;
+		}
+
 		// remove STATE_IND in case the link is not the owner of the item
 		if (event.getType() == EventType::STATE_IND && item.getOwnerId() != id)
 		{
@@ -88,34 +79,13 @@ Events Link::receive(Items& items)
 				               << "' to " << item.getType().toStr()  << " value for item " << item.getId() << endOfMsg();
 			else
 				event.setValue(newValue);
-
-			// apply modifier
-			auto modifierPos = modifiers.find(item.getId());
-			if (modifierPos != modifiers.end())
-			{
-				// convert the value from external to internal representation
-				event.setValue(modifierPos->second.importValue(event.getValue()));
-
-				// suppress STATE_IND in case the item value did not change (much) and the handler 
-				// does not support READ_REQ
-				if (  event.getType() == EventType::STATE_IND 
-				   && !handler->supports(EventType::READ_REQ)
-				   && !handler->supports(EventType::WRITE_REQ)
-				   && modifierPos->second.suppressValue(item.getValue(), event.getValue())
-				   )
-				{
-					// old and new value are equal or equal within tolerances
-					eventPos = events.erase(eventPos);
-					continue;
-				}
-			}
-
-			// store item value
-			if (event.getType() == EventType::STATE_IND)
-				item.setValue(event.getValue());
 		}
 		else
 			event.setValue(Value());
+
+		// convert event value from external to internal representation
+		if (event.getType() != EventType::READ_REQ && modifier)
+			event.setValue(modifier->importValue(event.getValue()));
 
 		eventPos++;
 	}
@@ -123,10 +93,10 @@ Events Link::receive(Items& items)
 	return events;
 }
 
-void Link::send(const Items& items, const Events& events)
+void Link::send(Items& items, const Events& events)
 {
 	Events modifiedEvents = events;
-	
+
 	for (auto eventPos = modifiedEvents.begin(); eventPos != modifiedEvents.end();)
 	{
 		// provide event
@@ -141,6 +111,10 @@ void Link::send(const Items& items, const Events& events)
 		}
 		auto& item = itemPos->second;
 
+		// provide modifier
+		auto modifierPos = modifiers.find(event.getItemId());
+		auto modifier = modifierPos != modifiers.end() ? &modifierPos->second : 0;
+
 		// remove READ_REQ and WRITE_REQ in case the link is not the owner of the item
 		if (event.getType() != EventType::STATE_IND && item.getOwnerId() != id)
 		{
@@ -148,28 +122,21 @@ void Link::send(const Items& items, const Events& events)
 			continue;
 		}
 
-		if (event.getType() != EventType::READ_REQ)
+		// remove STATE_IND in case the link is the owner of the item
+		if (event.getType() == EventType::STATE_IND && item.getOwnerId() == id)
 		{
-			// apply modifier on READ_REQ and WRITE_REQ
-			auto modifierPos = modifiers.find(event.getItemId());
-			if (modifierPos != modifiers.end())
-				// convert the value from internal to external representation
-				event.setValue(modifierPos->second.exportValue(event.getValue()));
+			eventPos = modifiedEvents.erase(eventPos);
+			continue;
 		}
-		else
-		{
-			// generate STATE_IND in case the handler does not support READ_REQ
-			if (!handler->supports(EventType::READ_REQ))
-			{
-				// make use of stored item value
-				const Value& value = itemPos->second.getValue();
-				if (!value.isNull())
-					pendingEvents.add(Event(id, event.getItemId(), EventType::STATE_IND, value));
-			}
-		}
+
+		// convert event value from internal to external representation
+		if (event.getType() != EventType::READ_REQ && modifier)
+			event.setValue(modifier->exportValue(event.getValue()));
 
 		eventPos++;
 	}
-	
-	pendingEvents.splice(pendingEvents.begin(), handler->send(items, modifiedEvents));
+
+	pendingEvents = handler->send(items, modifiedEvents);
 }
+
+

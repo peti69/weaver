@@ -80,8 +80,7 @@ public:
 	PortHandler(string _id, PortConfig _config, Logger _logger);
 	virtual ~PortHandler();
 	virtual bool supports(EventType eventType) const override { return eventType == EventType::STATE_IND; }
-	virtual int getReadDescriptor() override { return fd; }
-	virtual int getWriteDescriptor() override { return -1; }
+	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override { return Events(); }
 

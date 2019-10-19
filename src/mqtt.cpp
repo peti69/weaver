@@ -95,6 +95,14 @@ void MqttHandler::disconnect()
 	logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 }
 
+long MqttHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
+{
+	int socket = mosquitto_socket(client);
+	FD_SET(socket, readFds);
+	*maxFd = std::max(*maxFd, socket);
+	return mosquitto_want_write(client) ? 0 : -1;
+}
+
 void MqttHandler::handleError(string funcName, int errorCode)
 {
 	if (errorCode != MOSQ_ERR_SUCCESS)
@@ -128,9 +136,11 @@ Events MqttHandler::receive(const Items& items)
 	{
 		logger.error() << ex.what() << endOfMsg();
 	}
+
 	disconnect();
+	return Events();
 }
-	
+
 Events MqttHandler::receiveX(const Items& items)
 {
 	Events events;
@@ -169,9 +179,6 @@ Events MqttHandler::receiveX(const Items& items)
 
 Events MqttHandler::send(const Items& items, const Events& events)
 {
-	if (!connected)
-		return Events();
-
 	try
 	{
 		return sendX(items, events);
@@ -187,6 +194,9 @@ Events MqttHandler::send(const Items& items, const Events& events)
 
 Events MqttHandler::sendX(const Items& items, const Events& events)
 {
+	if (!connected)
+		return Events();
+
 	int ec = mosquitto_loop(client, 0, 1);
 	handleError("mosquitto_loop", ec);
 

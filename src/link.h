@@ -7,43 +7,20 @@
 class Modifier
 {
 private:
-	
 	// Modifier only applies to events for this item.
 	string itemId;
-	
-	// Factor applied to values received over the link. Acts as divisor for values which will be sent over the link.
+
+	// Factor applied to values received from the handler. Acts as divisor for values which will be sent to
+	// the handler.
 	float factor;
 
-	// Shall an unsolicited STATE_IND event be suppressed in case the associated new item value is equal or almost equal to the
-	// value seen beforehand?
-	bool suppressDups;
-	
-	// (current value) * (100 - (variation percentage)) <= new value <= (current value) * (100 + (variation percentage)) => ignore event
-	float relVariation;
-	
-	// New item values are suppressed in case they are inside the interval defined by this delta value.
-	// (current value) - (variation value) <= new value <= (current value) + (variation value) => ignore event
-	float absVariation;
-
-	// New item values are suppressed if they are greater than or equeal to this one.
-	float minimum;
-	
-	// New item values are suppressed if they are smaller than or equeal to this one.
-	float maximum;
-	
 public:
-	Modifier(string _itemId);
+	Modifier(string _itemId) : itemId(_itemId), factor(1.0) {}
 	string getItemId() const { return itemId; }
 	void setFactor(float _factor) { factor = _factor; }
-	void setSuppressDups(bool _suppressDups) { suppressDups = _suppressDups; }
-	void setRelVariation(float _relVariation) { relVariation = _relVariation; }
-	void setAbsVariation(float _absVariation) { absVariation = _absVariation; }
-	void setMinimum(float _minimum) { minimum = _minimum; }
-	void setMaximum(float _maximum) { maximum = _maximum; }
 
 	Value exportValue(const Value& value) const;
 	Value importValue(const Value& value) const;
-	bool suppressValue(const Value& oldValue, const Value& newValue) const;
 };
 
 class Modifiers: public std::map<string, Modifier> 
@@ -53,32 +30,42 @@ public:
 	bool exists(string itemId) const { return find(itemId) != end(); }
 };
 
+// Interface for exchanging events with external systems.
 class Handler
 {
 public:
 	virtual ~Handler() {}
+
+	// Indicates whether the handler generates (STATE_IND) or accepts (READ_REQ, WRITE_REQ)
+	// events of the passed type for items it owns.
 	virtual bool supports(EventType eventType) const = 0;
-	virtual int getReadDescriptor() = 0;
-	virtual int getWriteDescriptor() = 0;
+
+	// Fetches all data from the handler for feeding the select() system call. The return value
+	// is the time duration in milliseconds until when the handler has be called at latest.
+	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) = 0;
+
+	// When the select() system call returns this method is invoked to receive events.
 	virtual Events receive(const Items& items) = 0;
+
+	// Events returned by receive() are passed to all handlers via this method.
 	virtual Events send(const Items& items, const Events& events) = 0;
 };
 
 class Link
 {
 private:
-	// id assigned to the link.
+	// Id assigned to the link.
 	string id;
-	
+
 	// Alterations which will be performed on received events and events which will be sent.
 	Modifiers modifiers;
 
-	// Actual interface for the exchange of events with the outside world. 
+	// Actual interface for the exchange of events with the external systems.
 	std::shared_ptr<Handler> handler;
-	
+
 	// Logger for any kind of logging in the context of the link.
 	Logger logger;
-	
+
 	// Events generated in send() and waiting to be returned by receive().
 	Events pendingEvents;
 
@@ -86,11 +73,10 @@ public:
 	Link(string _id, Modifiers _modifiers, std::shared_ptr<Handler> _handler, Logger _logger) : 
 		id(_id), modifiers(_modifiers), handler(_handler), logger(_logger) {}
 	string getId() const { return id; }
-	int getReadDescriptor() const { return handler->getReadDescriptor(); }
-	int getWriteDescriptor() const { return handler->getWriteDescriptor(); }
-	long getTimeout() const { return pendingEvents.size() ? 0 : 1000; }
+	bool supports(EventType eventType) const;
+	long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd);
+	void send(Items& items, const Events& events);
 	Events receive(Items& items);
-	void send(const Items& items, const Events& events);
 };
 
 class Links: public std::map<string, Link>

@@ -136,7 +136,7 @@ public:
 		GroupAddr writeGa;
 		DatapointType dpt;
 		Binding(string _itemId, GroupAddr _stateGa, GroupAddr _writeGa, DatapointType _dpt) : 
-			itemId(_itemId), stateGa(_stateGa), writeGa(_writeGa), dpt(_dpt) {};
+			itemId(_itemId), stateGa(_stateGa), writeGa(_writeGa), dpt(_dpt) {}
 	};
 	class Bindings: public std::map<string, Binding> 
 	{
@@ -203,9 +203,14 @@ private:
 	IpPort localIpPort;
 	IpPort dataIpPort;
 	IpAddr dataIpAddr;
-    Byte channelId;
 	State state;
-	
+
+	// Channel id returned in CONNECTION RESPONSE and used for TUNNEL REQUEST.
+    Byte channelId;
+
+	// Physical address returned in CONNECTION RESPONSE or the configured one.
+    PhysicalAddr physicalAddr;
+
 	// Time when last connect attempt has been started.
 	std::time_t lastConnectTry;
 	
@@ -240,8 +245,7 @@ public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
 	virtual bool supports(EventType eventType) const override { return true; }
-	virtual int getReadDescriptor() override { return state != DISCONNECTED ? socket : -1; }
-	virtual int getWriteDescriptor() override { return -1; }
+	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;
 	

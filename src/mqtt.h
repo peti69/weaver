@@ -79,8 +79,7 @@ public:
 	MqttHandler(string _id, MqttConfig _config, Logger _logger);
 	virtual ~MqttHandler();
 	virtual bool supports(EventType eventType) const override { return true; }
-	virtual int getWriteDescriptor() override { return mosquitto_want_write(client) ? mosquitto_socket(client) : -1; }
-	virtual int getReadDescriptor() override { return mosquitto_socket(client); }
+	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;
 
