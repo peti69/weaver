@@ -160,17 +160,13 @@ bool Item::isSendRequired(const Value& value) const
 	{
 		double oldNum = lastSendValue.getNumber();
 		double num = value.getNumber();
-		cout << "PEW2: " << oldNum << " " << num << " " << (oldNum * (1.0 - relVariation / 100.0) - absVariation) << " " << (oldNum * (1.0 + relVariation / 100.0) + absVariation) << endl;
-		cout << "PEW2.1: " << minimum << " " << maximum << endl;
 		if (  num >= minimum
 		   && num <= maximum
 		   && num >= oldNum * (1.0 - relVariation / 100.0) - absVariation
 		   && num <= oldNum * (1.0 + relVariation / 100.0) + absVariation
 		   )
 			return false;
-		cout << "PEW3" << endl;
 	}
-	cout << "PEW4" << endl;
 
 	return true;
 }

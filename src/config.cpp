@@ -219,7 +219,7 @@ Items Config::getItems() const
 			item.setAbsVariation(getFloat(sendOnChangeValue, "absVariation", 0.0));
 			item.setRelVariation(getFloat(sendOnChangeValue, "relVariation", 0.0));
 			item.setMinimum(getFloat(sendOnChangeValue, "minimum", std::numeric_limits<float>::lowest()));
-			item.setMinimum(getFloat(sendOnChangeValue, "maximum", std::numeric_limits<float>::max()));
+			item.setMaximum(getFloat(sendOnChangeValue, "maximum", std::numeric_limits<float>::max()));
 		}
 
 		items.add(item);
