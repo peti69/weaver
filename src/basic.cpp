@@ -160,12 +160,12 @@ bool Item::isSendRequired(const Value& value) const
 	{
 		double oldNum = lastSendValue.getNumber();
 		double num = value.getNumber();
-		if (  num < minimum
-		   || num > maximum
-		   || num < oldNum * (1.0 - relVariation / 100.0) - absVariation
-		   || num > oldNum * (1.0 + relVariation / 100.0) + absVariation
+		if (  num >= minimum
+		   && num <= maximum
+		   && num >= oldNum * (1.0 - relVariation / 100.0) - absVariation
+		   && num <= oldNum * (1.0 + relVariation / 100.0) + absVariation
 		   )
-			return true;
+			return false;
 	}
 
 	return true;

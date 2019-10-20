@@ -11,11 +11,11 @@
 
 	// Only evaluated in case the parameter logEvents is set to true. It indicates whether suppressed STATE_IND events (no
 	// significant value change compared to former STATE_IND) will be logged or not. Optional, default is false.
-	//"logSuppressedEvents": false,
+	//"logSuppressedEvents": true,
 
 	// Only evaluated in case the parameter logEvents is set to true. It indicates whether generated READ_REQ events (polling)
 	// will be logged or not. Optional, default is false.
-	//"logGeneratedEvents": false,
+	//"logGeneratedEvents": true,
 
 	// Defines the name of the file to which the log messages are written. In case no name is given or in case
 	// an empty name is given the log message are only witten to standard out (stdout). Optional, default is empty.
