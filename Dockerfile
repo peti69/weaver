@@ -1,4 +1,4 @@
-FROM alpine:3.8
+FROM alpine:3.10
 
 LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, HTTP, MQTT and serial devices"
 
@@ -7,6 +7,7 @@ RUN set -x && \
 		libgcc \
 		libstdc++ \
 		mosquitto-libs \
+		libcurl \
 		tzdata && \
 	apk --no-cache add --virtual build-deps \
 		build-base \
