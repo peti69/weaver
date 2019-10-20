@@ -636,7 +636,7 @@
 			// This link type supports persistency for the items it owns.
 			"storage": {
 				// File in which the item values are stored.
-				"fileName": "weaver_states.json"
+				"fileName": "../weaver_states.json"
 			}
 		}
 	]

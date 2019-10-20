@@ -2,7 +2,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <unistd.h>
-	 
+
 #include "mqtt.h"
 #include "finally.h"
 
@@ -37,7 +37,7 @@ bool MqttHandler::connect(const Items& items)
 {
 	if (connected)
 		return true;
-	
+
 	std::time_t now = std::time(0);
 	if (lastConnectTry + config.getReconnectInterval() > now)
 		return false;
@@ -90,7 +90,6 @@ void MqttHandler::disconnect()
 
 	mosquitto_disconnect(client);
 	connected = false;
-	//lastConnectTry = 0;
 
 	logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 }
@@ -98,8 +97,11 @@ void MqttHandler::disconnect()
 long MqttHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
 {
 	int socket = mosquitto_socket(client);
-	FD_SET(socket, readFds);
-	*maxFd = std::max(*maxFd, socket);
+	if (socket >= 0)
+	{
+		FD_SET(socket, readFds);
+		*maxFd = std::max(*maxFd, socket);
+	}
 	return mosquitto_want_write(client) ? 0 : -1;
 }
 
