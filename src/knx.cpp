@@ -42,8 +42,8 @@ string ServiceType::toStr() const
 			return "DISC_RESP";
 		case TUNNEL_REQ:
 			return "TUNNEL_REQ";
-		case TUNNEL_RESP:
-			return "TUNNEL_RESP";
+		case TUNNEL_ACK:
+			return "TUNNEL_ACK";
 		default:
 			return "???";
 	}
@@ -460,7 +460,7 @@ Events KnxHandler::receiveX(const Items& items)
 		}
 		lastReceivedSeqNo = seqNo;
 
-		sendDataMsg(createTunnelResp(seqNo));
+		sendDataMsg(createTunnelAck(seqNo));
 
 		MsgCode msgCode = msg[10];
 		if (msgCode == MsgCode::LDATA_IND)
@@ -500,9 +500,9 @@ Events KnxHandler::receiveX(const Items& items)
 			sendWaitingLDataReq();
 		}
 	}
-	else if (state == CONNECTED && serviceType == ServiceType::TUNNEL_RESP)
+	else if (state == CONNECTED && serviceType == ServiceType::TUNNEL_ACK)
 	{
-		checkTunnelResp(msg);
+		checkTunnelAck(msg);
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::CONN_STATE_RESP && ongoingConnStateReq)
 	{
@@ -796,13 +796,13 @@ void KnxHandler::checkTunnelReq(ByteString msg) const
 		                << " - Expected: 0x" << cnvToHexStr(channelId) << endOfMsg();
 }
 
-void KnxHandler::checkTunnelResp(ByteString msg) const
+void KnxHandler::checkTunnelAck(ByteString msg) const
 {
 	if (msg.length() != 10)
-		logger.errorX() << "Received TUNNEL RESPONSE has length " << msg.length()
+		logger.errorX() << "Received TUNNEL ACK has length " << msg.length()
 		                << " - Expected: 10" << endOfMsg();
 	if (msg[9] != 0x00)
-		logger.errorX() << "Received TUNNEL RESPONSE has status code 0x" << cnvToHexStr(msg[9])
+		logger.errorX() << "Received TUNNEL ACK has status code 0x" << cnvToHexStr(msg[9])
 		                << " (" << getStatusCodeText(msg[9]) << ") - Expected: 0x00" << endOfMsg();
 }
 
@@ -892,9 +892,9 @@ ByteString KnxHandler::createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data
 	return addHeader(ServiceType::TUNNEL_REQ, createTunnelHeader(channelId, seqNo) + createCemiFrame(config.getPhysicalAddr(), ga, data));
 }
 
-ByteString KnxHandler::createTunnelResp(Byte seqNo) const
+ByteString KnxHandler::createTunnelAck(Byte seqNo) const
 {
-	return addHeader(ServiceType::TUNNEL_RESP, createTunnelHeader(channelId, seqNo));
+	return addHeader(ServiceType::TUNNEL_ACK, createTunnelHeader(channelId, seqNo));
 }
 
 string KnxHandler::getStatusCodeName(Byte statusCode) const

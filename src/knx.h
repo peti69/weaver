@@ -49,7 +49,7 @@ struct ServiceType
 	static const Value DISC_REQ = 0x0209;
 	static const Value DISC_RESP = 0x020A;
 	static const Value TUNNEL_REQ = 0x0420;
-	static const Value TUNNEL_RESP = 0x0421;
+	static const Value TUNNEL_ACK = 0x0421;
 };
 
 struct MsgCode 
@@ -221,7 +221,7 @@ private:
 	// Time when the last CONNECTION REQUEST or CONNECTION STATE REQUST has been sent.
 	std::time_t lastControlReqSendTime;
 	
-	// Sequence number of last received TUNNEL REQUEST.
+	// Sequence number of last received and accepted TUNNEL REQUEST.
 	Byte lastReceivedSeqNo;
 	
 	// Sequence number of last sent TUNNEL REQUEST.
@@ -264,10 +264,10 @@ private:
 	ByteString createDiscReq() const;
 	ByteString createDiscResp() const;
 	ByteString createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data) const;
-	ByteString createTunnelResp(Byte seqNo) const;
+	ByteString createTunnelAck(Byte seqNo) const;
 	void checkMsg(ByteString msg) const;
 	void checkTunnelReq(ByteString msg) const;
-	void checkTunnelResp(ByteString msg) const;
+	void checkTunnelAck(ByteString msg) const;
 	void checkConnResp(ByteString msg) const;
 	void checkConnStateResp(ByteString msg, Byte channelId) const;
 	void logMsg(ByteString msg, bool received) const;
