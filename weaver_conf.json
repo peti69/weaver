@@ -94,10 +94,10 @@
 		{ "id": "handy_merle_angemeldet", "type": "boolean", "ownerId": "fritzbox", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
 
 		{ "id": "strom_zaehlerstand", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 1 }, "sendOnTimer": {} },
-		{ "id": "strom_verbrauch_gesamt", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 10 }, "sendOnTimer": {} },
-		{ "id": "strom_verbrauch_phase1", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 5 }, "sendOnTimer": {} },
-		{ "id": "strom_verbrauch_phase2", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 5 }, "sendOnTimer": {} },
-		{ "id": "strom_verbrauch_phase3", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 5 }, "sendOnTimer": {} },
+		{ "id": "strom_verbrauch_gesamt", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
+		{ "id": "strom_verbrauch_phase1", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
+		{ "id": "strom_verbrauch_phase2", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
+		{ "id": "strom_verbrauch_phase3", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
 
 		{ "id": "helligkeit_aussen_ost", "type": "number", "ownerId": "wetterstation", "sendOnChange": { "absVariation": 1, "minimum": 5 }, "sendOnTimer": {} },
 		{ "id": "helligkeit_aussen_sued", "type": "number", "ownerId": "wetterstation", "sendOnChange": { "absVariation": 1, "minimum": 5 }, "sendOnTimer": {} },
@@ -173,6 +173,10 @@
 				// Name of serial device/port. For example /dev/ttyUSB0.
 				"name": "/dev/smartmeter",
 				
+				// Delay in seconds between attempts to reopen the serial device/port when access errors have been 
+				// encountered. Optional, default is 60. 
+				//"reopenInterval": 60,
+
 				// Speed as baud/bit rate. Possible values are 1200, 1800, 2400, 4800, 9600, 19200, 38400, 
 				// 57600 or 115200.
 				"baudRate": 9600,
@@ -288,7 +292,7 @@
 
 				// Mapping from KNX to items and vice versa.
 				"bindings":	[
-					{ "itemId": "spiele_klingel", "writeGa": "3/3/12", "dpt": "1.001" },
+					{ "itemId": "spiele_klingel", "writeGa": "3/3/15", "dpt": "1.001" },
 
 					{ "itemId": "handy_peter_angemeldet", "stateGa": "5/0/30", "dpt": "1.001" },
 					{ "itemId": "handy_beate_angemeldet", "stateGa": "5/0/31", "dpt": "1.001" },
@@ -378,7 +382,7 @@
 
 				// Delay in seconds between reconnect attempts to the MQTT broker when link has been lost.
 				// Optional, default is 60. 
-				"reconnectInterval": 60,
+				//"reconnectInterval": 60,
 
 				// Retain flag for STATE_IND induced messages. Optional, default is false.
 				"retainFlag": true,
@@ -386,7 +390,7 @@
 				// Enables logging of all received and sent messages (payload and topic). 
 				// Optional, default is false. 
 				//"logMessages": true,
-				
+
 				// Topics to which weaver subsribes but without necessarily associating the received messages 
 				// with any item. This can be useful for debugging purpose in conjunction with the logMessages flag. 
 				// Optional, default is no topic. 

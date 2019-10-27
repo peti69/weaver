@@ -60,7 +60,7 @@ bool PortHandler::open()
 	if (lastOpenTry + config.getReopenInterval() > now)
 		return false;
 	lastOpenTry = now;
-	
+
 	// open port
 	fd = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
 	if (fd < 0)
@@ -168,7 +168,6 @@ bool PortHandler::open()
 		logger.errorX() << unixError("tcsetattr") << endOfMsg();
 	
 	autoClose.disable();
-	
 	logger.info() << "Serial port " << config.getName() << " open" << endOfMsg();
 	
 	return true;
@@ -178,11 +177,11 @@ void PortHandler::close()
 {
 	if (fd < 0)
 		return;
-	
+
 	tcsetattr(fd, TCSANOW, &oldSettings);
 	::close(fd);
 	fd = -1;
-	//lastOpenTry = 0;
+	lastOpenTry = 0;
 
 	logger.info() << "Serial port " << config.getName() << " closed" << endOfMsg();
 }

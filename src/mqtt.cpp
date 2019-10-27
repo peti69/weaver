@@ -24,7 +24,7 @@ MqttHandler::MqttHandler(string _id, MqttConfig _config, Logger _logger) :
 	mosquitto_lib_version(&major, &minor, &revision);
 	logger.info() << "Mosquitto library has version " << major << "." << minor << "." << revision << endOfMsg();
 }
-	
+
 MqttHandler::~MqttHandler()
 {
 	disconnect();
@@ -45,9 +45,7 @@ bool MqttHandler::connect(const Items& items)
 
 	int ec = mosquitto_connect(client, config.getHostname().c_str(), config.getPort(), 60);
 	handleError("mosquitto_connect", ec);
-	connected = true;
-
-	logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+	auto autoDisconnect = finally([this] { mosquitto_disconnect(client); });
 
 	mosquitto_message_callback_set(client, onMqttMessage);
 
@@ -80,6 +78,10 @@ bool MqttHandler::connect(const Items& items)
 		handleError("mosquitto_subscribe", ec);
 	}
 
+	autoDisconnect.disable();
+	connected = true;
+	logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+
 	return true;
 }
 	
@@ -90,6 +92,7 @@ void MqttHandler::disconnect()
 
 	mosquitto_disconnect(client);
 	connected = false;
+	lastConnectTry = 0;
 
 	logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 }

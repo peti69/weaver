@@ -321,22 +321,30 @@ KnxHandler::~KnxHandler()
 	disconnect();
 }
 
-void KnxHandler::disconnect()
+void KnxHandler::close()
 {
-	if (state == DISCONNECTED) 
+	if (state == DISCONNECTED)
 		return;
 
 	if (state == CONNECTED)
 	{
-		//lastConnectTry = 0;
-
-		sendControlMsg(createDiscReq());
+		lastConnectTry = 0;
 
 		logger.info() << "Disconnected from KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
+	else
+		lastConnectTry = std::time(0);
 
-	::close(socket); 
+	::close(socket);
 	state = DISCONNECTED;
+}
+
+void KnxHandler::disconnect()
+{
+	if (state == CONNECTED)
+		sendControlMsg(createDiscReq());
+
+	close();
 }
 
 long KnxHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
@@ -521,17 +529,22 @@ Events KnxHandler::receiveX(const Items& items)
 		waitingLDataReqs.clear();
 		lastReceivedSeqNo = 0xFF;
 		lastSentSeqNo = 0xFF;
-		
+
 		logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
 		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
 		logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort()
 		              << " with physical address " << physicalAddr.toStr() << endOfMsg();
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
-		logger.errorX() << "DISCONNECT REQUEST received" << endOfMsg();
+	{
+		sendControlMsg(createDiscResp());
+
+		logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
+		close();
+	}
 	else
 		logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
-	
+
 	return events;
 }
 
@@ -796,7 +809,7 @@ void KnxHandler::checkConnResp(ByteString msg) const
 void KnxHandler::checkConnStateResp(ByteString msg, Byte channelId) const
 {
 	if (msg[6] != channelId)
-		logger.errorX() << "Received CONNECTION STATE RESPONSE has channel id 0x" << cnvToHexStr(msg[7]) << " (expected: 0x" << cnvToHexStr(channelId) << ")" << endOfMsg();
+		logger.errorX() << "Received CONNECTION STATE RESPONSE has channel id 0x" << cnvToHexStr(msg[6]) << " (expected: 0x" << cnvToHexStr(channelId) << ")" << endOfMsg();
 	if (msg[7] != 0x00)
 		logger.errorX() << "Received CONNECTION STATE RESPONSE has status code 0x" << cnvToHexStr(msg[7]) << " (expected: 0x00)" << endOfMsg();
 }
@@ -849,6 +862,11 @@ ByteString KnxHandler::createDiscReq() const
 {
 	ByteString longHpai = config.getNatMode() ? createLongHpai(channelId, IpAddr(0), 0) : createLongHpai(channelId, config.getLocalIpAddr(), localIpPort);
 	return addHeader(ServiceType::DISC_REQ, longHpai);
+}
+
+ByteString KnxHandler::createDiscResp() const
+{
+	return addHeader(ServiceType::DISC_RESP, ByteString({channelId, 0x00}));
 }
 
 ByteString KnxHandler::createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data) const

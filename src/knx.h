@@ -250,6 +250,7 @@ public:
 	virtual Events send(const Items& items, const Events& events) override;
 	
 private:
+	void close();
 	void disconnect();
 	Events receiveX(const Items& items);
 	Events sendX(const Items& items, const Events& events);
@@ -261,6 +262,7 @@ private:
 	ByteString createConnReq() const;
 	ByteString createConnStateReq() const;
 	ByteString createDiscReq() const;
+	ByteString createDiscResp() const;
 	ByteString createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data) const;
 	ByteString createTunnelResp(Byte seqNo) const;
 	void checkMsg(ByteString msg) const;
