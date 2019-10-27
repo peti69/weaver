@@ -411,7 +411,7 @@ Events KnxHandler::receiveX(const Items& items)
 		sendControlMsg(createConnReq());
 		state = WAIT_FOR_CONN_RESP;
 		lastControlReqSendTime = now;
-		
+
 		autoClose.disable();
 
 		return events;
@@ -453,7 +453,11 @@ Events KnxHandler::receiveX(const Items& items)
 		if (seqNo == lastReceivedSeqNo)
 			return events;
 		if (seqNo != ((lastReceivedSeqNo + 1) & 0xFF))
-			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo) << " (last one: " << cnvToHexStr(lastReceivedSeqNo) << ")" << endOfMsg();
+		{
+			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
+			              << " (last one: " << cnvToHexStr(lastReceivedSeqNo) << ")" << endOfMsg();
+			return events;
+		}
 		lastReceivedSeqNo = seqNo;
 
 		sendDataMsg(createTunnelResp(seqNo));
@@ -522,7 +526,7 @@ Events KnxHandler::receiveX(const Items& items)
 			physicalAddr = PhysicalAddr(msg[18], msg[19]);
 		else
 			physicalAddr = config.getPhysicalAddr();
-		
+
 		state = CONNECTED;
 		ongoingConnStateReq = false;
 		ongoingLDataReq = false;
@@ -766,52 +770,66 @@ ByteString createCemiFrame(PhysicalAddr pa, GroupAddr ga, ByteString data)
 void KnxHandler::checkMsg(ByteString msg) const
 {
 	if (msg.length() < 8)
-		logger.errorX() << "Received message has length " << msg.length() << " (expected: >=8)" << endOfMsg();
+		logger.errorX() << "Received message has length " << msg.length()
+		                << " - Expected: >=8" << endOfMsg();
 	ByteString header = msg.substr(0, 6);
 	if (header[0] != 0x06)
-		logger.errorX() << "Received message contains header length " << cnvToStr(int(header[0])) << " (expected: 6)" << endOfMsg();
+		logger.errorX() << "Received message contains header length " << cnvToStr(int(header[0]))
+		                << " - Expected: 6" << endOfMsg();
 	if (header[1] != 0x10)
-		logger.errorX() << "Received CONNECTION RESPONSE has KNXnet/IP version 0x" << cnvToHexStr(header[1]) << " (expected: 0x10)" << endOfMsg();
+		logger.errorX() << "Received message has KNXnet/IP version 0x" << cnvToHexStr(header[1])
+		                << " - Expected: 0x10" << endOfMsg();
 	unsigned short totalLength = header[4] << 8 | header[5];
 	if (totalLength != msg.length())
-		logger.errorX() << "Received message contains total length " << cnvToStr(totalLength) << " (actual length: " << msg.length() << ")" << endOfMsg();
+		logger.errorX() << "Received message contains total length " << cnvToStr(totalLength)
+		                << " (actual length: " << msg.length() << ")" << endOfMsg();
 }
 
 void KnxHandler::checkTunnelReq(ByteString msg) const
 {
 	if (msg.length() < 20)
-		logger.errorX() << "Received TUNNEL REQUEST has length " << msg.length() << " (expected: >=20)" << endOfMsg();
+		logger.errorX() << "Received TUNNEL REQUEST has length " << msg.length()
+		                << " - Expected: >=20" << endOfMsg();
 	Byte receivedChannelId = msg[7];
 	if (receivedChannelId != channelId)
-		logger.errorX() << "Received TUNNEL REQUEST has channel id 0x" << cnvToHexStr(receivedChannelId) << " (expected: 0x" << cnvToHexStr(channelId) << ")" << endOfMsg();
+		logger.errorX() << "Received TUNNEL REQUEST has channel id 0x" << cnvToHexStr(receivedChannelId)
+		                << " - Expected: 0x" << cnvToHexStr(channelId) << endOfMsg();
 }
 
 void KnxHandler::checkTunnelResp(ByteString msg) const
 {
 	if (msg.length() != 10)
-		logger.errorX() << "Received TUNNEL RESPONSE has length " << msg.length() << " (expected: 10)" << endOfMsg();
+		logger.errorX() << "Received TUNNEL RESPONSE has length " << msg.length()
+		                << " - Expected: 10" << endOfMsg();
 	if (msg[9] != 0x00)
-		logger.errorX() << "Received TUNNEL RESPONSE has status code 0x" << cnvToHexStr(msg[9]) << " (expected: 0x00)" << endOfMsg();
+		logger.errorX() << "Received TUNNEL RESPONSE has status code 0x" << cnvToHexStr(msg[9])
+		                << " (" << getStatusCodeText(msg[9]) << ") - Expected: 0x00" << endOfMsg();
 }
 
 void KnxHandler::checkConnResp(ByteString msg) const
 {
 	if (msg[7] != 0x00)
-		logger.errorX() << "Received CONNECTION RESPONSE has status code 0x" << cnvToHexStr(msg[7]) << " (expected: 0x00)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION RESPONSE has status code 0x" << cnvToHexStr(msg[7])
+		                << " (" << getStatusCodeText(msg[7]) << ") - Expected: 0x00" << endOfMsg();
 	if (msg.length() != 20)
-		logger.errorX() << "Received CONNECTION RESPONSE has length " << msg.length() << " (expected: 20)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION RESPONSE has length " << msg.length()
+		                << " - Expected: 20" << endOfMsg();
 	if (msg[8] != 0x08)
-		logger.errorX() << "Received CONNECTION RESPONSE has HPAI length " << cnvToStr(int(msg[8])) << " (expected: 8)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION RESPONSE has HPAI length " << cnvToStr(int(msg[8]))
+		                << " - Expected: 8" << endOfMsg();
 	if (msg[9] != 0x01)
-		logger.errorX() << "Received CONNECTION RESPONSE has protocol code 0x" << cnvToHexStr(msg[9]) << " (expected: 0x01 = IPV4_UDP)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION RESPONSE has protocol code 0x" << cnvToHexStr(msg[9])
+		                << " - Expected: 0x01 (IPV4_UDP)" << endOfMsg();
 }
 
 void KnxHandler::checkConnStateResp(ByteString msg, Byte channelId) const
 {
 	if (msg[6] != channelId)
-		logger.errorX() << "Received CONNECTION STATE RESPONSE has channel id 0x" << cnvToHexStr(msg[6]) << " (expected: 0x" << cnvToHexStr(channelId) << ")" << endOfMsg();
+		logger.errorX() << "Received CONNECTION STATE RESPONSE has channel id 0x" << cnvToHexStr(msg[6])
+		                << " - Expected: 0x" << cnvToHexStr(channelId) << endOfMsg();
 	if (msg[7] != 0x00)
-		logger.errorX() << "Received CONNECTION STATE RESPONSE has status code 0x" << cnvToHexStr(msg[7]) << " (expected: 0x00)" << endOfMsg();
+		logger.errorX() << "Received CONNECTION STATE RESPONSE has status code 0x" << cnvToHexStr(msg[7])
+		                << " (" << getStatusCodeText(msg[7]) << ") - Expected: 0x00" << endOfMsg();
 }
 
 void KnxHandler::logMsg(ByteString msg, bool received) const
@@ -877,4 +895,91 @@ ByteString KnxHandler::createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data
 ByteString KnxHandler::createTunnelResp(Byte seqNo) const
 {
 	return addHeader(ServiceType::TUNNEL_RESP, createTunnelHeader(channelId, seqNo));
+}
+
+string KnxHandler::getStatusCodeName(Byte statusCode) const
+{
+	switch (statusCode)
+	{
+		case 0x00:
+			return "NO_ERROR";
+		case 0x01:
+			return "HOST_PROTOCOL_TYPE";
+		case 0x02:
+			return "VERSION_NOT_SUPPORTED";
+		case 0x04:
+			return "SEQUENCE_NUMBER";
+		case 0x0F:
+			return "ERROR";
+		case 0x21:
+			return "CONNECTION_ID";
+		case 0x22:
+			return "CONNECTION_TYPE";
+		case 0x23:
+			return "CONNECTION_OPTION";
+		case 0x24:
+			return "NO_MORE_CONNECTIONS";
+		case 0x25:
+			return "NO_MORE_UNIQUE_CONNECTIONS";
+		case 0x26:
+			return "DATA_CONNECTION";
+		case 0x27:
+			return "KNX_CONNECTION";
+		case 0x28:
+			return "AUTHORIZATION";
+		case 0x29:
+			return "TUNNELING_LAYER";
+		case 0x2D:
+			return "NO_TUNNELING_ADDRESS";
+		case 0x2E:
+			return "CONNECTION_IN_USE";
+	}
+
+	return "???";
+}
+
+string KnxHandler::getStatusCodeExplanation(Byte statusCode) const
+{
+	switch (statusCode)
+	{
+		case 0x00:
+			return "No error occurred.";
+		case 0x01:
+			return "The requested host protocol is not supported by the KNXnet/IP device.";
+		case 0x02:
+			return "The requested protocol version is not supported by the KNXnet/IP device.";
+		case 0x04:
+			return "The received sequence number is out of sync.";
+		case 0x0F:
+			return "An undefined, possibly implementation specific error occurred.";
+		case 0x21:
+			return "The KNXnet/IP server device cannot find an active data connection with the specified ID.";
+		case 0x22:
+			return "The KNXnet/IP server device does not support the requested connection type.";
+		case 0x23:
+			return "The KNXnet/IP server device does not support one or more requested connection options.";
+		case 0x24:
+			return "The KNXnet/IP server device cannot accept the new data connection because its maximum amount of concurrent connections is already used.";
+		case 0x25:
+			return "The KNXnet/IP tunneling server could provide a connection (in contrast to NO_MORE_CONNECTIONS) if only the KNXnet/IP tunneling address that would be assigned to the connection would be unique.";
+		case 0x26:
+			return "The KNXnet/IP server device detects an error concerning the data connection with the specified ID.";
+		case 0x27:
+			return "The KNXnet/IP server device detects an error concerning the KNX connection with the specified ID.";
+		case 0x28:
+			return "The KNXnet/IP client is not authorized to use the requested individual address in the extended connection request information (CRI) structure.";
+		case 0x29:
+			return "The requested tunneling layer is not supported by the KNXnet/IP server device.";
+		case 0x2D:
+			return "The address requested in the extended CRI structure is not a tunneling individual address.";
+		case 0x2E:
+			return "The individual address requested for this connection is already in use.";
+	}
+
+	return "???";
+}
+
+string KnxHandler::getStatusCodeText(Byte statusCode) const
+{
+	return getStatusCodeName(statusCode) + " = '" + getStatusCodeExplanation(statusCode) + "'";
 }

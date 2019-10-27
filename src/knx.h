@@ -272,6 +272,9 @@ private:
 	void checkConnStateResp(ByteString msg, Byte channelId) const;
 	void logMsg(ByteString msg, bool received) const;
 	void logTunnelReq(ByteString msg) const;
+	string getStatusCodeName(Byte statusCode) const;
+	string getStatusCodeExplanation(Byte statusCode) const;
+	string getStatusCodeText(Byte statusCode) const;
 };
 
 #endif
