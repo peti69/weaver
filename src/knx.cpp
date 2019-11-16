@@ -1,5 +1,3 @@
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 
@@ -52,11 +50,11 @@ string ServiceType::toStr() const
 string MsgCode::toStr() const
 {
 	if (value == MsgCode::LDATA_IND)
-		return "L-Data.ind";
+		return "L_Data.ind";
 	else if (value == MsgCode::LDATA_CON)
-		return "L-Data.con";
+		return "L_Data.con";
 	else if (value == MsgCode::LDATA_REQ)
-		return "L-Data.req";
+		return "L_Data.req";
 	else
 		return "?? " + cnvToHexStr(value) + " ??";
 }
@@ -407,11 +405,11 @@ Events KnxHandler::receiveX(const Items& items)
 		logger.debug() << "Using port " << localIpPort << " as local control and data endpoint " << endOfMsg();
 		if (config.getNatMode())
 			logger.debug() << "Using NAT mode" << endOfMsg();
-		
+
 		sendControlMsg(createConnReq());
+
 		state = WAIT_FOR_CONN_RESP;
 		lastControlReqSendTime = now;
-
 		autoClose.disable();
 
 		return events;
@@ -428,13 +426,8 @@ Events KnxHandler::receiveX(const Items& items)
 	else if (state == WAIT_FOR_CONN_RESP && lastControlReqSendTime + config.getControlRespTimeout() <= now)
 		logger.errorX() << "CONNECTION REQUEST not answered in time" << endOfMsg();
 
-	if (state == CONNECTED && ongoingLDataReq && lastLDataReqSentTime + config.getLDataConTimeout() <= now)
-	{
-		ongoingLDataReq = false;
-		logger.errorX() << "L-Data.req not confirmed in time" << endOfMsg();
-
-		sendWaitingLDataReq();
-	}
+	if (state == CONNECTED)
+		processOngoingLDataReq();
 
 	ByteString msg;
 	IpAddr senderIpAddr;
@@ -478,7 +471,7 @@ Events KnxHandler::receiveX(const Items& items)
 				   )
 				{
 					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-					waitingReadReqs.insert(binding.itemId);
+					receivedReadReqs.insert(binding.itemId);
 				}
 				else if ((ga == binding.stateGa && owner) || (ga == binding.writeGa && !owner))
 				{
@@ -494,15 +487,14 @@ Events KnxHandler::receiveX(const Items& items)
 		}
 		else if (msgCode == MsgCode::LDATA_CON)
 		{
-			ongoingLDataReq = false;
-			waitingLDataReqs.pop_front();
-
-			sendWaitingLDataReq();
+			processReceivedLDataCon(msg);
 		}
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::TUNNEL_ACK)
 	{
 		checkTunnelAck(msg);
+
+		processReceivedTunnelAck(msg);
 	}
 	else if (state == CONNECTED && serviceType == ServiceType::CONN_STATE_RESP && ongoingConnStateReq)
 	{
@@ -529,8 +521,7 @@ Events KnxHandler::receiveX(const Items& items)
 
 		state = CONNECTED;
 		ongoingConnStateReq = false;
-		ongoingLDataReq = false;
-		waitingLDataReqs.clear();
+		sentLDataReqs.clear();
 		lastReceivedSeqNo = 0xFF;
 		lastSentSeqNo = 0xFF;
 
@@ -585,14 +576,14 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 			bool owner = items.getOwnerId(itemId) == id;
 			const Value& value = event.getValue();
 
-			// create data/APDU for L-Data.req
+			// create data/APDU for L_Data.req
 			ByteString data;
 			if (event.getType() == EventType::READ_REQ)
 				data = ByteString({0x00});
 			else
 			{
 				assert(event.getType() == EventType::WRITE_REQ || event.getType() == EventType::STATE_IND);
-				
+
 				data = binding.dpt.exportValue(value);
 				if (!data.length())
 				{
@@ -604,54 +595,134 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 					data[0] |= 0x80;
 				else // STATE_IND
 				{
-					auto pos = waitingReadReqs.find(event.getItemId());
-					if (pos != waitingReadReqs.end())
+					auto pos = receivedReadReqs.find(event.getItemId());
+					if (pos != receivedReadReqs.end())
 					{
 						data[0] |= 0x40;
-						waitingReadReqs.erase(pos);
+						receivedReadReqs.erase(pos);
 					}
 					else
 						data[0] |= 0x80;
 				}
 			}
 
-			// append L-Data.req to queue
+			// send L-Data.req
 			if (event.getType() == EventType::READ_REQ && owner)
 			{
 				if (!binding.stateGa.isNull())
-					waitingLDataReqs.emplace_back(binding.stateGa, data);
+					tryToSendLDataReq(itemId, binding.stateGa, data);
 				else if (!binding.writeGa.isNull())
-					waitingLDataReqs.emplace_back(binding.writeGa, data);
+					tryToSendLDataReq(itemId, binding.writeGa, data);
 			}
 			else if (event.getType() == EventType::STATE_IND && !owner && !binding.stateGa.isNull())
-				waitingLDataReqs.emplace_back(binding.stateGa, data);
+				tryToSendLDataReq(itemId, binding.stateGa, data);
 			else if (event.getType() == EventType::WRITE_REQ && owner && !binding.writeGa.isNull())
-				waitingLDataReqs.emplace_back(binding.writeGa, data);
+				tryToSendLDataReq(itemId, binding.writeGa, data);
 		}
 	}
-	
-	sendWaitingLDataReq();
-	
+
 	return Events();
 }
 
-void KnxHandler::sendWaitingLDataReq()
+void KnxHandler::sendLDataReq(GroupAddr ga, ByteString data, Byte seqNo) const
 {
-	if (ongoingLDataReq || waitingLDataReqs.empty())
-		return;
-	
-	lastSentSeqNo = (lastSentSeqNo + 1) & 0xFF;
-	auto& req = waitingLDataReqs.front();
-	ByteString msg = createTunnelReq(lastSentSeqNo, req.ga, req.data);
+	ByteString msg = createTunnelReq(seqNo, ga, data);
 	sendDataMsg(msg);
-	
-	lastLDataReqSentTime = std::time(0);
-	ongoingLDataReq = true;
-
 	logTunnelReq(msg);
 }
 
-bool KnxHandler::receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port)
+void KnxHandler::tryToSendLDataReq(string itemId, GroupAddr ga, ByteString data)
+{
+	lastSentSeqNo = (lastSentSeqNo + 1) & 0xFF;
+
+	sendLDataReq(ga, data, lastSentSeqNo);
+
+	sentLDataReqs.emplace_back(itemId, ga, data, std::time(0), lastSentSeqNo);
+}
+
+void KnxHandler::retryToSendLDataReq(SentLDataReq& ldataReq)
+{
+	Byte seqNo;
+	if (ldataReq.ackReceived)
+	{
+		lastSentSeqNo = (lastSentSeqNo + 1) & 0xFF;
+		seqNo = lastSentSeqNo;
+	}
+	else
+		seqNo = ldataReq.sentSeqNo;
+
+	sendLDataReq(ldataReq.ga, ldataReq.data, seqNo);
+
+	ldataReq.sentTime = std::time(0);
+	ldataReq.attempts++;
+	ldataReq.ackReceived = false;
+	ldataReq.sentSeqNo = seqNo;
+}
+
+void KnxHandler::processReceivedLDataCon(ByteString msg)
+{
+	GroupAddr ga(msg[16], msg[17]);
+	ByteString data = msg.substr(20, msg[18]);
+
+	for (std::list<SentLDataReq>::iterator pos = sentLDataReqs.begin(); pos != sentLDataReqs.end(); pos++)
+		if (pos->ga == ga && pos->data == data)
+		{
+			sentLDataReqs.erase(pos);
+			return;
+		}
+
+	logger.warn() << "Unexpected L_Data.con for GA " << ga.toStr() << " received" << endOfMsg();
+}
+
+void KnxHandler::processReceivedTunnelAck(ByteString msg)
+{
+	for (std::list<SentLDataReq>::iterator pos = sentLDataReqs.begin(); pos != sentLDataReqs.end(); pos++)
+		if (pos->sentSeqNo == msg[8])
+		{
+			pos->ackReceived = true;
+			pos->attempts = 0;
+			return;
+		}
+
+	logger.warn() << "Unexpected TUNNEL_ACQ received" << endOfMsg();
+}
+
+void KnxHandler::processOngoingLDataReq()
+{
+	std::time_t now = std::time(0);
+
+	for (std::list<SentLDataReq>::iterator pos = sentLDataReqs.begin(); pos != sentLDataReqs.end();)
+	{
+		SentLDataReq& ldataReq = *pos;
+
+		if (!ldataReq.ackReceived && ldataReq.sentTime + 1 <= now)
+			if (!ldataReq.attempts == 0)
+			{
+				logger.warn() << "First TUNNEL REQUEST for " << ldataReq.itemId << " was not acknowledged in time" << endOfMsg();
+				retryToSendLDataReq(ldataReq);
+			}
+			else
+			{
+				logger.error() << "Second TUNNEL REQUEST for " << ldataReq.itemId << " was not acknowledged in time" << endOfMsg();
+				pos = sentLDataReqs.erase(pos);
+			}
+		else if (ldataReq.ackReceived && ldataReq.sentTime + config.getLDataConTimeout() <= now)
+			if (!ldataReq.attempts == 0)
+			{
+				logger.warn() << "First L_Data.req for " << ldataReq.itemId << " was not confirmed in time" << endOfMsg();
+				retryToSendLDataReq(ldataReq);
+			}
+			else
+			{
+				logger.error() << "Second L_Data.req for " << ldataReq.itemId << " was not confirmed in time" << endOfMsg();
+				pos = sentLDataReqs.erase(pos);
+			}
+		else
+			pos++;
+	}
+}
+
+bool KnxHandler::receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const
 {
 	Byte buffer[1024];
 	sockaddr_in sockAddr;
@@ -676,7 +747,7 @@ bool KnxHandler::receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port)
 	return true;
 }
 
-void KnxHandler::sendMsg(IpAddr addr, IpPort port, ByteString msg)
+void KnxHandler::sendMsg(IpAddr addr, IpPort port, ByteString msg) const
 {
 	sockaddr_in sockAddr;
 	sockAddr.sin_family = AF_INET;
@@ -689,12 +760,12 @@ void KnxHandler::sendMsg(IpAddr addr, IpPort port, ByteString msg)
 	logMsg(msg, false);
 }
 
-void KnxHandler::sendControlMsg(ByteString msg)
+void KnxHandler::sendControlMsg(ByteString msg) const
 {
 	sendMsg(config.getIpAddr(), config.getIpPort(), msg);
 }
 
-void KnxHandler::sendDataMsg(ByteString msg)
+void KnxHandler::sendDataMsg(ByteString msg) const
 {
 	sendMsg(dataIpAddr, dataIpPort, msg);
 }
@@ -755,7 +826,7 @@ ByteString createCemiFrame(PhysicalAddr pa, GroupAddr ga, ByteString data)
 	Byte frame[10];
 	frame[0] = MsgCode::LDATA_REQ;	// Message code
 	frame[1] = 0x00;				// Additional info length
-	frame[2] = 0xBC;				// Control byte
+	frame[2] = 0x8C;				// Control byte
 	frame[3] = 0xE0;				// DRL byte
 	frame[4] = pa.high();  			// Hi-byte physical address
 	frame[5] = pa.low();			// Lo-byte physical address

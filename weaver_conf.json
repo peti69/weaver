@@ -77,6 +77,8 @@
 			//}
 		//},
 
+		{ "id": "telefon_klingelt", "type": "string", "ownerId": "fritzbox_callmonitor" },
+
 		{ "id": "spiele_klingel", "type": "void", "ownerId": "sonos" },
 
 		{ "id": "fse_eg_bad_durchsage", "type": "void", "ownerId": "sonos" },
@@ -88,10 +90,10 @@
 		{ "id": "sprit_preis_aral_e10", "type": "number", "ownerId": "tankerkönig", "pollInterval": 600 },
 		{ "id": "sprit_preis_esso_e10", "type": "number", "ownerId": "tankerkönig", "pollInterval": 600 },
 
-		{ "id": "handy_peter_angemeldet", "type": "boolean", "ownerId": "fritzbox", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "handy_beate_angemeldet", "type": "boolean", "ownerId": "fritzbox", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "handy_meike_angemeldet", "type": "boolean", "ownerId": "fritzbox", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "handy_merle_angemeldet", "type": "boolean", "ownerId": "fritzbox", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "handy_peter_angemeldet", "type": "boolean", "ownerId": "fritzbox_tr064", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "handy_beate_angemeldet", "type": "boolean", "ownerId": "fritzbox_tr064", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "handy_meike_angemeldet", "type": "boolean", "ownerId": "fritzbox_tr064", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "handy_merle_angemeldet", "type": "boolean", "ownerId": "fritzbox_tr064", "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
 
 		{ "id": "strom_zaehlerstand", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 1 }, "sendOnTimer": {} },
 		{ "id": "strom_verbrauch_gesamt", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
@@ -139,11 +141,11 @@
 		{ "id": "st_pk_pumpe_status", "type": "number", "ownerId": "mqtt" },
 		{ "id": "st_pk_pumpe_laufzeit", "type": "number", "ownerId": "mqtt" },
 		{ "id": "st_pk_volumenstrom", "type": "number", "ownerId": "mqtt" },
-		
-		{ "id": "ema_aktiv", "type": "boolean", "ownerId": "storage" },
-		{ "id": "ema_voralarmdauer", "type": "number", "ownerId": "storage" }, // seconds
-		{ "id": "ema_voralarm", "type": "boolean", "ownerId": "storage" },
-		{ "id": "ema_scharf", "type": "boolean", "ownerId": "storage" },
+
+		{ "id": "ema_aktiv", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
+		{ "id": "ema_voralarmdauer", "type": "number", "ownerId": "storage", "sendOnTimer": {} }, // seconds
+		{ "id": "ema_voralarm", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
+		{ "id": "ema_scharf", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 
 		{ "id": "ebusd_herzschlag", "type": "void", "ownerId": "mqtt" },
 		{ "id": "weaver_herzschlag", "type": "void", "ownerId": "generator" },
@@ -267,7 +269,7 @@
 				// lost. Optional, default is 60. 
 				//"reconnectInterval": 60,
 			
-				// Delay in seconds between successive seinding of CONNECTION STATE REQUEST messages.
+				// Delay in seconds between successive sending of CONNECTION STATE REQUEST messages.
 				// Optional, default is 30. 
 				//"connStateReqInterval": 30,
 			
@@ -275,9 +277,9 @@
 				// CONNECTION STATE REQUEST on the control connection. Optional, default is 10.
 				//"controlRespTimeout": 10,
 
-				// Timeout in seconds when waiting for the corresponding L-Data.con to a L-Data.req on
-				// the data connection. Optional, default is 10. 
-				//"ldataConTimeout": 10,
+				// Timeout in seconds when waiting for the corresponding L_Data.con to a L_Data.req on
+				// the data connection. Optional, default is 3. 
+				//"ldataConTimeout": 3,
 			
 				// Physical address used when accessing the KNX bus. Optional, default is 0.0.0.
 				"physicalAddr": "1.1.252",
@@ -540,7 +542,35 @@
 		},
 
 		{
-			"id": "fritzbox",
+			"id": "fritzbox_callmonitor",
+			"tcp": {
+				// IP address or name of remote system to which the connection will be established. 
+				"hostname": "fritz.box",
+
+				// IP port on the remote system to which the TCP connection will be established.
+				"port": 1012,
+
+				// Regular expression for splitting the received byte stream into messages. The grammar is the 
+				// one of POSIX extended regular expressions. For parsing and evaluation of the expression
+				// std::regex is used internally. Potential marked subexpressions are ignored.
+				"msgPattern": "[^\r\n]*\r\n",
+
+				// Enables logging of the received byte stream. Optional, default is false.
+				"logRawData": true,
+
+				// Indicates whether the received byte stream has to be logged in hexadecimal representation.
+				// Optional, default is false.
+				//"logRawDataInHex": true,
+
+				// Mapping of received message to one or more items.
+				"bindings": [
+					{ "itemId": "telefon_klingelt", "pattern": ".*;RING;0;([0-9]+);.*" }, 
+				]
+			}
+		},
+
+		{
+			"id": "fritzbox_tr064",
 			"http": {
 				//"logTransfers": true,
 				//"verboseMode": true,
@@ -618,17 +648,6 @@
 					//},
 
 					{ "itemId": "weaver_herzschlag", "eventType": "STATE_IND", "interval": 60 },
-				]
-			}
-		},
-
-		{
-			// Identifier for this link.
-			"id": "fritzbox",
-
-			// This link type supports the TR-064 protocol.
-			"tr064": {
-				"bindings":	[
 				]
 			}
 		},

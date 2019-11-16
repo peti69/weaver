@@ -190,12 +190,6 @@ private:
 		WAIT_FOR_CONN_RESP, 
 		CONNECTED,
 	};
-	struct LDataReq
-	{
-		GroupAddr ga;
-		ByteString data;
-		LDataReq(GroupAddr _ga, ByteString _data) : ga(_ga), data(_data) {}
-	};
 	string id;
 	KnxConfig config;
 	Logger logger;
@@ -206,41 +200,48 @@ private:
 	State state;
 
 	// Channel id returned in CONNECTION RESPONSE and used for TUNNEL REQUEST.
-    Byte channelId;
+	Byte channelId;
 
 	// Physical address returned in CONNECTION RESPONSE or the configured one.
-    PhysicalAddr physicalAddr;
+	PhysicalAddr physicalAddr;
 
 	// Time when last connect attempt has been started.
 	std::time_t lastConnectTry;
-	
+
 	// Has a CONNECTION STATE REQUEST been sent for which a CONNECTION STATE RESPONSE
 	// is pending?
 	bool ongoingConnStateReq;
-	
+
 	// Time when the last CONNECTION REQUEST or CONNECTION STATE REQUST has been sent.
 	std::time_t lastControlReqSendTime;
-	
+
 	// Sequence number of last received and accepted TUNNEL REQUEST.
 	Byte lastReceivedSeqNo;
-	
+
 	// Sequence number of last sent TUNNEL REQUEST.
 	Byte lastSentSeqNo;
-	
-	// Has a L-Data.req been sent for which a L-Data.con is pending?
-	bool ongoingLDataReq;
 
-	// Time when the last L-Data.req has been sent.
-	std::time_t lastLDataReqSentTime;
+	// L_Data.req messages which have been sent (inside TUNNEL REQUEST) but for which no
+	// TUNNEL ACK or L_Data.con has been received so far.
+	struct SentLDataReq
+	{
+		string itemId;
+		GroupAddr ga;
+		ByteString data;
+		std::time_t sentTime; // time when last TUNNEL REQUEST has been sent
+		Byte sentSeqNo; // sequence number of last sent TUNNEL REQUEST
+		bool ackReceived; // TUNNEL ACK successfully got
+		int attempts; // number of unsuccessfully performed tries
+		SentLDataReq(string _itemId, GroupAddr _ga, ByteString _data, std::time_t _sentTime, Byte _sentSeqNo) :
+			itemId(_itemId), ga(_ga), data(_data), sentTime(_sentTime), sentSeqNo(_sentSeqNo), ackReceived(false), attempts(0) {}
+	};
+	std::list<SentLDataReq> sentLDataReqs;
 
-	// L-Data.req messages which still have to be sent.
-	std::list<LDataReq> waitingLDataReqs;
-
-	// READ_REQ events which have been generated and for which so far no STATE_IND has
+	// READ_REQ events which have been received and for which so far no STATE_IND has
 	// been received.
 	// Attention: Timeouts are currently not detected.
-	std::set<string> waitingReadReqs;
-	
+	std::set<string> receivedReadReqs;
+
 public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
@@ -254,11 +255,16 @@ private:
 	void disconnect();
 	Events receiveX(const Items& items);
 	Events sendX(const Items& items, const Events& events);
-	void sendWaitingLDataReq();
-	bool receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port);
-	void sendMsg(IpAddr addr, IpPort port, ByteString msg);
-	void sendControlMsg(ByteString msg);
-	void sendDataMsg(ByteString msg);
+	void sendLDataReq(GroupAddr ga, ByteString data, Byte seqNo) const;
+	void tryToSendLDataReq(string itemId, GroupAddr ga, ByteString data);
+	void retryToSendLDataReq(SentLDataReq& ldataReq);
+	void processReceivedLDataCon(ByteString msg);
+	void processReceivedTunnelAck(ByteString msg);
+	void processOngoingLDataReq();
+	bool receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const;
+	void sendMsg(IpAddr addr, IpPort port, ByteString msg) const;
+	void sendControlMsg(ByteString msg) const;
+	void sendDataMsg(ByteString msg) const;
 	ByteString createConnReq() const;
 	ByteString createConnStateReq() const;
 	ByteString createDiscReq() const;

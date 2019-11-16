@@ -15,6 +15,7 @@ class GeneratorConfig;
 class StorageConfig;
 class Tr064Config;
 class HttpConfig;
+class TcpConfig;
 
 class GlobalConfig
 {
@@ -61,6 +62,7 @@ private:
 	std::shared_ptr<Tr064Config> getTr064Config(const Value& value, const Items& items) const;
 	std::shared_ptr<StorageConfig> getStorageConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<HttpConfig> getHttpConfig(const Value& value, const Items& items) const;
+	std::shared_ptr<TcpConfig> getTcpConfig(const Value& value, const Items& items) const;
 
 public:
 	Config() {}

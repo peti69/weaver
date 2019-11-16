@@ -10,6 +10,7 @@
 #include "generator.h"
 #include "tr064.h"
 #include "http.h"
+#include "tcp.h"
 #include "storage.h"
 #include "finally.h"
 
@@ -122,7 +123,7 @@ std::regex Config::convertPattern(string fieldName, string pattern) const
 {
 	try
 	{
-		return std::regex(pattern, std::regex_constants::extended | std::regex_constants::nosubs);
+		return std::regex(pattern, std::regex_constants::extended);
 	}
 	catch (const std::regex_error& ex)
 	{
@@ -263,6 +264,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), logger));
 		else if (hasMember(linkValue, "http"))
 			handler.reset(new HttpHandler(id, *getHttpConfig(getObject(linkValue, "http"), items), logger));
+		else if (hasMember(linkValue, "tcp"))
+			handler.reset(new TcpHandler(id, *getTcpConfig(getObject(linkValue, "tcp"), items), logger));
 		else if (hasMember(linkValue, "generator"))
 			handler.reset(new Generator(id, *getGeneratorConfig(getObject(linkValue, "generator"), items), logger));
 		else if (hasMember(linkValue, "tr064"))
@@ -345,7 +348,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
 	int connStateReqInterval = getInt(value, "connStateReqInterval", 30);
 	int controlRespTimeout = getInt(value, "controlRespTimeout", 10);
-	int ldataConTimeout = getInt(value, "ldataConTimeout", 10);
+	int ldataConTimeout = getInt(value, "ldataConTimeout", 3);
 	
 	string physicalAddrStr = getString(value, "physicalAddr", "0.0.0");
 	PhysicalAddr physicalAddr;
@@ -414,7 +417,7 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 		throw std::runtime_error("Invalid value " + parityStr + " for field parity in configuration");
 
 	int reopenInterval = getInt(value, "reopenInterval", 60);
-		
+
 	const Value& bindingsValue = getArray(value, "bindings");
 	PortConfig::Bindings bindings;
 	for (auto& bindingValue : bindingsValue.GetArray())
@@ -502,6 +505,34 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Item
 	}
 
 	return std::make_shared<HttpConfig>(logTransfers, verboseMode, bindings);
+}
+
+std::shared_ptr<TcpConfig> Config::getTcpConfig(const Value& value, const Items& items) const
+{
+	string hostname = getString(value, "hostname");
+	int port = getInt(value, "port");
+
+	std::regex msgPattern = convertPattern("msgPattern", getString(value, "msgPattern"));
+
+	bool logRawData = getBool(value, "logRawData", false);
+	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
+
+	int reconnectInterval = getInt(value, "reconnectInterval", 60);
+
+	const Value& bindingsValue = getArray(value, "bindings");
+	TcpConfig::Bindings bindings;
+	for (auto& bindingValue : bindingsValue.GetArray())
+	{
+		string itemId = getString(bindingValue, "itemId");
+		if (!items.exists(itemId))
+			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+
+		std::regex pattern = convertPattern("pattern", getString(bindingValue, "pattern"));
+
+		bindings.add(TcpConfig::Binding(itemId, pattern));
+	}
+
+	return std::make_shared<TcpConfig>(hostname, port, reconnectInterval, msgPattern, logRawData, logRawDataInHex, bindings);
 }
 
 std::shared_ptr<StorageConfig> Config::getStorageConfig(const Value& value, const Items& items) const
