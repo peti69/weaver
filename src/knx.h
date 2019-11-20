@@ -221,19 +221,38 @@ private:
 	// Sequence number of last sent TUNNEL REQUEST.
 	Byte lastSentSeqNo;
 
-	// L_Data.req messages which have been sent (inside TUNNEL REQUEST) but for which no
-	// TUNNEL ACK or L_Data.con has been received so far.
-	struct SentLDataReq
+	struct LDataReq
 	{
 		string itemId;
 		GroupAddr ga;
 		ByteString data;
-		std::time_t sentTime; // time when last TUNNEL REQUEST has been sent
-		Byte sentSeqNo; // sequence number of last sent TUNNEL REQUEST
-		bool ackReceived; // TUNNEL ACK successfully got
-		int attempts; // number of unsuccessfully performed tries
-		SentLDataReq(string _itemId, GroupAddr _ga, ByteString _data, std::time_t _sentTime, Byte _sentSeqNo) :
-			itemId(_itemId), ga(_ga), data(_data), sentTime(_sentTime), sentSeqNo(_sentSeqNo), ackReceived(false), attempts(0) {}
+		int attempts;
+		LDataReq() : attempts(0) {}
+		LDataReq(string _itemId, GroupAddr _ga, ByteString _data) :
+			itemId(_itemId), ga(_ga), data(_data), attempts(0) {}
+	};
+
+	// L_Data.req messages which are waiting to be sent as TUNNEL REQUEST or to be
+	// confirmed by a TUNNEL ACK.
+	std::list<LDataReq> waitingLDataReqs;
+
+	// Last TUNNEL REQUEST which has been sent.
+	ByteString lastSentTunnelReq;
+
+	// Time when the last TUNNEL REQUEST has been sent. It is set to 0 when the
+	// TUNNEL ACK is received.
+	std::time_t lastTunnelReqSendTime;
+
+	// Number of times the last TUNNEL REQUEST has already been sent.
+	int lastTunnelReqSendAttempts;
+
+	// L_Data.req messages which have been sent but for which no L_Data.con has
+	// been received so far.
+	struct SentLDataReq
+	{
+		LDataReq ldataReq;
+		std::time_t time; // time when TUNNEL REQUEST has been sent
+		SentLDataReq(const LDataReq& _ldataReq, std::time_t _time) : ldataReq(_ldataReq), time(_time) {}
 	};
 	std::list<SentLDataReq> sentLDataReqs;
 
@@ -255,12 +274,13 @@ private:
 	void disconnect();
 	Events receiveX(const Items& items);
 	Events sendX(const Items& items, const Events& events);
-	void sendLDataReq(GroupAddr ga, ByteString data, Byte seqNo) const;
-	void tryToSendLDataReq(string itemId, GroupAddr ga, ByteString data);
-	void retryToSendLDataReq(SentLDataReq& ldataReq);
+	void sendTunnelReq(ByteString msg);
+	void sendTunnelReq(const LDataReq& ldataReq);
 	void processReceivedLDataCon(ByteString msg);
 	void processReceivedTunnelAck(ByteString msg);
-	void processOngoingLDataReq();
+	void processPendingLDataCon();
+	void processPendingTunnelAck();
+	void processWaitingLDataReqs();
 	bool receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const;
 	void sendMsg(IpAddr addr, IpPort port, ByteString msg) const;
 	void sendControlMsg(ByteString msg) const;

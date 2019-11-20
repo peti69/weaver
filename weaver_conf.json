@@ -270,8 +270,8 @@
 				//"reconnectInterval": 60,
 			
 				// Delay in seconds between successive sending of CONNECTION STATE REQUEST messages.
-				// Optional, default is 30. 
-				//"connStateReqInterval": 30,
+				// Optional, default is 60. 
+				//"connStateReqInterval": 60,
 			
 				// Timeout in seconds when waiting for the response to a CONNECTION REQUEST or 
 				// CONNECTION STATE REQUEST on the control connection. Optional, default is 10.
@@ -287,7 +287,7 @@
 				// Enables logging of all received and sent UDP messages in hexadecimal format. 
 				// Optional, default is false. 
 				//"logRawMessages": true,
-			
+		
 				// Enables logging of all received and sent payloads (cEMI frames) including message code, 
 				// group address and physical address. Optional, default is false. 
 				//"logData": true,
@@ -489,32 +489,32 @@
 				"bindings": [
 					{
 						"itemId": "spiele_klingel", 
-						"url": "http://timberwolf:5005/küche/clip/doorbell.mp3/80",
+						"url": "http://timberwolf:5005/k%C3%BCche/clip/doorbell.mp3/80",
 						"responsePattern": "\\{\"status\":\"success\"\\}"
 					},
 					{ 
 						"itemId": "fse_eg_bad_durchsage", 
-						"url": "http://timberwolf:5005/küche/say/Bitte das Fenster im Erdgeschoss-Bad schliessen/de/80",
+						"url": "http://timberwolf:5005/k%C3%BCche/say/Bitte das Fenster im Erdgeschoss-Bad schliessen/de/80",
 						"responsePattern": "\\{\"status\":\"success\"\\}"
 					},
 					{ 
 						"itemId": "fse_wc_durchsage", 
-						"url": "http://timberwolf:5005/küche/say/Bitte das Fenster im WC schliessen/de/80",
+						"url": "http://timberwolf:5005/k%C3%BCche/say/Bitte das Fenster im WC schliessen/de/80",
 						"responsePattern": "\\{\"status\":\"success\"\\}"
 					},
 					{ 
 						"itemId": "fse_meike_durchsage", 
-						"url": "http://timberwolf:5005/küche/say/Bitte das Fenster in Meikes Zimmer schliessen/de/80",
+						"url": "http://timberwolf:5005/k%C3%BCche/say/Bitte das Fenster in Meikes Zimmer schliessen/de/80",
 						"responsePattern": "\\{\"status\":\"success\"\\}"
 					},
 					{ 
 						"itemId": "fse_merle_durchsage", 
-						"url": "http://timberwolf:5005/küche/say/Bitte das Fenster in Merles Zimmer schliessen/de/80",
+						"url": "http://timberwolf:5005/k%C3%BCche/say/Bitte das Fenster in Merles Zimmer schliessen/de/80",
 						"responsePattern": "\\{\"status\":\"success\"\\}"
 					},
 					{ 
 						"itemId": "fse_eltern_durchsage", 
-						"url": "http://timberwolf:5005/küche/say/Bitte das Fenster im Sclafzimmer schliessen/de/80",
+						"url": "http://timberwolf:5005/k%C3%BCche/say/Bitte das Fenster im Sclafzimmer schliessen/de/80",
 						"responsePattern": "\\{\"status\":\"success\"\\}"
 					},
 				]

@@ -346,7 +346,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	IpPort ipPort = getInt(value, "ipPort", 3671);
 
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
-	int connStateReqInterval = getInt(value, "connStateReqInterval", 30);
+	int connStateReqInterval = getInt(value, "connStateReqInterval", 60);
 	int controlRespTimeout = getInt(value, "controlRespTimeout", 10);
 	int ldataConTimeout = getInt(value, "ldataConTimeout", 3);
 	
