@@ -349,7 +349,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	int connStateReqInterval = getInt(value, "connStateReqInterval", 60);
 	int controlRespTimeout = getInt(value, "controlRespTimeout", 10);
 	int ldataConTimeout = getInt(value, "ldataConTimeout", 3);
-	
+
 	string physicalAddrStr = getString(value, "physicalAddr", "0.0.0");
 	PhysicalAddr physicalAddr;
 	if (!PhysicalAddr::fromStr(physicalAddrStr, physicalAddr))
@@ -393,16 +393,16 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Items& items) const 
 { 
 	string name = getString(value, "name");
-	
+
 	regex_t msgPattern = convertPattern2("msgPattern", getString(value, "msgPattern"));
-	
+
 	bool logRawData = getBool(value, "logRawData", false);
 	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
 
 	int baudRate = getInt(value, "baudRate");
 	if (!PortConfig::isValidBaudRate(baudRate))
 		throw std::runtime_error("Invalid value for field baudRate in configuration");
-		
+
 	int dataBits = getInt(value, "dataBits");
 	if (!PortConfig::isValidDataBits(dataBits))
 		throw std::runtime_error("Invalid value for field dataBits in configuration");
@@ -415,6 +415,8 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 	PortConfig::Parity parity;
 	if (!PortConfig::isValidParity(parityStr, parity))
 		throw std::runtime_error("Invalid value " + parityStr + " for field parity in configuration");
+
+	int timeoutInterval = getInt(value, "timeoutInterval", 60);
 
 	int reopenInterval = getInt(value, "reopenInterval", 60);
 
@@ -430,8 +432,8 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 
 		bindings.add(PortConfig::Binding(itemId, pattern));
 	}
-	
-	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, reopenInterval, msgPattern, logRawData, logRawDataInHex, bindings);
+
+	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, timeoutInterval, reopenInterval, msgPattern, logRawData, logRawDataInHex, bindings);
 }
 
 std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, const Items& items) const 

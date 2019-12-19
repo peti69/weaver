@@ -174,10 +174,6 @@
 			"port":	{
 				// Name of serial device/port. For example /dev/ttyUSB0.
 				"name": "/dev/smartmeter",
-				
-				// Delay in seconds between attempts to reopen the serial device/port when access errors have been 
-				// encountered. Optional, default is 60. 
-				//"reopenInterval": 60,
 
 				// Speed as baud/bit rate. Possible values are 1200, 1800, 2400, 4800, 9600, 19200, 38400, 
 				// 57600 or 115200.
@@ -192,6 +188,14 @@
 				// Parity. Possible values are even, odd or none.
 				"parity": "even",
 
+				// Within this time period (given in seconds) there must be at least one byte received. Othrwise 
+				// the serial device/port is automatically closed. Optional, default is 60. 
+				//"timeoutInterval": 60,
+
+				// Delay in seconds between attempts to reopen the serial device/port when access errors have 
+				// been encountered. Optional, default is 60. 
+				//"reopenInterval": 60,
+
 				// Regular expression for splitting the received byte stream into messages. The syntax must
 				// match the one of POSIX extended regular expressions. For parsing and evaluation of the expression
 				// regcomp and regexec are used. The expression must not have any marked subexpression.
@@ -199,7 +203,7 @@
 
 				// Enables logging of the received byte stream. Optional, default is false.
 				//"logRawData": true,
-				
+
 				// Indicates whether the received byte stream has to be logged in hexadecimal representation.
 				// Optional, default is false.
 				//"logRawDataInHex": true,

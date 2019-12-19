@@ -40,7 +40,7 @@ bool PortConfig::isValidParity(string parityStr, Parity& parity)
 }
 
 PortHandler::PortHandler(string _id, PortConfig _config, Logger _logger) : 
-	id(_id), config(_config), logger(_logger), fd(-1), lastOpenTry(0)
+	id(_id), config(_config), logger(_logger), fd(-1), lastOpenTry(0), lastDataReceipt(0)
 {
 }
 
@@ -60,6 +60,7 @@ bool PortHandler::open()
 	if (lastOpenTry + config.getReopenInterval() > now)
 		return false;
 	lastOpenTry = now;
+	lastDataReceipt = now;
 
 	// open port
 	fd = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
@@ -182,6 +183,7 @@ void PortHandler::close()
 	::close(fd);
 	fd = -1;
 	lastOpenTry = 0;
+	lastDataReceipt = 0;
 
 	logger.info() << "Serial port " << config.getName() << " closed" << endOfMsg();
 }
@@ -214,6 +216,9 @@ void PortHandler::receiveData()
 
 	// append received data to overall data
 	msgData += receivedData;
+
+	// remember time of data receipt
+	lastDataReceipt = std::time(0);
 }
 
 long PortHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
@@ -244,11 +249,17 @@ Events PortHandler::receive(const Items& items)
 
 Events PortHandler::receiveX()
 {
+	std::time_t now = std::time(0);
+
 	Events events;
 
 	// try to open the port
 	if (!open())
 		return events;
+
+	// detect data timeout
+	if (lastDataReceipt + config.getTimeoutInterval() <= now)
+		logger.errorX() << "Data transmission timed out" << endOfMsg();
 
 	// read all available data
 	receiveData();

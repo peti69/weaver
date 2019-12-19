@@ -33,6 +33,7 @@ private:
 	int dataBits;
 	int stopBits;
 	Parity parity;
+	int timeoutInterval;
 	int reopenInterval;
 //	std::regex msgPattern;
 	regex_t msgPattern;
@@ -41,10 +42,10 @@ private:
 	Bindings bindings;
 	
 public:
-	PortConfig(string _name, int _baudRate, int _dataBits, int _stopBits, Parity _parity, int _reopenInterval,
-		regex_t _msgPattern, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
+	PortConfig(string _name, int _baudRate, int _dataBits, int _stopBits, Parity _parity, int _timeoutInterval,
+		int _reopenInterval, regex_t _msgPattern, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
 		name(_name), baudRate(_baudRate), dataBits(_dataBits), stopBits(_stopBits), parity(_parity), 
-		reopenInterval(_reopenInterval), msgPattern(_msgPattern), 
+		timeoutInterval(_timeoutInterval), reopenInterval(_reopenInterval), msgPattern(_msgPattern),
 		logRawData(_logRawData), logRawDataInHex(_logRawDataInHex), bindings(_bindings)
 	{}
 	string getName() const { return name; }
@@ -52,13 +53,14 @@ public:
 	int getDataBits() const { return dataBits; }
 	int getStopBits() const { return stopBits; }
 	Parity getParity() const { return parity; }
+	int getTimeoutInterval() const { return timeoutInterval; }
 	int getReopenInterval() const { return reopenInterval; }
 	const regex_t& getMsgPattern() const { return msgPattern; }
 //	const std::regex& getMsgPattern() const { return msgPattern; }
 	bool getLogRawData() const { return logRawData; }
 	bool getLogRawDataInHex() const { return logRawDataInHex; }
 	const Bindings& getBindings() const { return bindings; }
-	
+
 	static bool isValidBaudRate(int baudRate);
 	static bool isValidDataBits(int dataBits);
 	static bool isValidStopBits(int stopBits);
@@ -74,6 +76,7 @@ private:
 	string msgData;
 	int fd;
 	std::time_t lastOpenTry;
+	std::time_t lastDataReceipt;
 	struct termios oldSettings;
 
 public:

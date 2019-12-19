@@ -43,7 +43,7 @@ public:
 	virtual bool supports(EventType eventType) const = 0;
 
 	// Fetches all data from the handler for feeding the select() system call. The return value
-	// is the time duration in milliseconds until when the handler has be called at latest.
+	// is the time duration in milliseconds until when the handler has to be called at latest.
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) = 0;
 
 	// When the select() system call returns this method is invoked to receive events.
