@@ -3,7 +3,6 @@
 
 #include <regex>
 
-#include <regex.h>
 #include <rapidjson/document.h>
 
 #include "link.h"
@@ -54,7 +53,6 @@ private:
 	const Value& getObject(const Value& value, string name) const;
 	const Value& getArray(const Value& value, string name) const;
 	std::regex convertPattern(string fieldName, string pattern) const;
-	regex_t convertPattern2(string fieldName, string pattern) const;
 	std::shared_ptr<MqttConfig> getMqttConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<KnxConfig> getKnxConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<PortConfig> getPortConfig(const Value& value, const Items& items) const;

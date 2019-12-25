@@ -123,29 +123,15 @@ std::regex Config::convertPattern(string fieldName, string pattern) const
 {
 	try
 	{
-		return std::regex(pattern, std::regex_constants::extended);
+		return std::regex(pattern, std::regex_constants::ECMAScript);
 	}
 	catch (const std::regex_error& ex)
 	{
+		cout << std::regex_constants::error_paren << endl;
 		std::ostringstream stream;
 		stream << "Invalid value " << pattern << " for field " << fieldName << " in configuration (error code = " << ex.code() << ", error string = " << ex.what() << ")";
 		throw std::runtime_error(stream.str());
 	}
-}
-	
-regex_t Config::convertPattern2(string fieldName, string pattern) const
-{
-	regex_t regExpr;
-	int rc = regcomp(&regExpr, pattern.c_str(), REG_EXTENDED);
-	if (rc != 0)
-	{
-		char errorStr[256];
-		regerror(rc, &regExpr, errorStr, sizeof(errorStr));
-		std::ostringstream stream;
-		stream << "Invalid value " << pattern << " for field " << fieldName << " in configuration (error code = " << rc << ", error string = " << errorStr << ")";
-		throw std::runtime_error(stream.str());
-	}
-	return regExpr;
 }
 
 void Config::read(string fileName)
@@ -345,10 +331,10 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		throw std::runtime_error("Invalid value " + ipAddrStr + " for field ipAddr in configuration");
 	IpPort ipPort = getInt(value, "ipPort", 3671);
 
-	int reconnectInterval = getInt(value, "reconnectInterval", 60);
-	int connStateReqInterval = getInt(value, "connStateReqInterval", 60);
-	int controlRespTimeout = getInt(value, "controlRespTimeout", 10);
-	int ldataConTimeout = getInt(value, "ldataConTimeout", 3);
+	Seconds reconnectInterval(getInt(value, "reconnectInterval", 60));
+	Seconds connStateReqInterval(getInt(value, "connStateReqInterval", 60));
+	Seconds controlRespTimeout(getInt(value, "controlRespTimeout", 10));
+	Seconds ldataConTimeout(getInt(value, "ldataConTimeout", 3));
 
 	string physicalAddrStr = getString(value, "physicalAddr", "0.0.0");
 	PhysicalAddr physicalAddr;
@@ -394,7 +380,7 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 { 
 	string name = getString(value, "name");
 
-	regex_t msgPattern = convertPattern2("msgPattern", getString(value, "msgPattern"));
+	std::regex msgPattern = convertPattern("msgPattern", getString(value, "msgPattern"));
 
 	bool logRawData = getBool(value, "logRawData", false);
 	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
@@ -428,7 +414,7 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
-		regex_t pattern = convertPattern2("pattern", getString(bindingValue, "pattern"));
+		std::regex pattern = convertPattern("pattern", getString(bindingValue, "pattern"));
 
 		bindings.add(PortConfig::Binding(itemId, pattern));
 	}
@@ -501,7 +487,7 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Item
 
 		string request = getString(bindingValue, "request", "");
 
-		regex_t responsePattern = convertPattern2("pattern", getString(bindingValue, "responsePattern"));
+		std::regex responsePattern = convertPattern("pattern", getString(bindingValue, "responsePattern"));
 
 		bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
 	}

@@ -150,13 +150,12 @@ Events HttpHandler::receiveX()
 						auto& binding = bindingPos->second;
 
 						// compare returned response with response pattern
-						regmatch_t match[2];
-						if (!regexec(&binding.responsePattern, reinterpret_cast<const char*>(response.c_str()), 2, match, 0))
-						{
-							// optionally extract item value from response
-							if (match[1].rm_so != -1 && match[1].rm_eo != -1)
-								events.add(Event(id, itemId, EventType::STATE_IND, response.substr(match[1].rm_so, match[1].rm_eo - match[1].rm_so)));
-						}
+						std::smatch match;
+						if (std::regex_search(response, match, binding.responsePattern))
+							if (match.size() == 2)
+								events.add(Event(id, itemId, EventType::STATE_IND, string(match[1])));
+							else
+								events.add(Event(id, itemId, EventType::STATE_IND, Value::newVoid()));
 						else
 							logger.error() << "Transfer for item " << itemId << " returned invalid response "
 							               << response << endOfMsg();

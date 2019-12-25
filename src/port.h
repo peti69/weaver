@@ -3,9 +3,9 @@
 
 #include <regex>
 #include <ctime>
-#include <termios.h>  
 
-#include <regex.h>
+#include <termios.h>
+//#include <regex.h>
 
 #include "link.h"
 #include "logger.h"
@@ -17,8 +17,8 @@ public:
 	struct Binding
 	{
 		string itemId;
-		regex_t pattern;
-		Binding(string _itemId, regex_t _pattern) : 
+		std::regex pattern;
+		Binding(string _itemId, std::regex _pattern) :
 			itemId(_itemId), pattern(_pattern) {};
 	};
 	class Bindings: public std::map<string, Binding>
@@ -26,7 +26,7 @@ public:
 	public:
 		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
 	};
-	
+
 private:
 	string name;
 	int baudRate;
@@ -35,15 +35,14 @@ private:
 	Parity parity;
 	int timeoutInterval;
 	int reopenInterval;
-//	std::regex msgPattern;
-	regex_t msgPattern;
+	std::regex msgPattern;
 	bool logRawData;
 	bool logRawDataInHex;
 	Bindings bindings;
-	
+
 public:
 	PortConfig(string _name, int _baudRate, int _dataBits, int _stopBits, Parity _parity, int _timeoutInterval,
-		int _reopenInterval, regex_t _msgPattern, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
+		int _reopenInterval, std::regex _msgPattern, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
 		name(_name), baudRate(_baudRate), dataBits(_dataBits), stopBits(_stopBits), parity(_parity), 
 		timeoutInterval(_timeoutInterval), reopenInterval(_reopenInterval), msgPattern(_msgPattern),
 		logRawData(_logRawData), logRawDataInHex(_logRawDataInHex), bindings(_bindings)
@@ -55,8 +54,7 @@ public:
 	Parity getParity() const { return parity; }
 	int getTimeoutInterval() const { return timeoutInterval; }
 	int getReopenInterval() const { return reopenInterval; }
-	const regex_t& getMsgPattern() const { return msgPattern; }
-//	const std::regex& getMsgPattern() const { return msgPattern; }
+	const std::regex& getMsgPattern() const { return msgPattern; }
 	bool getLogRawData() const { return logRawData; }
 	bool getLogRawDataInHex() const { return logRawDataInHex; }
 	const Bindings& getBindings() const { return bindings; }

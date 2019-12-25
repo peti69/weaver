@@ -203,9 +203,9 @@ void PortHandler::receiveData()
 	string receivedData = string(buffer, rc);
 
 	// remove 0x00 bytes from received data
-	string::size_type pos;
-	while ((pos = receivedData.find('\x00')) != string::npos)
-		receivedData.erase(pos);
+//	string::size_type pos;
+//	while ((pos = receivedData.find('\x00')) != string::npos)
+//		receivedData.erase(pos);
 
 	// trace received data
 	if (config.getLogRawData())
@@ -264,29 +264,21 @@ Events PortHandler::receiveX()
 	// read all available data
 	receiveData();
 
-//	std::smatch match;
-//	while (std::regex_search(msgData, match, config.getMsgPattern()))
-	regmatch_t match;
-	while (!regexec(&config.getMsgPattern(), reinterpret_cast<const char*>(msgData.c_str()), 1, &match, 0))
+	std::smatch match;
+	while (std::regex_search(msgData, match, config.getMsgPattern()))
 	{
-//		string msg = match.str(0);
-//		msgData = match.suffix();
-		if (match.rm_so == match.rm_eo)
-		{
-			msgData.clear();
-			logger.warn() << "Message pattern produced an empty match" << endOfMsg();
-			return events;
-		}
-		string msg = msgData.substr(match.rm_so, match.rm_eo - match.rm_so);
-		msgData = msgData.substr(match.rm_eo);
-		
+		string msg = match[0];
+		msgData = match.suffix();
+
 		for (auto& bindingPair : config.getBindings())
 		{
 			auto& binding = bindingPair.second;
 
-			regmatch_t match[2];
-			if (!regexec(&binding.pattern, reinterpret_cast<const char*>(msg.c_str()), 2, match, 0))
-				events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.substr(match[1].rm_so, match[1].rm_eo - match[1].rm_so)));
+			if (std::regex_search(msg, match, binding.pattern))
+				if (match.size() == 2)
+					events.add(Event(id, binding.itemId, EventType::STATE_IND, string(match[1])));
+				else
+					events.add(Event(id, binding.itemId, EventType::STATE_IND, Value::newVoid()));
 		}
 	}
 

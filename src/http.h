@@ -2,7 +2,8 @@
 #define HTTP_H
 
 #include <curl/curl.h>
-#include <regex.h>
+
+#include <regex>
 
 #include "link.h"
 #include "logger.h"
@@ -15,8 +16,8 @@ public:
 		string url;
 		std::list<string> headers;
 		string request;
-		regex_t responsePattern;
-		Binding(string _itemId, string _url, std::list<string> _headers, string _request, regex_t _responsePattern) :
+		std::regex responsePattern;
+		Binding(string _itemId, string _url, std::list<string> _headers, string _request, std::regex _responsePattern) :
 			itemId(_itemId), url(_url), headers(_headers), request(_request), responsePattern(_responsePattern) {}
 	};
 	class Bindings: public std::map<string, Binding>
