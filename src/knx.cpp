@@ -9,6 +9,8 @@
 #include "knx.h"
 #include "finally.h"
 
+using std::chrono::system_clock;
+
 string IpAddr::toStr() const
 {
 	in_addr addr;
@@ -310,7 +312,9 @@ bool PhysicalAddr::fromStr(string paStr, PhysicalAddr& pa)
 }
 
 KnxHandler::KnxHandler(string _id, KnxConfig _config, Logger _logger) : 
-	id(_id), config(_config), logger(_logger), state(DISCONNECTED), lastConnectTry(0)
+	id(_id), config(_config), logger(_logger), state(DISCONNECTED),
+	lastConnectTry(TimePoint::min()), lastControlReqSendTime(TimePoint::min()),
+	lastTunnelReqSendTime(TimePoint::min())
 {
 }
 
@@ -326,12 +330,12 @@ void KnxHandler::close()
 
 	if (state == CONNECTED)
 	{
-		lastConnectTry = 0;
+		lastConnectTry = TimePoint::min();
 
 		logger.info() << "Disconnected from KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
 	else
-		lastConnectTry = std::time(0);
+		lastConnectTry = system_clock::now();
 
 	::close(socket);
 	state = DISCONNECTED;
@@ -373,7 +377,7 @@ Events KnxHandler::receive(const Items& items)
 
 Events KnxHandler::receiveX(const Items& items)
 {
-	std::time_t now = std::time(0);
+	TimePoint now = system_clock::now();
 
 	Events events;
 	
@@ -522,7 +526,7 @@ Events KnxHandler::receiveX(const Items& items)
 		sentLDataReqs.clear();
 		lastReceivedSeqNo = 0xFF;
 		lastSentSeqNo = 0xFF;
-		lastTunnelReqSendTime = 0;
+		lastTunnelReqSendTime = TimePoint::min();
 
 		logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
 		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
@@ -635,7 +639,7 @@ void KnxHandler::sendTunnelReq(ByteString msg)
 {
 	sendDataMsg(msg);
 	logTunnelReq(msg);
-	lastTunnelReqSendTime = std::time(0);
+	lastTunnelReqSendTime = system_clock::now();
 	lastSentTunnelReq = msg;
 }
 
@@ -667,11 +671,11 @@ void KnxHandler::processReceivedLDataCon(ByteString msg)
 
 void KnxHandler::processReceivedTunnelAck(ByteString msg)
 {
-	if (lastTunnelReqSendTime && lastSentSeqNo == msg[8])
+	if (lastTunnelReqSendTime != TimePoint::min() && lastSentSeqNo == msg[8])
 	{
-		sentLDataReqs.emplace_back(waitingLDataReqs.front(), std::time(0));
+		sentLDataReqs.emplace_back(waitingLDataReqs.front(), system_clock::now());
 		waitingLDataReqs.pop_front();
-		lastTunnelReqSendTime = 0;
+		lastTunnelReqSendTime = TimePoint::min();
 		return;
 	}
 
@@ -680,11 +684,10 @@ void KnxHandler::processReceivedTunnelAck(ByteString msg)
 
 void KnxHandler::processPendingTunnelAck()
 {
-	if (!lastTunnelReqSendTime)
+	if (lastTunnelReqSendTime == TimePoint::min())
 		return;
 
-	std::time_t now = std::time(0);
-	if (lastTunnelReqSendTime + 1 > now)
+	if (lastTunnelReqSendTime + Seconds(1) > system_clock::now())
 		return;
 
 	LDataReq ldataReq = waitingLDataReqs.front();
@@ -698,7 +701,7 @@ void KnxHandler::processPendingTunnelAck()
 	}
 	else
 	{
-		lastTunnelReqSendTime = 0;
+		lastTunnelReqSendTime = TimePoint::min();
 		waitingLDataReqs.pop_front();
 
 		logger.errorX() << "Second TUNNEL REQUEST for " << ldataReq.itemId << " was not acknowledged in time" << endOfMsg();
@@ -707,7 +710,7 @@ void KnxHandler::processPendingTunnelAck()
 
 void KnxHandler::processPendingLDataCon()
 {
-	std::time_t now = std::time(0);
+	TimePoint now = system_clock::now();
 
 	for (std::list<SentLDataReq>::iterator pos = sentLDataReqs.begin(); pos != sentLDataReqs.end();)
 		if (pos->time + config.getLDataConTimeout() <= now)
@@ -734,7 +737,7 @@ void KnxHandler::processWaitingLDataReqs()
 	if (state != CONNECTED)
 		return;
 
-	if (!waitingLDataReqs.size() || lastTunnelReqSendTime)
+	if (!waitingLDataReqs.size() || lastTunnelReqSendTime != TimePoint::min())
 		return;
 
 	sendTunnelReq(waitingLDataReqs.front());

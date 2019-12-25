@@ -1,13 +1,17 @@
 #ifndef KNX_H
 #define KNX_H
 
-#include <ctime>
 #include <set>
+#include <chrono>
 
 #include "link.h"
 #include "logger.h"
 
+using std::chrono::system_clock;
+
 typedef unsigned short IpPort;
+typedef std::chrono::seconds Seconds;
+typedef std::chrono::system_clock::time_point TimePoint;
 
 struct IpAddr
 {
@@ -149,10 +153,10 @@ private:
 	bool natMode;
 	IpAddr ipAddr;
 	IpPort ipPort;
-	int reconnectInterval;
-	int connStateReqInterval;
-	int controlRespTimeout;
-	int ldataConTimeout;
+	Seconds reconnectInterval;
+	Seconds connStateReqInterval;
+	Seconds controlRespTimeout;
+	Seconds ldataConTimeout;
 	PhysicalAddr physicalAddr;
 	bool logRawMsg;
 	bool logData;
@@ -160,7 +164,8 @@ private:
 
 public:
 	KnxConfig(IpAddr _localIpAddr, bool _natMode, IpAddr _ipAddr, IpPort _ipPort, 
-		int _reconnectInterval, int _connStateReqInterval, int _controlRespTimeout, int _ldataConTimeout, 
+		Seconds _reconnectInterval, Seconds _connStateReqInterval,
+		Seconds _controlRespTimeout, Seconds _ldataConTimeout,
 		PhysicalAddr _physicalAddr, bool _logRawMsg, bool _logData, Bindings _bindings) :
 		localIpAddr(_localIpAddr), natMode(_natMode), ipAddr(_ipAddr), ipPort(_ipPort), 
 		reconnectInterval(_reconnectInterval), connStateReqInterval(_connStateReqInterval), 
@@ -171,10 +176,10 @@ public:
 	bool getNatMode() const { return natMode; }
 	IpAddr getIpAddr() const { return ipAddr; }
 	IpPort getIpPort() const { return ipPort; }
-	int getReconnectInterval() const { return reconnectInterval; }
-	int getConnStateReqInterval() const { return connStateReqInterval; }
-	int getControlRespTimeout() const { return controlRespTimeout; }
-	int getLDataConTimeout() const { return ldataConTimeout; }
+	Seconds getReconnectInterval() const { return reconnectInterval; }
+	Seconds getConnStateReqInterval() const { return connStateReqInterval; }
+	Seconds getControlRespTimeout() const { return controlRespTimeout; }
+	Seconds getLDataConTimeout() const { return ldataConTimeout; }
 	PhysicalAddr getPhysicalAddr() const { return physicalAddr; }
 	bool getLogRawMsg() const { return logRawMsg; }
 	bool getLogData() const { return logData; }
@@ -206,14 +211,14 @@ private:
 	PhysicalAddr physicalAddr;
 
 	// Time when last connect attempt has been started.
-	std::time_t lastConnectTry;
+	TimePoint lastConnectTry;
 
 	// Has a CONNECTION STATE REQUEST been sent for which a CONNECTION STATE RESPONSE
 	// is pending?
 	bool ongoingConnStateReq;
 
 	// Time when the last CONNECTION REQUEST or CONNECTION STATE REQUST has been sent.
-	std::time_t lastControlReqSendTime;
+	TimePoint lastControlReqSendTime;
 
 	// Sequence number of last received and accepted TUNNEL REQUEST.
 	Byte lastReceivedSeqNo;
@@ -241,7 +246,7 @@ private:
 
 	// Time when the last TUNNEL REQUEST has been sent. It is set to 0 when the
 	// TUNNEL ACK is received.
-	std::time_t lastTunnelReqSendTime;
+	TimePoint lastTunnelReqSendTime;
 
 	// Number of times the last TUNNEL REQUEST has already been sent.
 	int lastTunnelReqSendAttempts;
@@ -251,8 +256,8 @@ private:
 	struct SentLDataReq
 	{
 		LDataReq ldataReq;
-		std::time_t time; // time when TUNNEL REQUEST has been sent
-		SentLDataReq(const LDataReq& _ldataReq, std::time_t _time) : ldataReq(_ldataReq), time(_time) {}
+		TimePoint time; // time when TUNNEL REQUEST has been sent
+		SentLDataReq(const LDataReq& _ldataReq, TimePoint _time) : ldataReq(_ldataReq), time(_time) {}
 	};
 	std::list<SentLDataReq> sentLDataReqs;
 
