@@ -6,26 +6,76 @@
 #include "mqtt.h"
 #include "finally.h"
 
-void onMqttMessage(struct mosquitto* client, void* handler, const struct mosquitto_message* msg)
-{ 
-	//static_cast<MqttHandler*>(handler)->onMessage(msg);
-	static_cast<MqttHandler*>(handler)->onMessage(MqttHandler::Msg(msg->topic, string(static_cast<char*>(msg->payload), msg->payloadlen)));
+namespace Mqtt
+{
+
+const string TopicPattern::variable = "%ItemId%";
+
+string TopicPattern::getItemId(string topic) const
+{
+	string::size_type pos1 = topicPatternStr.find(variable);
+	if (topic.substr(0, pos1) != topicPatternStr.substr(0, pos1))
+		return "";
+	string::size_type pos2 = topic.find("/", pos1);
+	if (pos2 == string::npos)
+		return topic.substr(pos1);
+	if (topic.substr(pos2, topicPatternStr.length() - pos1 - variable.length()) != topicPatternStr.substr(pos1 + variable.length()))
+		return "";
+	return topic.substr(pos1, pos2 - pos1);
 }
 
-MqttHandler::MqttHandler(string _id, MqttConfig _config, Logger _logger) : 
+string TopicPattern::createPubTopic(string itemId) const
+{
+	string::size_type pos = topicPatternStr.find(variable);
+	return topicPatternStr.substr(0, pos) + itemId + topicPatternStr.substr(pos + variable.length());
+}
+
+string TopicPattern::createSubTopicPattern() const
+{
+	string::size_type pos = topicPatternStr.find(variable);
+	return topicPatternStr.substr(0, pos) + "+" + topicPatternStr.substr(pos + variable.length());
+}
+
+TopicPattern TopicPattern::fromStr(string topicPatternStr)
+{
+	if (topicPatternStr.find_first_of("+#") != string::npos)
+		return TopicPattern();
+
+	string::size_type pos = topicPatternStr.find(variable);
+	if (pos == string::npos)
+		return TopicPattern();
+
+	if (pos > 0 && topicPatternStr[pos - 1] != '/')
+		return TopicPattern();
+
+	if (pos + variable.length() < topicPatternStr.length() && topicPatternStr[pos + variable.length()] != '/')
+		return TopicPattern();
+
+	return TopicPattern(topicPatternStr);
+}
+
+void onMqttMessage(struct mosquitto* client, void* handler, const struct mosquitto_message* msg)
+{
+	//static_cast<Handler*>(handler)->onMessage(msg);
+	static_cast<Handler*>(handler)->onMessage(Handler::Msg(msg->topic, string(static_cast<char*>(msg->payload), msg->payloadlen)));
+}
+
+Handler::Handler(string _id, Config _config, Logger _logger) :
 	id(_id), config(_config), logger(_logger), client(0), connected(false), lastConnectTry(0)
 {
 	mosquitto_lib_init();
 	client = mosquitto_new((config.getClientIdPrefix() + "." + cnvToStr(getpid())).c_str(), true, this);
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
-	
+
+	// TODO: Enable TCP_NO_DELAY when being on new Mosquitto library.
+
 	int major, minor, revision;
 	mosquitto_lib_version(&major, &minor, &revision);
-	logger.info() << "Mosquitto library has version " << major << "." << minor << "." << revision << endOfMsg();
+	logger.info() << "Using Mosquitto library version " << major << "." << minor << "." << revision << endOfMsg();
 }
 
-MqttHandler::~MqttHandler()
+Handler::~Handler()
 {
 	disconnect();
 	
@@ -33,7 +83,7 @@ MqttHandler::~MqttHandler()
 	mosquitto_lib_cleanup();
 }
 
-bool MqttHandler::connect(const Items& items)
+bool Handler::connect(const Items& items)
 {
 	if (connected)
 		return true;
@@ -78,6 +128,17 @@ bool MqttHandler::connect(const Items& items)
 		handleError("mosquitto_subscribe", ec);
 	}
 
+	auto subscribe = [&] (TopicPattern topicPattern)
+	{
+		if (topicPattern.isNull())
+			return;
+		ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
+		handleError("mosquitto_subscribe", ec);
+	};
+//	subscribe(config.getStateTopicPattern());
+	subscribe(config.getWriteTopicPattern());
+	subscribe(config.getReadTopicPattern());
+
 	autoDisconnect.disable();
 	connected = true;
 	logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
@@ -85,7 +146,7 @@ bool MqttHandler::connect(const Items& items)
 	return true;
 }
 	
-void MqttHandler::disconnect()
+void Handler::disconnect()
 {
 	if (!connected)
 		return;
@@ -97,7 +158,7 @@ void MqttHandler::disconnect()
 	logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 }
 
-long MqttHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
+long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
 {
 	int socket = mosquitto_socket(client);
 	if (socket >= 0)
@@ -108,7 +169,7 @@ long MqttHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds,
 	return mosquitto_want_write(client) ? 0 : -1;
 }
 
-void MqttHandler::handleError(string funcName, int errorCode)
+void Handler::handleError(string funcName, int errorCode)
 {
 	if (errorCode != MOSQ_ERR_SUCCESS)
 	{
@@ -123,7 +184,7 @@ void MqttHandler::handleError(string funcName, int errorCode)
 	}
 }
 
-void MqttHandler::onMessage(const Msg& msg)
+void Handler::onMessage(const Msg& msg)
 {
 	if (config.getLogMsgs())
 		logger.debug() << "R " << msg.topic << ": " << msg.payload << endOfMsg();
@@ -131,7 +192,7 @@ void MqttHandler::onMessage(const Msg& msg)
 	receivedMsgs.push_back(msg);
 }
 
-Events MqttHandler::receive(const Items& items)
+Events Handler::receive(const Items& items)
 {
 	try
 	{
@@ -146,7 +207,7 @@ Events MqttHandler::receive(const Items& items)
 	return Events();
 }
 
-Events MqttHandler::receiveX(const Items& items)
+Events Handler::receiveX(const Items& items)
 {
 	Events events;
 	
@@ -159,30 +220,44 @@ Events MqttHandler::receiveX(const Items& items)
 	for (auto& msg : receivedMsgs)
 	{
 		int eventCount = events.size();
-		
+
 		for (auto bindingPair : config.getBindings())
 		{
 			auto& binding = bindingPair.second;
-			bool owner = items.getOwnerId(binding.itemId) == id;
 
-			if (binding.writeTopic == msg.topic && !owner)
+			if (binding.writeTopic == msg.topic)
 				events.add(Event(id, binding.itemId, EventType::WRITE_REQ, msg.payload));
-			else if (binding.readTopic == msg.topic && !owner)
+			else if (binding.readTopic == msg.topic)
 				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end() && owner)
+			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
 				events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.payload));
 		}
+
+		string itemId;
+		auto getItemId = [&] (TopicPattern topicPattern)
+		{
+			if (topicPattern.isNull())
+				return false;
+			itemId = topicPattern.getItemId(msg.topic);
+			return itemId.length() > 0;
+		};
+		if (getItemId(config.getWriteTopicPattern()))
+			events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
+		else if (getItemId(config.getReadTopicPattern()))
+			events.add(Event(id, itemId, EventType::READ_REQ, msg.payload));
+//		else if (getItemId(config.getStateTopicPattern()))
+//			events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
 
 		if (eventCount == events.size() && config.getSubTopics().size() == 0)
 			logger.warn() << "No item for topic " << msg.topic << endOfMsg();
 	}
 
 	receivedMsgs.clear();
-	
+
 	return events;
 }
 
-Events MqttHandler::send(const Items& items, const Events& events)
+Events Handler::send(const Items& items, const Events& events)
 {
 	try
 	{
@@ -197,7 +272,7 @@ Events MqttHandler::send(const Items& items, const Events& events)
 	return Events();
 }
 
-Events MqttHandler::sendX(const Items& items, const Events& events)
+Events Handler::sendX(const Items& items, const Events& events)
 {
 	if (!connected)
 		return Events();
@@ -210,33 +285,64 @@ Events MqttHandler::sendX(const Items& items, const Events& events)
 	{
 		string itemId = event.getItemId();
 
+		auto sendMessageWithPayload = [&] (string topic, bool retainFlag)
+		{
+			if (!event.getValue().isString())
+				logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
+			else
+				sendMessage(topic, event.getValue().getString(), config.getRetainFlag());
+		};
+
 		auto bindingPos = bindings.find(itemId);
 		if (bindingPos != bindings.end())
 		{
 			auto& binding = bindingPos->second;
-			bool owner = items.getOwnerId(itemId) == id;
-			string payload = event.getValue().toStr();
 
-			ec = MOSQ_ERR_SUCCESS;
-			if (!owner && event.getType() == EventType::STATE_IND)
+			if (event.getType() == EventType::STATE_IND)
 				for (string stateTopic : binding.stateTopics)
-					sendMessage(stateTopic, payload, config.getRetainFlag());
-			if (binding.writeTopic != "" && owner && event.getType() == EventType::WRITE_REQ)
-				sendMessage(binding.writeTopic, payload, false);
-			if (binding.readTopic != "" && owner && event.getType() == EventType::READ_REQ)
-				sendMessage(binding.readTopic, "", false);
+					sendMessageWithPayload(stateTopic, config.getRetainFlag());
+			else if (event.getType() == EventType::WRITE_REQ)
+			{
+				if (binding.writeTopic != "")
+					sendMessageWithPayload(binding.writeTopic, false);
+			}
+			else if (event.getType() == EventType::READ_REQ)
+			{
+				if (binding.readTopic != "")
+					sendMessage(binding.readTopic, "", false);
+			}
+		}
+		else
+		{
+			if (event.getType() == EventType::STATE_IND)
+			{
+				if (!config.getStateTopicPattern().isNull())
+					sendMessageWithPayload(config.getStateTopicPattern().createPubTopic(itemId), config.getRetainFlag());
+			}
+//			else if (event.getType() == EventType::WRITE_REQ)
+//			{
+//				if (!config.getWriteTopicPattern().isNull())
+//					sendMessage(config.getWriteTopicPattern().createPubTopic(itemId), payload, false);
+//			}
+//			else if (event.getType() == EventType::READ_REQ)
+//			{
+//				if (!config.getReadTopicPattern().isNull())
+//					sendMessage(config.getReadTopicPattern().createPubTopic(itemId), "", false);
+//			}
 		}
 	}
 	
 	return Events();
 }
 
-void MqttHandler::sendMessage(string topic, string payload, bool retain)
+void Handler::sendMessage(string topic, string payload, bool retainFlag)
 {
 	if (config.getLogMsgs())
 		logger.debug() << "S " << topic << ": " << payload << endOfMsg();
 
 	int ec = mosquitto_publish(client, 0, topic.c_str(), payload.length(), 
-		reinterpret_cast<const uint8_t*>(payload.data()), 0, retain);
+		reinterpret_cast<const uint8_t*>(payload.data()), 0, retainFlag);
 	handleError("mosquitto_publish", ec);
+}
+
 }

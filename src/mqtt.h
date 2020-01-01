@@ -9,7 +9,39 @@
 #include "link.h"
 #include "logger.h"
 
-class MqttConfig
+namespace Mqtt
+{
+
+class TopicPattern
+{
+private:
+	string topicPatternStr;
+	static const string variable;
+
+	TopicPattern(string topicPatternStr) : topicPatternStr(topicPatternStr) {}
+
+public:
+	// Constructs a non-usable TopicPattern.
+	TopicPattern() {}
+
+	// Indicates whether self is usable or not.
+	bool isNull() { return topicPatternStr.empty(); }
+
+	// Extracts the item id from the passed topic according to the pattern.
+	string getItemId(string topic) const;
+
+	// Constructs from the pattern and the passed item id the appropriate MQTT topic for publishing.
+	string createPubTopic(string itemId) const;
+
+	// Constructs from the pattern the appropriate MQTT topic pattern for subscribing.
+	string createSubTopicPattern() const;
+
+	// Constructs a TopicPattern from the passed pattern string. The string must be a valid MQTT topic
+	// without + and #. One of its level must be %ItemId%.
+	static TopicPattern fromStr(string topicPatternStr);
+};
+
+class Config
 {
 public:
 	typedef std::set<string> Topics;
@@ -19,7 +51,7 @@ public:
 		Topics stateTopics;
 		string writeTopic;
 		string readTopic;
-		
+
 		Binding(string _itemId, Topics _stateTopics, string _writeTopic, string _readTopic) :
 			itemId(_itemId), stateTopics(_stateTopics), writeTopic(_writeTopic), readTopic(_readTopic)
 		{}
@@ -38,15 +70,20 @@ private:
 	int reconnectInterval;
 	bool retainFlag;
 	bool logMsgs;
+	TopicPattern stateTopicPattern;
+	TopicPattern writeTopicPattern;
+	TopicPattern readTopicPattern;
 	Topics subTopics;
 	Bindings bindings;
 
 public:
-	MqttConfig(string _clientIdPrefix, string _hostname, int _port, int _reconnectInterval, 
-		bool _retainFlag, bool _logMsgs, Topics _subTopics, Bindings _bindings) :
+	Config(string _clientIdPrefix, string _hostname, int _port, int _reconnectInterval,
+		bool _retainFlag, bool _logMsgs, Topics _subTopics, TopicPattern _stateTopicPattern,
+		TopicPattern _writeTopicPattern, TopicPattern _readTopicPattern, Bindings _bindings) :
 		clientIdPrefix(_clientIdPrefix), hostname(_hostname), port(_port), 
 		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), logMsgs(_logMsgs), 
-		subTopics(_subTopics), bindings(_bindings)
+		subTopics(_subTopics), stateTopicPattern(_stateTopicPattern),
+		writeTopicPattern(_writeTopicPattern), readTopicPattern(_readTopicPattern), bindings(_bindings)
 	{}
 	string getClientIdPrefix() const { return clientIdPrefix; }
 	string getHostname() const { return hostname; }
@@ -55,14 +92,17 @@ public:
 	bool getRetainFlag() const { return retainFlag; }
 	bool getLogMsgs() const {return logMsgs; }
 	const Topics& getSubTopics() const {return subTopics; }
+	TopicPattern getStateTopicPattern() const { return stateTopicPattern; }
+	TopicPattern getWriteTopicPattern() const { return writeTopicPattern; }
+	TopicPattern getReadTopicPattern() const { return readTopicPattern; }
 	const Bindings& getBindings() const { return bindings; }
 };
 
-class MqttHandler: public Handler
+class Handler: public HandlerIf
 {
 private:
 	string id;
-	MqttConfig config;
+	Config config;
 	Logger logger;
 	struct mosquitto* client;
 	bool connected;
@@ -74,10 +114,10 @@ private:
 		Msg(string _topic, string _payload) : topic(_topic), payload(_payload) {}
 	};
 	std::list<Msg> receivedMsgs;
-	
+
 public:
-	MqttHandler(string _id, MqttConfig _config, Logger _logger);
-	virtual ~MqttHandler();
+	Handler(string _id, Config _config, Logger _logger);
+	virtual ~Handler();
 	virtual bool supports(EventType eventType) const override { return true; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
@@ -90,10 +130,12 @@ private:
 	Events sendX(const Items& items, const Events& events);
 	void handleError(string funcName, int errorCode);
 	void onMessage(const Msg& msg);
-	void sendMessage(string topic, string payload, bool reatain);
+	void sendMessage(string topic, string payload, bool reatainFlag);
 
 	friend void onMqttMessage(struct mosquitto*, void*, const struct mosquitto_message*);
 };
+
+}
 
 #endif
 

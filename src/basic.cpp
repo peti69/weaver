@@ -68,41 +68,6 @@ bool ValueType::fromStr(string typeStr, ValueType& type)
 	return true;
 }
 
-Value ValueType::convert(const Value& value) const
-{
-	if (value.getType() == code)
-		return value;
-
-	if (code == VOID)
-		return Value::newVoid();
-
-	if (value.getType() == STRING)
-	{
-		string str = value.getString();
-		switch (code)
-		{
-			case NUMBER:
-				try
-				{
-					return Value(std::stod(str));
-				}
-				catch (const std::exception& ex)
-				{
-					// ignore
-				}
-				break;
-			case BOOLEAN:
-				if (str == "1" || str == "yes" || str == "YES" || str == "true" || str == "TRUE")
-					return Value(true);
-				else if (str == "0" || str == "no" || str == "NO" || str == "false" || str == "FALSE")
-					return Value(false);
-				break;
-		}
-	}
-
-	return Value();
-}
-
 string Value::toStr() const
 {
 	if (null)
@@ -122,7 +87,6 @@ string Value::toStr() const
 				return "?";
 		}
 }
-
 
 bool Value::operator==(const Value& x) const
 {

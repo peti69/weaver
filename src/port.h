@@ -65,7 +65,7 @@ public:
 	static bool isValidParity(string parityStr, Parity& parity);
 };
 
-class PortHandler: public Handler
+class PortHandler: public HandlerIf
 {
 private:
 	string id;

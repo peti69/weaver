@@ -186,9 +186,12 @@ Items Config::getItems() const
 		if (!ValueType::fromStr(typeStr, type))
 			throw std::runtime_error("Invalid value " + typeStr + " for field type in configuration");
 
-		string ownerId = getString(itemValue, "ownerId"); 
+		string ownerId = getString(itemValue, "ownerId");
 
-		Item item(itemId, type, ownerId);
+		bool readable = getBool(itemValue, "readable", true);
+		bool writable = getBool(itemValue, "writable", true);
+
+		Item item(itemId, type, ownerId, readable, writable);
 
 		item.setPollInterval(getInt(itemValue, "pollInterval", 0));
 
@@ -223,11 +226,35 @@ Links Config::getLinks(const Items& items, Log& log) const
 	for (auto& linkValue : linksValue.GetArray())
 	{
 		string id = getString(linkValue, "id");
-		
+
+		bool numberAsString = hasMember(linkValue, "numberAsString");
+
+		bool booleanAsString = hasMember(linkValue, "booleanAsString");
+		string falseValue;
+		string trueValue;
+		string unwritableFalseValue;
+		string unwritableTrueValue;
+		if (booleanAsString)
+		{
+			auto& booleanAsStringValue = getObject(linkValue, "booleanAsString");
+			falseValue = getString(booleanAsStringValue, "falseValue", "false");
+			trueValue = getString(booleanAsStringValue, "trueValue", "true");
+			unwritableFalseValue = getString(booleanAsStringValue, "unwritableFalseValue", falseValue);
+			unwritableTrueValue = getString(booleanAsStringValue, "unwritableTrueValue", trueValue);
+		}
+
+		bool voidAsString = hasMember(linkValue, "voidAsString");
+		string voidValue;
+		if (voidAsString)
+		{
+			auto& voidAsStringValue = getObject(linkValue, "voidAsString");
+			voidValue = getString(voidAsStringValue, "value", "");
+		}
+
 		Modifiers modifiers;
 		if (hasMember(linkValue, "modifiers"))
 		{
-			const Value& modifiersValue = getArray(linkValue, "modifiers"); 
+			auto& modifiersValue = getArray(linkValue, "modifiers");
 			for (auto& modifierValue : modifiersValue.GetArray())
 			{
 				string itemId = getString(modifierValue, "itemId");
@@ -240,12 +267,12 @@ Links Config::getLinks(const Items& items, Log& log) const
 			}
 		}
 
-		std::shared_ptr<Handler> handler;
 		Logger logger = log.newLogger(id);
+		std::shared_ptr<HandlerIf> handler;
 		if (hasMember(linkValue, "knx"))
 			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), items), logger));
 		else if (hasMember(linkValue, "mqtt"))
-			handler.reset(new MqttHandler(id, *getMqttConfig(getObject(linkValue, "mqtt"), items), logger));
+			handler.reset(new Mqtt::Handler(id, *getMqttConfig(getObject(linkValue, "mqtt"), items), logger));
 		else if (hasMember(linkValue, "port"))
 			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), logger));
 		else if (hasMember(linkValue, "http"))
@@ -260,7 +287,9 @@ Links Config::getLinks(const Items& items, Log& log) const
 			handler.reset(new Storage(id, *getStorageConfig(getObject(linkValue, "storage"), items), logger));
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
-		links.add(Link(id, modifiers, handler, logger));
+
+		links.add(Link(id, numberAsString, booleanAsString, falseValue, trueValue, unwritableFalseValue,
+				unwritableTrueValue, voidAsString, voidValue, modifiers, handler, logger));
 	}
 	
 	for (auto itemPair : items)
@@ -270,7 +299,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 	return links;
 }
 
-std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Items& items) const
+std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const Items& items) const
 {
 	string clientIdPrefix = getString(value, "clientIdPrefix", "weaver");
 	string hostname = getString(value, "hostname");
@@ -280,7 +309,7 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 	
 	bool logMsgs = getBool(value, "logMessages", false);
 
-	MqttConfig::Topics subTopics;
+	Mqtt::Config::Topics subTopics;
 	if (hasMember(value, "subTopics"))
 		for (auto& topicValue : getArray(value, "subTopics").GetArray())
 		{
@@ -289,31 +318,48 @@ std::shared_ptr<MqttConfig> Config::getMqttConfig(const Value& value, const Item
 			subTopics.insert(topicValue.GetString());
 		}
 
-	const Value& bindingsValue = getArray(value, "bindings");
-	MqttConfig::Bindings bindings;
-	for (auto& bindingValue : bindingsValue.GetArray())
+	auto getTopicPattern = [this, &value] (string fieldName)
 	{
-		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+		if (!hasMember(value, fieldName))
+			return Mqtt::TopicPattern();
+		string topicPatternStr = getString(value, fieldName);
+		auto topicPattern = Mqtt::TopicPattern::fromStr(topicPatternStr);
+		if (topicPattern.isNull())
+			throw std::runtime_error("Invalid value " + topicPatternStr + " for field " + fieldName + " in configuration");
+		return topicPattern;
+	};
+	Mqtt::TopicPattern stateTopicPattern = getTopicPattern("stateTopicPattern");
+	Mqtt::TopicPattern writeTopicPattern = getTopicPattern("writeTopicPattern");
+	Mqtt::TopicPattern readTopicPattern = getTopicPattern("readTopicPattern");
 
-		MqttConfig::Topics stateTopics;
-		if (hasMember(bindingValue, "stateTopic"))
-			stateTopics.insert(getString(bindingValue, "stateTopic"));
-		if (hasMember(bindingValue, "stateTopics"))
-			for (auto& topicValue : getArray(bindingValue, "stateTopics").GetArray())
-			{
-				if (!topicValue.IsString())
-					throw std::runtime_error("Field stateTopics is not a string array");
-				stateTopics.insert(topicValue.GetString());
-			}
-		string writeTopic = getString(bindingValue, "writeTopic", "");
-		string readTopic = getString(bindingValue, "readTopic", "");
+	Mqtt::Config::Bindings bindings;
+	if (hasMember(value, "bindings"))
+	{
+		const Value& bindingsValue = getArray(value, "bindings");
+		for (auto& bindingValue : bindingsValue.GetArray())
+		{
+			string itemId = getString(bindingValue, "itemId");
+			if (!items.exists(itemId))
+				throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
-		bindings.add(MqttConfig::Binding(itemId, stateTopics, writeTopic, readTopic));
+			Mqtt::Config::Topics stateTopics;
+			if (hasMember(bindingValue, "stateTopic"))
+				stateTopics.insert(getString(bindingValue, "stateTopic"));
+			if (hasMember(bindingValue, "stateTopics"))
+				for (auto& topicValue : getArray(bindingValue, "stateTopics").GetArray())
+				{
+					if (!topicValue.IsString())
+						throw std::runtime_error("Field stateTopics is not a string array");
+					stateTopics.insert(topicValue.GetString());
+				}
+			string writeTopic = getString(bindingValue, "writeTopic", "");
+			string readTopic = getString(bindingValue, "readTopic", "");
+
+			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic));
+		}
 	}
 
-	return std::make_shared<MqttConfig>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, logMsgs, subTopics, bindings);
+	return std::make_shared<Mqtt::Config>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, logMsgs, subTopics, stateTopicPattern, writeTopicPattern, readTopicPattern, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const
@@ -351,7 +397,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		string itemId = getString(bindingValue, "itemId");
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
-			
+
 		string stateGaStr = getString(bindingValue, "stateGa", "");
 		GroupAddr stateGa;
 		if (stateGaStr != "" && !GroupAddr::fromStr(stateGaStr, stateGa))
@@ -362,8 +408,8 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		if (writeGaStr != "" && !GroupAddr::fromStr(writeGaStr, writeGa))
 			throw std::runtime_error("Invalid value " + writeGaStr + " for field writeGa in configuration");
 
-		if (writeGa == stateGa)
-			throw std::runtime_error("Values for fields stateGa and writeGa are equal in configuration");
+//		if (writeGa == stateGa)
+//			throw std::runtime_error("Values for fields stateGa and writeGa are equal in configuration");
 
 		string dptStr = getString(bindingValue, "dpt");
 		DatapointType dpt;
@@ -431,7 +477,7 @@ std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, 
 		string itemId = getString(bindingValue, "itemId");
 		if (!items.exists(itemId))
 			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
-		string value = getString(bindingValue, "value", "");
+		string value = getString(bindingValue, "value");
 		int interval = getInt(bindingValue, "interval");
 		string eventTypeStr = getString(bindingValue, "eventType");
 		EventType eventType;

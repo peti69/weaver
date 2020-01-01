@@ -47,7 +47,7 @@ public:
 	const Bindings& getBindings() const { return bindings; }
 };
 
-class TcpHandler: public Handler
+class TcpHandler: public HandlerIf
 {
 private:
 	string id;

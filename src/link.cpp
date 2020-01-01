@@ -47,7 +47,9 @@ Events Link::receive(Items& items)
 		auto itemPos = items.find(event.getItemId());
 		if (itemPos == items.end())
 		{
-			eventPos++;
+			logger.warn() << event.getType().toStr() << " event received for unknown item " << event.getItemId() << endOfMsg();
+
+			eventPos = events.erase(eventPos);
 			continue;
 		}
 		auto& item = itemPos->second;
@@ -59,6 +61,9 @@ Events Link::receive(Items& items)
 		// remove READ_REQ and WRITE_REQ in case the link is the owner of the item
 		if (event.getType() != EventType::STATE_IND && item.getOwnerId() == id)
 		{
+			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
+			              << " which is owned by the link" << endOfMsg();
+
 			eventPos = events.erase(eventPos);
 			continue;
 		}
@@ -66,26 +71,93 @@ Events Link::receive(Items& items)
 		// remove STATE_IND in case the link is not the owner of the item
 		if (event.getType() == EventType::STATE_IND && item.getOwnerId() != id)
 		{
+			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
+			              << " which is not owned by the link" << endOfMsg();
+
+			eventPos = events.erase(eventPos);
+			continue;
+		}
+
+		// remove WRITE_REQ in case the item is not writable
+		if (event.getType() == EventType::WRITE_REQ && !item.isWritable())
+		{
+			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
+			              << " which is not writable" << endOfMsg();
+
+			eventPos = events.erase(eventPos);
+			continue;
+		}
+
+		// remove READ_REQ in case the item is not readable
+		if (event.getType() == EventType::READ_REQ && !item.isReadable())
+		{
+			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
+			              << " which is not readable" << endOfMsg();
+
 			eventPos = events.erase(eventPos);
 			continue;
 		}
 
 		if (event.getType() != EventType::READ_REQ)
 		{
-			// convert event value to item type
-			Value newValue = item.getType().convert(event.getValue());
-			if (newValue.isNull())
-				logger.error() << "Unable to convert " << event.getValue().getType().toStr() << " value '" << event.getValue().toStr() 
-				               << "' to " << item.getType().toStr()  << " value for item " << item.getId() << endOfMsg();
-			else
-				event.setValue(newValue);
+			// convert event value type
+			auto& value = event.getValue();
+			bool convertError = false;
+			if (value.isString() && numberAsString && item.getType() == ValueType::NUMBER)
+			{
+				try
+				{
+					event.setValue(Value(std::stod(value.getString())));
+				}
+				catch (const std::exception& ex)
+				{
+					convertError = true;
+				}
+			}
+			else if (value.isString() && booleanAsString && item.getType() == ValueType::BOOLEAN)
+				if (item.isWritable())
+					if (value.getString() == falseValue)
+						event.setValue(Value(false));
+					else if (value.getString() == trueValue)
+						event.setValue(Value(true));
+					else
+						convertError = true;
+				else
+					if (value.getString() == unwritableFalseValue)
+						event.setValue(Value(false));
+					else if (value.getString() == unwritableTrueValue)
+						event.setValue(Value(true));
+					else
+						convertError = true;
+			else if (value.isString() && voidAsString && item.getType() == ValueType::VOID)
+				event.setValue(Value::newVoid());
+			if (convertError)
+			{
+				logger.error() << "Event STRING value '" << event.getValue().getString()
+				               << "' can not be converted to type " << item.getType().toStr()
+				               << " of item " << item.getId() << endOfMsg();
+
+				eventPos = events.erase(eventPos);
+				continue;
+			}
+
+			// compare item type with event value type
+			if (event.getValue().getType() != item.getType())
+			{
+				logger.error() << "Event value type " << event.getValue().getType().toStr()
+				               << " differs from type " << item.getType().toStr()
+				               << " of item " << item.getId() << endOfMsg();
+
+				eventPos = events.erase(eventPos);
+				continue;
+			}
+
+			// convert event value from external to internal representation
+			if (modifier)
+				event.setValue(modifier->importValue(event.getValue()));
 		}
 		else
 			event.setValue(Value());
-
-		// convert event value from external to internal representation
-		if (event.getType() != EventType::READ_REQ && modifier)
-			event.setValue(modifier->importValue(event.getValue()));
 
 		eventPos++;
 	}
@@ -129,9 +201,24 @@ void Link::send(Items& items, const Events& events)
 			continue;
 		}
 
-		// convert event value from internal to external representation
-		if (event.getType() != EventType::READ_REQ && modifier)
-			event.setValue(modifier->exportValue(event.getValue()));
+		if (event.getType() != EventType::READ_REQ)
+		{
+			// convert event value from internal to external representation
+			if (modifier)
+				event.setValue(modifier->exportValue(event.getValue()));
+
+			// convert event value type
+			auto& value = event.getValue();
+			if (value.getType() == ValueType::NUMBER && numberAsString)
+				event.setValue(Value(cnvToStr(value.getNumber())));
+			else if (value.getType() == ValueType::BOOLEAN && booleanAsString)
+				if (item.isWritable())
+					event.setValue(Value(value.getBoolean() ? trueValue : falseValue));
+				else
+					event.setValue(Value(value.getBoolean() ? unwritableTrueValue : unwritableFalseValue));
+			else if (value.getType() == ValueType::VOID && voidAsString)
+				event.setValue(Value(voidValue));
+		}
 
 		eventPos++;
 	}

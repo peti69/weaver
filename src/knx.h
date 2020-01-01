@@ -186,7 +186,7 @@ public:
 	const Bindings& getBindings() const { return bindings; }
 };
 
-class KnxHandler: public Handler
+class KnxHandler: public HandlerIf
 {
 private:
 	enum State

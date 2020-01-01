@@ -56,8 +56,6 @@ public:
 	string toStr() const;
 	static bool fromStr(string typeStr, ValueType& type);
 
-	Value convert(const Value& value) const;
-
 	static const Code VOID = 0;
 	static const Code STRING = 1;
 	static const Code NUMBER = 2;
@@ -113,6 +111,12 @@ private:
 	// and on which STATE_IND for the item are received.
 	string ownerId;
 
+	// Indicates whether the item can be queried by means of READ_REQ to the owner link.
+	bool readable;
+
+	// Indicates whether the item can be modified by means of WRITE_REQ to the owner link.
+	bool writeable;
+
 	// Frequency in which the link generates READ_REQ events and passes them to its handler.
 	int pollInterval;
 
@@ -156,14 +160,17 @@ private:
 	std::time_t lastPollTime;
 
 public:	
-	Item(string _id, ValueType _type, string _ownerId) :
-		id(_id), type(_type), ownerId(_ownerId), pollInterval(0),
+	Item(string id, ValueType type, string ownerId, bool readable, bool writable) :
+		id(id), type(type), ownerId(ownerId),
+		readable(readable), writeable(writable), pollInterval(0),
 		sendOnTimer(false), duration(0),
 		sendOnChange(false), relVariation(0.0), absVariation(0.0), minimum(0.0), maximum(0.0),
 		lastSendTime(0), lastPollTime(0) {}
 	string getId() const { return id; }
 	ValueType getType() const { return type; }
 	string getOwnerId() const { return ownerId; }
+	bool isReadable() const  { return readable; }
+	bool isWritable() const  { return writeable; }
 
 	void setPollInterval(int _pollInterval) { pollInterval = _pollInterval; }
 

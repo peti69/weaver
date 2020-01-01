@@ -33,10 +33,10 @@ public:
 };
 
 // Interface for exchanging events with external systems.
-class Handler
+class HandlerIf
 {
 public:
-	virtual ~Handler() {}
+	virtual ~HandlerIf() {}
 
 	// Indicates whether the handler generates (STATE_IND) or accepts (READ_REQ, WRITE_REQ)
 	// events of the passed type for items it owns.
@@ -59,11 +59,38 @@ private:
 	// Id assigned to the link.
 	string id;
 
-	// Alterations which will be performed on received events and events which will be sent.
+	// Indicates that values for number items are transmitted over the link as strings
+	// and that an automatic conversion is required.
+	bool numberAsString;
+
+	// Indicates that values for boolean items are transmitted over the link as strings
+	// and that an automatic conversion is required.
+	bool booleanAsString;
+
+	// In case booleanAsString = true: String to be used for false and a writable item.
+	string falseValue;
+
+	// In case booleanAsString = true: String to be used for true and a writable item.
+	string trueValue;
+
+	// In case booleanAsString = true: String to be used for false and an unwritable item.
+	string unwritableFalseValue;
+
+	// In case booleanAsString = true: String to be used for true and an unwritable item.
+	string unwritableTrueValue;
+
+	// Indicates that void items are transmitted over the link as strings
+	// and that an automatic conversion is required.
+	bool voidAsString;
+
+	// In case voidAsString = true: String to be used.
+	string voidValue;
+
+	// Alteration rules for events and their values which are transmitted over the link.
 	Modifiers modifiers;
 
 	// Actual interface for the exchange of events with the external systems.
-	std::shared_ptr<Handler> handler;
+	std::shared_ptr<HandlerIf> handler;
 
 	// Logger for any kind of logging in the context of the link.
 	Logger logger;
@@ -72,8 +99,16 @@ private:
 	Events pendingEvents;
 
 public:
-	Link(string _id, Modifiers _modifiers, std::shared_ptr<Handler> _handler, Logger _logger) : 
-		id(_id), modifiers(_modifiers), handler(_handler), logger(_logger) {}
+	Link(string _id, bool numberAsString,
+		bool booleanAsString, string falseValue, string trueValue,
+		string unwritableFalseValue, string unwritableTrueValue,
+		bool voidAsString, string voidValue,
+		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
+		id(_id), numberAsString(numberAsString),
+		booleanAsString(booleanAsString), falseValue(falseValue), trueValue(trueValue),
+		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
+		voidAsString(voidAsString), voidValue(voidValue),
+		modifiers(modifiers), handler(handler), logger(logger) {}
 	string getId() const { return id; }
 	bool supports(EventType eventType) const;
 	long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd);

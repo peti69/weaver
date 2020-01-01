@@ -17,7 +17,7 @@ public:
 	string getFileName() const { return fileName; }
 };
 
-class Storage: public Handler
+class Storage: public HandlerIf
 {
 private:
 	string id;

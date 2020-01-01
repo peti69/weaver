@@ -31,7 +31,7 @@ public:
 	const Bindings& getBindings() const { return bindings; }
 };
 
-class Generator: public Handler
+class Generator: public HandlerIf
 {
 private:
 	string id;

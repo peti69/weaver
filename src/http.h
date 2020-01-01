@@ -39,7 +39,7 @@ public:
 	const Bindings& getBindings() const { return bindings; }
 };
 
-class HttpHandler: public Handler
+class HttpHandler: public HandlerIf
 {
 private:
 	string id;

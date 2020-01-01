@@ -8,7 +8,10 @@
 #include "link.h"
 
 class KnxConfig;
-class MqttConfig;
+namespace Mqtt
+{
+class Config;
+}
 class PortConfig;
 class GeneratorConfig;
 class StorageConfig;
@@ -53,7 +56,7 @@ private:
 	const Value& getObject(const Value& value, string name) const;
 	const Value& getArray(const Value& value, string name) const;
 	std::regex convertPattern(string fieldName, string pattern) const;
-	std::shared_ptr<MqttConfig> getMqttConfig(const Value& value, const Items& items) const;
+	std::shared_ptr<Mqtt::Config> getMqttConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<KnxConfig> getKnxConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<PortConfig> getPortConfig(const Value& value, const Items& items) const;
 	std::shared_ptr<GeneratorConfig> getGeneratorConfig(const Value& value, const Items& items) const;

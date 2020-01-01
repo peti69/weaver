@@ -33,7 +33,7 @@ public:
 static const IpPort ssdpPort(1900);
 static const IpAddr ssdpAddr(239, 255, 255, 250);
 
-class Tr064: public Handler
+class Tr064: public HandlerIf
 {
 private:
 	string id;
