@@ -157,6 +157,7 @@ private:
 	Seconds reconnectInterval;
 	Seconds connStateReqInterval;
 	Seconds controlRespTimeout;
+	Seconds tunnelAckTimeout;
 	Seconds ldataConTimeout;
 	PhysicalAddr physicalAddr;
 	bool logRawMsg;
@@ -166,11 +167,11 @@ private:
 public:
 	KnxConfig(IpAddr _localIpAddr, bool _natMode, IpAddr _ipAddr, IpPort _ipPort, 
 		Seconds _reconnectInterval, Seconds _connStateReqInterval,
-		Seconds _controlRespTimeout, Seconds _ldataConTimeout,
+		Seconds _controlRespTimeout, Seconds _tunnelAckTimeout, Seconds _ldataConTimeout,
 		PhysicalAddr _physicalAddr, bool _logRawMsg, bool _logData, Bindings _bindings) :
 		localIpAddr(_localIpAddr), natMode(_natMode), ipAddr(_ipAddr), ipPort(_ipPort), 
 		reconnectInterval(_reconnectInterval), connStateReqInterval(_connStateReqInterval), 
-		controlRespTimeout(_controlRespTimeout), ldataConTimeout(_ldataConTimeout), 
+		controlRespTimeout(_controlRespTimeout), ldataConTimeout(_ldataConTimeout), tunnelAckTimeout(_tunnelAckTimeout),
 		physicalAddr(_physicalAddr), logRawMsg(_logRawMsg), logData(_logData), bindings(_bindings)
 	{}
 	IpAddr getLocalIpAddr() const { return localIpAddr; }
@@ -180,6 +181,7 @@ public:
 	Seconds getReconnectInterval() const { return reconnectInterval; }
 	Seconds getConnStateReqInterval() const { return connStateReqInterval; }
 	Seconds getControlRespTimeout() const { return controlRespTimeout; }
+	Seconds getTunnelAckTimeout() const { return tunnelAckTimeout; }
 	Seconds getLDataConTimeout() const { return ldataConTimeout; }
 	PhysicalAddr getPhysicalAddr() const { return physicalAddr; }
 	bool getLogRawMsg() const { return logRawMsg; }

@@ -689,7 +689,7 @@ void KnxHandler::processPendingTunnelAck()
 	if (lastTunnelReqSendTime == TimePoint::min())
 		return;
 
-	if (lastTunnelReqSendTime + Seconds(1) > system_clock::now())
+	if (lastTunnelReqSendTime + config.getTunnelAckTimeout() > system_clock::now())
 		return;
 
 	if (lastTunnelReqSendAttempts == 0)
@@ -1004,7 +1004,7 @@ ByteString KnxHandler::createDiscResp() const
 
 ByteString KnxHandler::createTunnelReq(Byte seqNo, GroupAddr ga, ByteString data) const
 {
-	return addHeader(ServiceType::TUNNEL_REQ, createTunnelHeader(channelId, seqNo) + createCemiFrame(config.getPhysicalAddr(), ga, data));
+	return addHeader(ServiceType::TUNNEL_REQ, createTunnelHeader(channelId, seqNo) + createCemiFrame(physicalAddr, ga, data));
 }
 
 ByteString KnxHandler::createTunnelAck(Byte seqNo) const

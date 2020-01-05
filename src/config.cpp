@@ -380,6 +380,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	Seconds reconnectInterval(getInt(value, "reconnectInterval", 60));
 	Seconds connStateReqInterval(getInt(value, "connStateReqInterval", 60));
 	Seconds controlRespTimeout(getInt(value, "controlRespTimeout", 10));
+	Seconds tunnelAckTimeout(getInt(value, "tunnelAckTimeout", 1));
 	Seconds ldataConTimeout(getInt(value, "ldataConTimeout", 3));
 
 	string physicalAddrStr = getString(value, "physicalAddr", "0.0.0");
@@ -419,7 +420,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 		bindings.add(KnxConfig::Binding(itemId, stateGa, writeGa, dpt));
 	}
 
-	return std::make_shared<KnxConfig>(localIpAddr, natMode, ipAddr, ipPort, reconnectInterval, connStateReqInterval, controlRespTimeout, ldataConTimeout, physicalAddr, logRawMsg, logData, bindings);
+	return std::make_shared<KnxConfig>(localIpAddr, natMode, ipAddr, ipPort, reconnectInterval, connStateReqInterval, controlRespTimeout, tunnelAckTimeout, ldataConTimeout, physicalAddr, logRawMsg, logData, bindings);
 }
 
 std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Items& items) const 
