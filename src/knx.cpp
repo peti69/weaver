@@ -311,6 +311,26 @@ bool PhysicalAddr::fromStr(string paStr, PhysicalAddr& pa)
 	}
 }
 
+void KnxHandler::WaitingLDataReqs::update(const LDataReq& ldataReq)
+{
+	for (iterator pos = begin(); pos != end(); pos++)
+		if (pos->ga == ldataReq.ga && (pos->data[0] & 0x0C) == (ldataReq.data[0] & 0x0C))
+		{
+			pos->data = ldataReq.data;
+			pos->attempts = 0;
+			return;
+		}
+	push_back(ldataReq);
+}
+
+void KnxHandler::WaitingLDataReqs::append(const LDataReq& ldataReq)
+{
+	for (iterator pos = begin(); pos != end(); pos++)
+		if (pos->ga == ldataReq.ga && (pos->data[0] & 0x0C) == (ldataReq.data[0] & 0x0C))
+			return;
+	push_back(ldataReq);
+}
+
 KnxHandler::KnxHandler(string _id, KnxConfig _config, Logger _logger) : 
 	id(_id), config(_config), logger(_logger), state(DISCONNECTED),
 	lastConnectTry(TimePoint::min()), lastControlReqSendTime(TimePoint::min()),
@@ -440,7 +460,7 @@ Events KnxHandler::receiveX(const Items& items)
 	ServiceType serviceType(msg[2], msg[3]);
 	if (state == CONNECTED && serviceType == ServiceType::TUNNEL_REQ)
 	{
-		logTunnelReq(msg);
+		logTunnelReq(msg, true);
 		checkTunnelReq(msg);
 
 		Byte seqNo = msg[8];
@@ -544,7 +564,7 @@ Events KnxHandler::receiveX(const Items& items)
 		logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
 
 	processPendingTunnelAck();
-	processPendingLDataCon();
+	processPendingLDataCons();
 	processWaitingLDataReqs();
 
 	return events;
@@ -618,37 +638,38 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 			if (event.getType() == EventType::READ_REQ && owner)
 			{
 				if (!binding.stateGa.isNull())
-					waitingLDataReqs.emplace_back(itemId, binding.stateGa, data);
+					waitingLDataReqs.update(LDataReq(itemId, binding.stateGa, data));
 				else if (!binding.writeGa.isNull())
-					waitingLDataReqs.emplace_back(itemId, binding.writeGa, data);
+					waitingLDataReqs.update(LDataReq(itemId, binding.writeGa, data));
 			}
 			else if (event.getType() == EventType::STATE_IND && !owner && !binding.stateGa.isNull())
-				waitingLDataReqs.emplace_back(itemId, binding.stateGa, data);
+				waitingLDataReqs.update(LDataReq(itemId, binding.stateGa, data));
 			else if (event.getType() == EventType::WRITE_REQ && owner && !binding.writeGa.isNull())
-				waitingLDataReqs.emplace_back(itemId, binding.writeGa, data);
+				waitingLDataReqs.update(LDataReq(itemId, binding.writeGa, data));
 		}
 	}
 
 	processPendingTunnelAck();
-	processPendingLDataCon();
+	processPendingLDataCons();
 	processWaitingLDataReqs();
 
 	return Events();
 }
 
-void KnxHandler::sendTunnelReq(ByteString msg)
+void KnxHandler::sendTunnelReq(const LDataReq& ldataReq, Byte seqNo)
 {
+	ByteString msg = createTunnelReq(seqNo, ldataReq.ga, ldataReq.data);
 	sendDataMsg(msg);
-	logTunnelReq(msg);
+	logTunnelReq(msg, false);
 	lastTunnelReqSendTime = system_clock::now();
-	lastSentTunnelReq = msg;
 }
 
-void KnxHandler::sendTunnelReq(const LDataReq& ldataReq)
+void KnxHandler::sendLDataReq(const LDataReq& ldataReq)
 {
 	lastSentSeqNo = (lastSentSeqNo + 1) & 0xFF;
-	ByteString msg = createTunnelReq(lastSentSeqNo, ldataReq.ga, ldataReq.data);
-	sendTunnelReq(msg);
+	lastSentLDataReq = ldataReq;
+	lastTunnelReqSendAttempts = 0;
+	sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
 }
 
 void KnxHandler::processReceivedLDataCon(ByteString msg)
@@ -674,8 +695,7 @@ void KnxHandler::processReceivedTunnelAck(ByteString msg)
 {
 	if (lastTunnelReqSendTime != TimePoint::min() && lastSentSeqNo == msg[8])
 	{
-		sentLDataReqs.emplace_back(waitingLDataReqs.front(), system_clock::now());
-		waitingLDataReqs.pop_front();
+		sentLDataReqs.emplace_back(lastSentLDataReq, system_clock::now());
 		lastTunnelReqSendTime = TimePoint::min();
 		return;
 	}
@@ -691,25 +711,24 @@ void KnxHandler::processPendingTunnelAck()
 	if (lastTunnelReqSendTime + Seconds(1) > system_clock::now())
 		return;
 
-	LDataReq ldataReq = waitingLDataReqs.front();
-
-	if (!lastTunnelReqSendAttempts)
+	if (lastTunnelReqSendAttempts == 0)
 	{
-		sendTunnelReq(lastSentTunnelReq);
+		sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
 		lastTunnelReqSendAttempts++;
 
-		logger.warn() << "First TUNNEL REQUEST for " << ldataReq.itemId << " was not acknowledged in time" << endOfMsg();
+		logger.warn() << "First TUNNEL REQUEST for " << lastSentLDataReq.itemId
+		              << " was not acknowledged in time" << endOfMsg();
 	}
 	else
 	{
 		lastTunnelReqSendTime = TimePoint::min();
-		waitingLDataReqs.pop_front();
 
-		logger.errorX() << "Second TUNNEL REQUEST for " << ldataReq.itemId << " was not acknowledged in time" << endOfMsg();
+		logger.errorX() << "Second TUNNEL REQUEST for " << lastSentLDataReq.itemId
+		                << " was not acknowledged in time" << endOfMsg();
 	}
 }
 
-void KnxHandler::processPendingLDataCon()
+void KnxHandler::processPendingLDataCons()
 {
 	TimePoint now = system_clock::now();
 
@@ -721,12 +740,14 @@ void KnxHandler::processPendingLDataCon()
 			if (ldataReq.attempts == 0)
 			{
 				ldataReq.attempts++;
-				waitingLDataReqs.push_back(ldataReq);
+				waitingLDataReqs.append(ldataReq);
 
-				logger.warn() << "First L_Data.req for " << ldataReq.itemId << " was not confirmed in time" << endOfMsg();
+				logger.warn() << "First L_Data.req for " << ldataReq.itemId
+				              << " was not confirmed in time" << endOfMsg();
 			}
 			else
-				logger.error() << "Second L_Data.req for " << ldataReq.itemId << " was not confirmed in time" << endOfMsg();
+				logger.error() << "Second L_Data.req for " << ldataReq.itemId
+				               << " was not confirmed in time" << endOfMsg();
 			pos = sentLDataReqs.erase(pos);
 		}
 		else
@@ -735,14 +756,15 @@ void KnxHandler::processPendingLDataCon()
 
 void KnxHandler::processWaitingLDataReqs()
 {
-	if (state != CONNECTED)
+	if (  state != CONNECTED
+	   || !waitingLDataReqs.size()
+	   || lastTunnelReqSendTime != TimePoint::min()
+	   || sentLDataReqs.size() > 2
+	   )
 		return;
 
-	if (!waitingLDataReqs.size() || lastTunnelReqSendTime != TimePoint::min())
-		return;
-
-	sendTunnelReq(waitingLDataReqs.front());
-	lastTunnelReqSendAttempts = 0;
+	sendLDataReq(waitingLDataReqs.front());
+	waitingLDataReqs.pop_front();
 }
 
 bool KnxHandler::receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const
@@ -935,7 +957,7 @@ void KnxHandler::logMsg(ByteString msg, bool received) const
 	}
 }
 
-void KnxHandler::logTunnelReq(ByteString msg) const
+void KnxHandler::logTunnelReq(ByteString msg, bool received) const
 {
 	if (config.getLogData() && msg.length() >= 20)
 	{
@@ -953,7 +975,8 @@ void KnxHandler::logTunnelReq(ByteString msg) const
 			else if ((data[0] & 0x40) == 0x40)
 				type = "Response";
 
-		logger.debug() << msgCode.toStr() << " " << pa.toStr() << " -> " << ga.toStr() << ": " 
+		logger.debug() << (received ? "R: " : "S: ") << msgCode.toStr() << " "
+		               << pa.toStr() << " -> " << ga.toStr() << ": "
 		               << cnvToHexStr(data) << " (" << type << ")" << endOfMsg();
 	}
 }

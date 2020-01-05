@@ -231,28 +231,33 @@ private:
 		string itemId;
 		GroupAddr ga;
 		ByteString data;
-		int attempts;
+		int attempts; // already performed successful sends but without matching L_Data.con
 		LDataReq() : attempts(0) {}
 		LDataReq(string _itemId, GroupAddr _ga, ByteString _data) :
 			itemId(_itemId), ga(_ga), data(_data), attempts(0) {}
 	};
+	struct WaitingLDataReqs: std::list<LDataReq>
+	{
+		void update(const LDataReq& ldataReq);
+		void append(const LDataReq& ldataReq);
+	};
 
-	// L_Data.req messages which are waiting to be sent as TUNNEL REQUEST or to be
-	// confirmed by a TUNNEL ACK.
-	std::list<LDataReq> waitingLDataReqs;
+	// L_Data.req messages which are waiting to be sent as TUNNEL REQUEST.
+	WaitingLDataReqs waitingLDataReqs;
 
-	// Last TUNNEL REQUEST which has been sent.
-	ByteString lastSentTunnelReq;
+	// Last L_Data.req message which has been sent as TUNNEL REQUEST and for which a TUNNEL ACK
+	// is expected.
+	LDataReq lastSentLDataReq;
 
-	// Time when the last TUNNEL REQUEST has been sent. It is set to 0 when the
+	// Time when the last TUNNEL REQUEST has been sent. It is set to TimePoint::min() when the
 	// TUNNEL ACK is received.
 	TimePoint lastTunnelReqSendTime;
 
 	// Number of times the last TUNNEL REQUEST has already been sent.
 	int lastTunnelReqSendAttempts;
 
-	// L_Data.req messages which have been sent but for which no L_Data.con has
-	// been received so far.
+	// L_Data.req messages which have been sent successfully as TUNNEL REQUEST and for which a
+	// TUNNEL ACK has been received but for which no L_Data.con has been received so far.
 	struct SentLDataReq
 	{
 		LDataReq ldataReq;
@@ -279,11 +284,11 @@ private:
 	void disconnect();
 	Events receiveX(const Items& items);
 	Events sendX(const Items& items, const Events& events);
-	void sendTunnelReq(ByteString msg);
-	void sendTunnelReq(const LDataReq& ldataReq);
+	void sendTunnelReq(const LDataReq& ldataReq, Byte seqNo);
+	void sendLDataReq(const LDataReq& ldataReq);
 	void processReceivedLDataCon(ByteString msg);
 	void processReceivedTunnelAck(ByteString msg);
-	void processPendingLDataCon();
+	void processPendingLDataCons();
 	void processPendingTunnelAck();
 	void processWaitingLDataReqs();
 	bool receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const;
@@ -302,7 +307,7 @@ private:
 	void checkConnResp(ByteString msg) const;
 	void checkConnStateResp(ByteString msg, Byte channelId) const;
 	void logMsg(ByteString msg, bool received) const;
-	void logTunnelReq(ByteString msg) const;
+	void logTunnelReq(ByteString msg, bool received) const;
 	string getStatusCodeName(Byte statusCode) const;
 	string getStatusCodeExplanation(Byte statusCode) const;
 	string getStatusCodeText(Byte statusCode) const;
