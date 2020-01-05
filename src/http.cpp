@@ -13,7 +13,7 @@ HttpHandler::HttpHandler(string _id, HttpConfig _config, Logger _logger) :
 	if (info)
 	{
 		LogMsg msg = logger.info();
-		msg << "cURL " << info->version << ", ";
+		msg << "Using cURL " << info->version << ", ";
 		if (info->ssl_version)
 			msg << "TLS/SSL support (" << info->ssl_version << ")";
 		else

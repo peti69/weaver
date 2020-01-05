@@ -271,7 +271,7 @@ bool GroupAddr::fromStr(string gaStr, GroupAddr& ga)
 }
 
 bool GroupAddr::operator==(const GroupAddr& x) 
-{ 
+{
 	return (null && x.null) || (!null && !x.null && value == x.value);
 }
 
@@ -309,26 +309,6 @@ bool PhysicalAddr::fromStr(string paStr, PhysicalAddr& pa)
 	{
 		return false;
 	}
-}
-
-void KnxHandler::WaitingLDataReqs::update(const LDataReq& ldataReq)
-{
-	for (iterator pos = begin(); pos != end(); pos++)
-		if (pos->ga == ldataReq.ga && (pos->data[0] & 0x0C) == (ldataReq.data[0] & 0x0C))
-		{
-			pos->data = ldataReq.data;
-			pos->attempts = 0;
-			return;
-		}
-	push_back(ldataReq);
-}
-
-void KnxHandler::WaitingLDataReqs::append(const LDataReq& ldataReq)
-{
-	for (iterator pos = begin(); pos != end(); pos++)
-		if (pos->ga == ldataReq.ga && (pos->data[0] & 0x0C) == (ldataReq.data[0] & 0x0C))
-			return;
-	push_back(ldataReq);
 }
 
 KnxHandler::KnxHandler(string _id, KnxConfig _config, Logger _logger) : 
@@ -485,25 +465,30 @@ Events KnxHandler::receiveX(const Items& items)
 			for (auto bindingPair : config.getBindings())
 			{
 				auto& binding = bindingPair.second;
-				bool owner = items.getOwnerId(binding.itemId) == id;
-	
-				if (  (ga == binding.stateGa || ga == binding.writeGa) && !owner 
-				   && data.length() == 1 && (data[0] & 0xC0) == 0x00
-				   )
-				{
-					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-					receivedReadReqs.insert(binding.itemId);
-				}
-				else if ((ga == binding.stateGa && owner) || (ga == binding.writeGa && !owner))
-				{
-					Value value = binding.dpt.importValue(data);
-					if (value.isNull())
-						logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data) << "' to value for item " << binding.itemId << endOfMsg();
-					else if (ga == binding.stateGa)
-						events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
+
+				if (ga == binding.stateGa || ga == binding.writeGa)
+					if (data.length() == 1 && (data[0] & 0xC0) == 0x00)
+					{
+						events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+						receivedReadReqs.insert(binding.itemId);
+					}
 					else
-						events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
-				}
+					{
+						bool owner = items.getOwnerId(binding.itemId) == id;
+
+						Value value = binding.dpt.importValue(data);
+						if (value.isNull())
+							logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data)
+							               << "' to value for item " << binding.itemId << endOfMsg();
+						else
+							if (ga == binding.stateGa && (owner || binding.stateGa != binding.writeGa))
+								events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
+							else if (ga == binding.writeGa && (!owner || binding.stateGa != binding.writeGa))
+								events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
+							else
+								logger.error() << "Unable to handle Write with value " << value.toStr()
+								               << " for item " << binding.itemId << endOfMsg();
+					}
 			}
 		}
 		else if (msgCode == MsgCode::LDATA_CON)
@@ -638,14 +623,14 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 			if (event.getType() == EventType::READ_REQ && owner)
 			{
 				if (!binding.stateGa.isNull())
-					waitingLDataReqs.update(LDataReq(itemId, binding.stateGa, data));
+					waitingLDataReqs.emplace_back(itemId, binding.stateGa, data);
 				else if (!binding.writeGa.isNull())
-					waitingLDataReqs.update(LDataReq(itemId, binding.writeGa, data));
+					waitingLDataReqs.emplace_back(itemId, binding.writeGa, data);
 			}
 			else if (event.getType() == EventType::STATE_IND && !owner && !binding.stateGa.isNull())
-				waitingLDataReqs.update(LDataReq(itemId, binding.stateGa, data));
+				waitingLDataReqs.emplace_back(itemId, binding.stateGa, data);
 			else if (event.getType() == EventType::WRITE_REQ && owner && !binding.writeGa.isNull())
-				waitingLDataReqs.update(LDataReq(itemId, binding.writeGa, data));
+				waitingLDataReqs.emplace_back(itemId, binding.writeGa, data);
 		}
 	}
 
@@ -677,16 +662,12 @@ void KnxHandler::processReceivedLDataCon(ByteString msg)
 	GroupAddr ga(msg[16], msg[17]);
 	ByteString data = msg.substr(20, msg[18]);
 
-	for (std::list<SentLDataReq>::iterator pos = sentLDataReqs.begin(); pos != sentLDataReqs.end(); pos++)
-	{
-		const LDataReq& ldataReq = pos->ldataReq;
-
-		if (ldataReq.ga == ga && ldataReq.data == data)
+	for (auto pos = sentLDataReqs.begin(); pos != sentLDataReqs.end(); pos++)
+		if (pos->ldataReq.ga == ga && pos->ldataReq.data == data)
 		{
 			sentLDataReqs.erase(pos);
 			return;
 		}
-	}
 
 	logger.warn() << "Unexpected L_Data.con for GA " << ga.toStr() << " received" << endOfMsg();
 }
@@ -713,18 +694,18 @@ void KnxHandler::processPendingTunnelAck()
 
 	if (lastTunnelReqSendAttempts == 0)
 	{
-		sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
-		lastTunnelReqSendAttempts++;
-
 		logger.warn() << "First TUNNEL REQUEST for " << lastSentLDataReq.itemId
 		              << " was not acknowledged in time" << endOfMsg();
+
+		sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
+		lastTunnelReqSendAttempts++;
 	}
 	else
 	{
-		lastTunnelReqSendTime = TimePoint::min();
-
 		logger.errorX() << "Second TUNNEL REQUEST for " << lastSentLDataReq.itemId
 		                << " was not acknowledged in time" << endOfMsg();
+
+		lastTunnelReqSendTime = TimePoint::min();
 	}
 }
 
@@ -732,7 +713,7 @@ void KnxHandler::processPendingLDataCons()
 {
 	TimePoint now = system_clock::now();
 
-	for (std::list<SentLDataReq>::iterator pos = sentLDataReqs.begin(); pos != sentLDataReqs.end();)
+	for (auto pos = sentLDataReqs.begin(); pos != sentLDataReqs.end();)
 		if (pos->time + config.getLDataConTimeout() <= now)
 		{
 			LDataReq& ldataReq = pos->ldataReq;
@@ -740,7 +721,7 @@ void KnxHandler::processPendingLDataCons()
 			if (ldataReq.attempts == 0)
 			{
 				ldataReq.attempts++;
-				waitingLDataReqs.append(ldataReq);
+				waitingLDataReqs.push_front(ldataReq);
 
 				logger.warn() << "First L_Data.req for " << ldataReq.itemId
 				              << " was not confirmed in time" << endOfMsg();
@@ -757,14 +738,23 @@ void KnxHandler::processPendingLDataCons()
 void KnxHandler::processWaitingLDataReqs()
 {
 	if (  state != CONNECTED
-	   || !waitingLDataReqs.size()
 	   || lastTunnelReqSendTime != TimePoint::min()
-	   || sentLDataReqs.size() > 2
+	   || sentLDataReqs.size() > 4
 	   )
 		return;
 
-	sendLDataReq(waitingLDataReqs.front());
-	waitingLDataReqs.pop_front();
+	for (auto pos1 = waitingLDataReqs.begin(); pos1 != waitingLDataReqs.end(); pos1++)
+	{
+		auto pos2 = sentLDataReqs.begin();
+		while (pos2 != sentLDataReqs.end() && pos1->ga != pos2->ldataReq.ga)
+			pos2++;
+		if (pos2 == sentLDataReqs.end())
+		{
+			sendLDataReq(*pos1);
+			waitingLDataReqs.erase(pos1);
+			return;
+		}
+	}
 }
 
 bool KnxHandler::receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const
@@ -975,9 +965,17 @@ void KnxHandler::logTunnelReq(ByteString msg, bool received) const
 			else if ((data[0] & 0x40) == 0x40)
 				type = "Response";
 
+		string itemId = "?";
+		for (auto bindingPair : config.getBindings())
+		{
+			auto& binding = bindingPair.second;
+			if (binding.stateGa == ga || binding.writeGa == ga)
+				itemId = binding.itemId;
+		}
+
 		logger.debug() << (received ? "R: " : "S: ") << msgCode.toStr() << " "
-		               << pa.toStr() << " -> " << ga.toStr() << ": "
-		               << cnvToHexStr(data) << " (" << type << ")" << endOfMsg();
+		               << pa.toStr() << " -> " << ga.toStr() << ": " << cnvToHexStr(data)
+		               << " (" << type << " for item " << itemId << ")" << endOfMsg();
 	}
 }
 

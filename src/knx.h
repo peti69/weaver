@@ -102,12 +102,13 @@ struct GroupAddr
 
 	Byte high() const { assert(!null); return value >> 8 & 0xFF; }
 	Byte low() const { assert(!null); return value & 0xFF; }
-	
+
 	operator Value() const { assert(!null); return value; }
 	string toStr() const;
 	static bool fromStr(string gaStr, GroupAddr& ga);
-	
+
 	bool operator==(const GroupAddr& x);
+	bool operator!=(const GroupAddr& x) { return !operator==(x); }
 };
 
 struct PhysicalAddr
@@ -236,14 +237,9 @@ private:
 		LDataReq(string _itemId, GroupAddr _ga, ByteString _data) :
 			itemId(_itemId), ga(_ga), data(_data), attempts(0) {}
 	};
-	struct WaitingLDataReqs: std::list<LDataReq>
-	{
-		void update(const LDataReq& ldataReq);
-		void append(const LDataReq& ldataReq);
-	};
 
 	// L_Data.req messages which are waiting to be sent as TUNNEL REQUEST.
-	WaitingLDataReqs waitingLDataReqs;
+	std::list<LDataReq> waitingLDataReqs;
 
 	// Last L_Data.req message which has been sent as TUNNEL REQUEST and for which a TUNNEL ACK
 	// is expected.
