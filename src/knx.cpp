@@ -45,7 +45,7 @@ string ServiceType::toStr() const
 		case TUNNEL_ACK:
 			return "TUNNEL_ACK";
 		default:
-			return "???";
+			return "?" + cnvToHexStr(value) + "?";
 	}
 }
 
@@ -58,7 +58,7 @@ string MsgCode::toStr() const
 	else if (value == MsgCode::LDATA_REQ)
 		return "L_Data.req";
 	else
-		return "?? " + cnvToHexStr(value) + " ??";
+		return "?" + cnvToHexStr(value) + "?";
 }
 
 const DatapointType DPT_1_001(1, 1, "on/off");
@@ -669,7 +669,8 @@ void KnxHandler::processReceivedLDataCon(ByteString msg)
 			return;
 		}
 
-	logger.warn() << "Unexpected L_Data.con for GA " << ga.toStr() << " received" << endOfMsg();
+	logger.warn() << "Unexpected L_Data.con for GA " << ga.toStr()
+	              << " received (Item " << getItemId(ga) << ")" << endOfMsg();
 }
 
 void KnxHandler::processReceivedTunnelAck(ByteString msg)
@@ -694,16 +695,16 @@ void KnxHandler::processPendingTunnelAck()
 
 	if (lastTunnelReqSendAttempts == 0)
 	{
-		logger.warn() << "First TUNNEL REQUEST for " << lastSentLDataReq.itemId
-		              << " was not acknowledged in time" << endOfMsg();
+		logger.warn() << "First TUNNEL REQUEST for GA " << lastSentLDataReq.ga.toStr()
+		              << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 
 		sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
 		lastTunnelReqSendAttempts++;
 	}
 	else
 	{
-		logger.errorX() << "Second TUNNEL REQUEST for " << lastSentLDataReq.itemId
-		                << " was not acknowledged in time" << endOfMsg();
+		logger.errorX() << "Second TUNNEL REQUEST for GA " << lastSentLDataReq.ga.toStr()
+		                << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 
 		lastTunnelReqSendTime = TimePoint::min();
 	}
@@ -723,12 +724,12 @@ void KnxHandler::processPendingLDataCons()
 				ldataReq.attempts++;
 				waitingLDataReqs.push_front(ldataReq);
 
-				logger.warn() << "First L_Data.req for " << ldataReq.itemId
-				              << " was not confirmed in time" << endOfMsg();
+				logger.warn() << "First L_Data.req for GA " << ldataReq.ga.toStr()
+				              << " was not confirmed in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 			}
 			else
-				logger.error() << "Second L_Data.req for " << ldataReq.itemId
-				               << " was not confirmed in time" << endOfMsg();
+				logger.error() << "Second L_Data.req for GA " << ldataReq.ga.toStr()
+				               << " was not confirmed in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 			pos = sentLDataReqs.erase(pos);
 		}
 		else
@@ -965,17 +966,9 @@ void KnxHandler::logTunnelReq(ByteString msg, bool received) const
 			else if ((data[0] & 0x40) == 0x40)
 				type = "Response";
 
-		string itemId = "?";
-		for (auto bindingPair : config.getBindings())
-		{
-			auto& binding = bindingPair.second;
-			if (binding.stateGa == ga || binding.writeGa == ga)
-				itemId = binding.itemId;
-		}
-
 		logger.debug() << (received ? "R: " : "S: ") << msgCode.toStr() << " "
 		               << pa.toStr() << " -> " << ga.toStr() << ": " << cnvToHexStr(data)
-		               << " (" << type << " for item " << itemId << ")" << endOfMsg();
+		               << " (" << type << " for item " << getItemId(ga) << ")" << endOfMsg();
 	}
 }
 
@@ -1050,7 +1043,7 @@ string KnxHandler::getStatusCodeName(Byte statusCode) const
 			return "CONNECTION_IN_USE";
 	}
 
-	return "???";
+	return "?";
 }
 
 string KnxHandler::getStatusCodeExplanation(Byte statusCode) const
@@ -1091,10 +1084,21 @@ string KnxHandler::getStatusCodeExplanation(Byte statusCode) const
 			return "The individual address requested for this connection is already in use.";
 	}
 
-	return "???";
+	return "?";
 }
 
 string KnxHandler::getStatusCodeText(Byte statusCode) const
 {
 	return getStatusCodeName(statusCode) + " = '" + getStatusCodeExplanation(statusCode) + "'";
+}
+
+string KnxHandler::getItemId(GroupAddr ga) const
+{
+	for (auto bindingPair : config.getBindings())
+	{
+		auto& binding = bindingPair.second;
+		if (binding.stateGa == ga || binding.writeGa == ga)
+			return binding.itemId;
+	}
+	return "?";
 }

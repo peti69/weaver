@@ -309,6 +309,7 @@ private:
 	string getStatusCodeName(Byte statusCode) const;
 	string getStatusCodeExplanation(Byte statusCode) const;
 	string getStatusCodeText(Byte statusCode) const;
+	string getItemId(GroupAddr ga) const;
 };
 
 #endif
