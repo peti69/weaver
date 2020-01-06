@@ -445,20 +445,20 @@ Events KnxHandler::receiveX(const Items& items)
 
 		Byte seqNo = msg[8];
 		Byte expectedSeqNo = (lastReceivedSeqNo + 1) & 0xFF;
-		if (seqNo != expectedSeqNo)
-		{
-			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
-			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
-
-			lastReceivedSeqNo = seqNo;
-			return events;
-		}
 		if (seqNo == lastReceivedSeqNo)
 		{
 			logger.warn() << "Received TUNNEL REQUEST has last sequence number " << cnvToHexStr(seqNo)
 			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
 			sendDataMsg(createTunnelAck(seqNo));
+			return events;
+		}
+		if (seqNo != expectedSeqNo)
+		{
+			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
+			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
+
+			lastReceivedSeqNo = seqNo;
 			return events;
 		}
 		lastReceivedSeqNo = seqNo;
