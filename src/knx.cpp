@@ -440,16 +440,21 @@ Events KnxHandler::receiveX(const Items& items)
 	ServiceType serviceType(msg[2], msg[3]);
 	if (state == CONNECTED && serviceType == ServiceType::TUNNEL_REQ)
 	{
-		logTunnelReq(msg, true);
 		checkTunnelReq(msg);
+		logTunnelReq(msg, true);
 
 		Byte seqNo = msg[8];
+		Byte expectedSeqNo = (lastReceivedSeqNo + 1) & 0xFF;
 		if (seqNo == lastReceivedSeqNo)
+		{
+			logger.warn() << "Received TUNNEL REQUEST has old sequence number " << cnvToHexStr(seqNo)
+			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 			return events;
-		if (seqNo != ((lastReceivedSeqNo + 1) & 0xFF))
+		}
+		if (seqNo != expectedSeqNo)
 		{
 			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
-			              << " (last one: " << cnvToHexStr(lastReceivedSeqNo) << ")" << endOfMsg();
+			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 			return events;
 		}
 		lastReceivedSeqNo = seqNo;
