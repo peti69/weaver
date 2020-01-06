@@ -449,6 +449,8 @@ Events KnxHandler::receiveX(const Items& items)
 		{
 			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
 			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
+
+			lastReceivedSeqNo = seqNo;
 			return events;
 		}
 		if (seqNo == lastReceivedSeqNo)
