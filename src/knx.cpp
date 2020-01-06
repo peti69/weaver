@@ -611,8 +611,6 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 		}
 	}
 
-	processPendingTunnelAck();
-	processPendingLDataCons();
 	processWaitingLDataReqs();
 
 	return Events();
@@ -807,6 +805,8 @@ void KnxHandler::sendMsg(IpAddr addr, IpPort port, ByteString msg) const
 	int rc = ::sendto(socket, msg.data(), msg.length(), 0, reinterpret_cast<sockaddr*>(&sockAddr), sizeof(sockAddr));
 	if (rc == -1)
 		logger.errorX() << unixError("sendto") << endOfMsg();
+	if (rc != msg.length())
+		logger.errorX() << "Message size returned by sendTo() differs from the passed one" << endOfMsg();
 
 	logMsg(msg, false);
 }
