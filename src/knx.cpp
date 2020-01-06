@@ -691,7 +691,8 @@ void KnxHandler::processReceivedTunnelAck(ByteString msg)
 		return;
 	}
 
-	logger.warn() << "Unexpected TUNNEL_ACQ received" << endOfMsg();
+	logger.warn() << "Received unexpected TUNNEL ACQ with sequence number "
+	              << cnvToHexStr(msg[8]) << endOfMsg();
 }
 
 void KnxHandler::processPendingTunnelAck()
@@ -704,7 +705,8 @@ void KnxHandler::processPendingTunnelAck()
 
 	if (lastTunnelReqSendAttempts == 0)
 	{
-		logger.warn() << "First TUNNEL REQUEST for GA " << lastSentLDataReq.ga.toStr()
+		logger.warn() << "First TUNNEL REQUEST with sequence number " << cnvToHexStr(lastSentSeqNo)
+		              << " for GA " << lastSentLDataReq.ga.toStr()
 		              << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 
 		sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
@@ -712,7 +714,8 @@ void KnxHandler::processPendingTunnelAck()
 	}
 	else
 	{
-		logger.errorX() << "Second TUNNEL REQUEST for GA " << lastSentLDataReq.ga.toStr()
+		logger.errorX() << "Second TUNNEL REQUEST with sequence number " << cnvToHexStr(lastSentSeqNo)
+		                << " for GA " << lastSentLDataReq.ga.toStr()
 		                << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 
 		lastTunnelReqSendTime = TimePoint::min();
