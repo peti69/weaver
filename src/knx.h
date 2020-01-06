@@ -276,7 +276,7 @@ public:
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;
-	
+
 private:
 	void close();
 	void disconnect();
@@ -285,6 +285,7 @@ private:
 	void sendTunnelReq(const LDataReq& ldataReq, Byte seqNo);
 	void sendLDataReq(const LDataReq& ldataReq);
 	void processReceivedLDataCon(ByteString msg);
+	void processReceivedLDataInd(ByteString msg, const Items& items, Events& events);
 	void processReceivedTunnelAck(ByteString msg);
 	void processPendingLDataCons();
 	void processPendingTunnelAck();

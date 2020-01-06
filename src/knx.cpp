@@ -433,129 +433,97 @@ Events KnxHandler::receiveX(const Items& items)
 	ByteString msg;
 	IpAddr senderIpAddr;
 	IpPort senderIpPort;
-	if (!receiveMsg(msg, senderIpAddr, senderIpPort))
-		return events;
-	checkMsg(msg);
-
-	ServiceType serviceType(msg[2], msg[3]);
-	if (state == CONNECTED && serviceType == ServiceType::TUNNEL_REQ)
+	while (receiveMsg(msg, senderIpAddr, senderIpPort))
 	{
-		checkTunnelReq(msg);
-		logTunnelReq(msg, true);
+		checkMsg(msg);
 
-		Byte seqNo = msg[8];
-		Byte expectedSeqNo = (lastReceivedSeqNo + 1) & 0xFF;
-		if (seqNo == lastReceivedSeqNo)
+		ServiceType serviceType(msg[2], msg[3]);
+		if (state == CONNECTED && serviceType == ServiceType::TUNNEL_REQ)
 		{
-			logger.warn() << "Received TUNNEL REQUEST has last sequence number " << cnvToHexStr(seqNo)
-			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
+			checkTunnelReq(msg);
+			logTunnelReq(msg, true);
 
-			sendDataMsg(createTunnelAck(seqNo));
-			return events;
-		}
-		if (seqNo != expectedSeqNo)
-		{
-			logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
-			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
-
-			lastReceivedSeqNo = seqNo;
-			return events;
-		}
-		lastReceivedSeqNo = seqNo;
-
-		sendDataMsg(createTunnelAck(seqNo));
-
-		MsgCode msgCode = msg[10];
-		if (msgCode == MsgCode::LDATA_IND)
-		{
-			GroupAddr ga(msg[16], msg[17]);
-			ByteString data = msg.substr(20, msg[18]);
-
-			for (auto bindingPair : config.getBindings())
+			Byte seqNo = msg[8];
+			Byte expectedSeqNo = (lastReceivedSeqNo + 1) & 0xFF;
+			if (seqNo == lastReceivedSeqNo)
 			{
-				auto& binding = bindingPair.second;
+				logger.warn() << "Received TUNNEL REQUEST has last sequence number " << cnvToHexStr(seqNo)
+				              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
-				if (ga == binding.stateGa || ga == binding.writeGa)
-					if (data.length() == 1 && (data[0] & 0xC0) == 0x00)
-					{
-						events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-						receivedReadReqs.insert(binding.itemId);
-					}
-					else
-					{
-						bool owner = items.getOwnerId(binding.itemId) == id;
-
-						Value value = binding.dpt.importValue(data);
-						if (value.isNull())
-							logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data)
-							               << "' to value for item " << binding.itemId << endOfMsg();
-						else
-							if (ga == binding.stateGa && (owner || binding.stateGa != binding.writeGa))
-								events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
-							else if (ga == binding.writeGa && (!owner || binding.stateGa != binding.writeGa))
-								events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
-							else
-								logger.error() << "Unable to handle Write with value " << value.toStr()
-								               << " for item " << binding.itemId << endOfMsg();
-					}
+				sendDataMsg(createTunnelAck(seqNo));
+				return events;
 			}
+			if (seqNo != expectedSeqNo)
+			{
+				logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
+				              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
+
+				lastReceivedSeqNo = seqNo;
+				return events;
+			}
+			lastReceivedSeqNo = seqNo;
+			sendDataMsg(createTunnelAck(seqNo));
+
+			MsgCode msgCode = msg[10];
+			if (msgCode == MsgCode::LDATA_IND)
+				processReceivedLDataInd(msg, items, events);
+			else if (msgCode == MsgCode::LDATA_CON)
+				processReceivedLDataCon(msg);
+			else
+				logger.warn() << "Received TUNNEL REQUEST has unknown message code " + cnvToHexStr(msgCode) << endOfMsg();
 		}
-		else if (msgCode == MsgCode::LDATA_CON)
+		else if (state == CONNECTED && serviceType == ServiceType::TUNNEL_ACK)
 		{
-			processReceivedLDataCon(msg);
+			checkTunnelAck(msg);
+
+			processReceivedTunnelAck(msg);
 		}
-	}
-	else if (state == CONNECTED && serviceType == ServiceType::TUNNEL_ACK)
-	{
-		checkTunnelAck(msg);
-
-		processReceivedTunnelAck(msg);
-	}
-	else if (state == CONNECTED && serviceType == ServiceType::CONN_STATE_RESP && ongoingConnStateReq)
-	{
-		checkConnStateResp(msg, channelId);
-
-		ongoingConnStateReq = false;
-	}
-	else if (state == WAIT_FOR_CONN_RESP && serviceType == ServiceType::CONN_RESP)
-	{
-		checkConnResp(msg);
-
-		channelId = msg[6];
-		dataIpAddr = IpAddr(msg[10], msg[11], msg[12], msg[13]);
-		dataIpPort = IpPort(msg[14] << 8 | msg[15]);
-		if (config.getNatMode() && (dataIpAddr == 0 || dataIpPort == 0))
+		else if (state == CONNECTED && serviceType == ServiceType::CONN_STATE_RESP && ongoingConnStateReq)
 		{
-			dataIpPort = senderIpPort;
-			dataIpAddr = senderIpAddr;
+			checkConnStateResp(msg, channelId);
+
+			ongoingConnStateReq = false;
 		}
-		if (msg[18] != 0 || msg[19] != 0)
-			physicalAddr = PhysicalAddr(msg[18], msg[19]);
+		else if (state == WAIT_FOR_CONN_RESP && serviceType == ServiceType::CONN_RESP)
+		{
+			checkConnResp(msg);
+
+			channelId = msg[6];
+			dataIpAddr = IpAddr(msg[10], msg[11], msg[12], msg[13]);
+			dataIpPort = IpPort(msg[14] << 8 | msg[15]);
+			if (config.getNatMode() && (dataIpAddr == 0 || dataIpPort == 0))
+			{
+				dataIpPort = senderIpPort;
+				dataIpAddr = senderIpAddr;
+			}
+			if (msg[18] != 0 || msg[19] != 0)
+				physicalAddr = PhysicalAddr(msg[18], msg[19]);
+			else
+				physicalAddr = config.getPhysicalAddr();
+
+			state = CONNECTED;
+			ongoingConnStateReq = false;
+			waitingLDataReqs.clear();
+			sentLDataReqs.clear();
+			lastReceivedSeqNo = 0xFF;
+			lastSentSeqNo = 0xFF;
+			lastTunnelReqSendTime = TimePoint::min();
+
+			logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
+			logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
+			logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort()
+			              << " with physical address " << physicalAddr.toStr() << endOfMsg();
+		}
+		else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
+		{
+			sendControlMsg(createDiscResp());
+
+			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
+			close();
+		}
 		else
-			physicalAddr = config.getPhysicalAddr();
-
-		state = CONNECTED;
-		ongoingConnStateReq = false;
-		waitingLDataReqs.clear();
-		sentLDataReqs.clear();
-		lastReceivedSeqNo = 0xFF;
-		lastSentSeqNo = 0xFF;
-		lastTunnelReqSendTime = TimePoint::min();
-
-		logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
-		logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
-		logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort()
-		              << " with physical address " << physicalAddr.toStr() << endOfMsg();
+			logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
 	}
-	else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
-	{
-		sendControlMsg(createDiscResp());
-
-		logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
-		close();
-	}
-	else
-		logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
 
 	processPendingTunnelAck();
 	processPendingLDataCons();
@@ -664,6 +632,41 @@ void KnxHandler::sendLDataReq(const LDataReq& ldataReq)
 	lastSentLDataReq = ldataReq;
 	lastTunnelReqSendAttempts = 0;
 	sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
+}
+
+void KnxHandler::processReceivedLDataInd(ByteString msg, const Items& items, Events& events)
+{
+	GroupAddr ga(msg[16], msg[17]);
+	ByteString data = msg.substr(20, msg[18]);
+
+	for (auto bindingPair : config.getBindings())
+	{
+		auto& binding = bindingPair.second;
+
+		if (ga == binding.stateGa || ga == binding.writeGa)
+			if (data.length() == 1 && (data[0] & 0xC0) == 0x00)
+			{
+				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+				receivedReadReqs.insert(binding.itemId);
+			}
+			else
+			{
+				bool owner = items.getOwnerId(binding.itemId) == id;
+
+				Value value = binding.dpt.importValue(data);
+				if (value.isNull())
+					logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data)
+					               << "' to value for item " << binding.itemId << endOfMsg();
+				else
+					if (ga == binding.stateGa && (owner || binding.stateGa != binding.writeGa))
+						events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
+					else if (ga == binding.writeGa && (!owner || binding.stateGa != binding.writeGa))
+						events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
+					else
+						logger.error() << "Unable to handle Write with value " << value.toStr()
+						               << " for item " << binding.itemId << endOfMsg();
+			}
+	}
 }
 
 void KnxHandler::processReceivedLDataCon(ByteString msg)
