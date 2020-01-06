@@ -447,7 +447,7 @@ Events KnxHandler::receiveX(const Items& items)
 		Byte expectedSeqNo = (lastReceivedSeqNo + 1) & 0xFF;
 		if (seqNo == lastReceivedSeqNo)
 		{
-			logger.warn() << "Received TUNNEL REQUEST has old sequence number " << cnvToHexStr(seqNo)
+			logger.warn() << "Received TUNNEL REQUEST has last sequence number " << cnvToHexStr(seqNo)
 			              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 			return events;
 		}
@@ -730,11 +730,11 @@ void KnxHandler::processPendingLDataCons()
 				waitingLDataReqs.push_front(ldataReq);
 
 				logger.warn() << "First L_Data.req for GA " << ldataReq.ga.toStr()
-				              << " was not confirmed in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
+				              << " was not confirmed in time (Item " << ldataReq.itemId << ")" << endOfMsg();
 			}
 			else
 				logger.error() << "Second L_Data.req for GA " << ldataReq.ga.toStr()
-				               << " was not confirmed in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
+				               << " was not confirmed in time (Item " << ldataReq.itemId << ")" << endOfMsg();
 			pos = sentLDataReqs.erase(pos);
 		}
 		else
