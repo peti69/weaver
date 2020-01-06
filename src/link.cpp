@@ -129,7 +129,7 @@ Events Link::receive(Items& items)
 						event.setValue(Value(true));
 					else
 						convertError = true;
-			else if (value.isString() && voidAsString && item.getType() == ValueType::VOID)
+			else if (item.getType() == ValueType::VOID)
 				event.setValue(Value::newVoid());
 			if (convertError)
 			{
