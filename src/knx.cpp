@@ -520,6 +520,8 @@ Events KnxHandler::receiveX(const Items& items)
 
 			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
 			close();
+
+			return events;
 		}
 		else
 			logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
