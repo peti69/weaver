@@ -10,7 +10,7 @@
 
 std::ostream& operator<<(std::ostream& stream, unixError error)
 {
-	return stream << "Error " << error.getErrorNo() << " (" << strerror(error.getErrorNo()) << ") in function " << error.getErrorFunc() << " occurred";
+	return stream << "Error " << error.getErrorNo() << " (" << strerror(error.getErrorNo()) << ") returned by system function " << error.getErrorFunc() << " occurred";
 }
 
 void operator<<(std::ostream& stream, endOfMsg)
