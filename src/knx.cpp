@@ -784,6 +784,8 @@ bool KnxHandler::receiveMsg(ByteString& msg, IpAddr& addr, IpPort& port) const
 			return false;
 		else
 			logger.errorX() << unixError("recvFrom") << endOfMsg();
+	if (rc == 0)
+		logger.errorX() << "Message size 0 returned by recvFrom()" << endOfMsg();
 
 	if (sockAddrLen != sizeof(sockAddr))
 		logger.errorX() << "Address returned by recvFrom() has unexpected size" << endOfMsg();
