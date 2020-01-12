@@ -666,9 +666,6 @@ void KnxHandler::processReceivedLDataInd(ByteString msg, const Items& items, Eve
 						events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
 					else if (ga == binding.writeGa && !owner)
 						events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
-					else
-						logger.error() << "Unable to handle Write with value " << value.toStr()
-						               << " for item " << binding.itemId << endOfMsg();
 			}
 	}
 }
