@@ -643,25 +643,27 @@ void KnxHandler::processReceivedLDataInd(ByteString msg, const Items& items, Eve
 	for (auto bindingPair : config.getBindings())
 	{
 		auto& binding = bindingPair.second;
+		bool owner = items.getOwnerId(binding.itemId) == id;
 
 		if (ga == binding.stateGa || ga == binding.writeGa)
 			if (data.length() == 1 && (data[0] & 0xC0) == 0x00)
 			{
-				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-				receivedReadReqs.insert(binding.itemId);
+				if (!owner)
+				{
+					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+					receivedReadReqs.insert(binding.itemId);
+				}
 			}
 			else
 			{
-				bool owner = items.getOwnerId(binding.itemId) == id;
-
 				Value value = binding.dpt.importValue(data);
 				if (value.isNull())
 					logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data)
 					               << "' to value for item " << binding.itemId << endOfMsg();
 				else
-					if (ga == binding.stateGa && (owner || binding.stateGa != binding.writeGa))
+					if (ga == binding.stateGa && owner)
 						events.add(Event(id, binding.itemId, EventType::STATE_IND, value));
-					else if (ga == binding.writeGa && (!owner || binding.stateGa != binding.writeGa))
+					else if (ga == binding.writeGa && !owner)
 						events.add(Event(id, binding.itemId, EventType::WRITE_REQ, value));
 					else
 						logger.error() << "Unable to handle Write with value " << value.toStr()
