@@ -123,7 +123,7 @@ std::regex Config::convertPattern(string fieldName, string pattern) const
 {
 	try
 	{
-		return std::regex(pattern, std::regex_constants::ECMAScript);
+		return std::regex(pattern, std::regex_constants::extended);
 	}
 	catch (const std::regex_error& ex)
 	{
