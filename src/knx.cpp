@@ -430,6 +430,9 @@ Events KnxHandler::receiveX(const Items& items)
 	else if (state == WAIT_FOR_CONN_RESP && lastControlReqSendTime + config.getControlRespTimeout() <= now)
 		logger.errorX() << "CONNECTION REQUEST not answered in time" << endOfMsg();
 
+	processPendingTunnelAck();
+	processPendingLDataCons();
+
 	ByteString msg;
 	IpAddr senderIpAddr;
 	IpPort senderIpPort;
@@ -528,8 +531,6 @@ Events KnxHandler::receiveX(const Items& items)
 			logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
 	}
 
-	processPendingTunnelAck();
-	processPendingLDataCons();
 	processWaitingLDataReqs();
 
 	return events;
