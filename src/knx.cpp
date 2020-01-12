@@ -45,7 +45,7 @@ string ServiceType::toStr() const
 		case TUNNEL_ACK:
 			return "TUNNEL_ACK";
 		default:
-			return "?" + cnvToHexStr(value) + "?";
+			return "?0x" + cnvToHexStr(value) + "?";
 	}
 }
 
@@ -58,7 +58,7 @@ string MsgCode::toStr() const
 	else if (value == MsgCode::LDATA_REQ)
 		return "L_Data.req";
 	else
-		return "?" + cnvToHexStr(value) + "?";
+		return "?0x" + cnvToHexStr(value) + "?";
 }
 
 const DatapointType DPT_1_001(1, 1, "on/off");
@@ -447,16 +447,16 @@ Events KnxHandler::receiveX(const Items& items)
 			Byte expectedSeqNo = (lastReceivedSeqNo + 1) & 0xFF;
 			if (seqNo == lastReceivedSeqNo)
 			{
-				logger.warn() << "Received TUNNEL REQUEST has last sequence number " << cnvToHexStr(seqNo)
-				              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
+				logger.warn() << "Received TUNNEL REQUEST has last sequence number 0x" << cnvToHexStr(seqNo)
+				              << " (expected: 0x" << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
 				sendDataMsg(createTunnelAck(seqNo));
 				return events;
 			}
 			if (seqNo != expectedSeqNo)
 			{
-				logger.warn() << "Received TUNNEL REQUEST has invalid sequence number " << cnvToHexStr(seqNo)
-				              << " (expected: " << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
+				logger.warn() << "Received TUNNEL REQUEST has invalid sequence number 0x" << cnvToHexStr(seqNo)
+				              << " (expected: 0x" << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
 				lastReceivedSeqNo = seqNo;
 				return events;
@@ -470,7 +470,7 @@ Events KnxHandler::receiveX(const Items& items)
 			else if (msgCode == MsgCode::LDATA_CON)
 				processReceivedLDataCon(msg);
 			else
-				logger.warn() << "Received TUNNEL REQUEST has unknown message code " + cnvToHexStr(msgCode) << endOfMsg();
+				logger.warn() << "Received TUNNEL REQUEST has unknown message code 0x" + cnvToHexStr(msgCode) << endOfMsg();
 		}
 		else if (state == CONNECTED && serviceType == ServiceType::TUNNEL_ACK)
 		{
@@ -508,8 +508,9 @@ Events KnxHandler::receiveX(const Items& items)
 			lastReceivedSeqNo = 0xFF;
 			lastSentSeqNo = 0xFF;
 			lastTunnelReqSendTime = TimePoint::min();
+			receivedReadReqs.clear();
 
-			logger.debug() << "Using channel " << cnvToHexStr(channelId) << endOfMsg();
+			logger.debug() << "Using channel 0x" << cnvToHexStr(channelId) << endOfMsg();
 			logger.debug() << "Using " << dataIpAddr.toStr() << ":" << dataIpPort << " as remote data endpoint" << endOfMsg();
 			logger.info() << "Connected to KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort()
 			              << " with physical address " << physicalAddr.toStr() << endOfMsg();
@@ -694,7 +695,7 @@ void KnxHandler::processReceivedTunnelAck(ByteString msg)
 		return;
 	}
 
-	logger.warn() << "Received unexpected TUNNEL ACQ with sequence number "
+	logger.warn() << "Received unexpected TUNNEL ACQ with sequence number 0x"
 	              << cnvToHexStr(msg[8]) << endOfMsg();
 }
 
@@ -708,7 +709,7 @@ void KnxHandler::processPendingTunnelAck()
 
 	if (lastTunnelReqSendAttempts == 0)
 	{
-		logger.warn() << "First TUNNEL REQUEST with sequence number " << cnvToHexStr(lastSentSeqNo)
+		logger.warn() << "First TUNNEL REQUEST with sequence number 0x" << cnvToHexStr(lastSentSeqNo)
 		              << " for GA " << lastSentLDataReq.ga.toStr()
 		              << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 
@@ -717,7 +718,7 @@ void KnxHandler::processPendingTunnelAck()
 	}
 	else
 	{
-		logger.errorX() << "Second TUNNEL REQUEST with sequence number " << cnvToHexStr(lastSentSeqNo)
+		logger.errorX() << "Second TUNNEL REQUEST with sequence number 0x" << cnvToHexStr(lastSentSeqNo)
 		                << " for GA " << lastSentLDataReq.ga.toStr()
 		                << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 

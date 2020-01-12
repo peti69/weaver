@@ -171,9 +171,10 @@ public:
 		PhysicalAddr _physicalAddr, bool _logRawMsg, bool _logData, Bindings _bindings) :
 		localIpAddr(_localIpAddr), natMode(_natMode), ipAddr(_ipAddr), ipPort(_ipPort), 
 		reconnectInterval(_reconnectInterval), connStateReqInterval(_connStateReqInterval), 
-		controlRespTimeout(_controlRespTimeout), ldataConTimeout(_ldataConTimeout), tunnelAckTimeout(_tunnelAckTimeout),
+		controlRespTimeout(_controlRespTimeout), tunnelAckTimeout(_tunnelAckTimeout), ldataConTimeout(_ldataConTimeout),
 		physicalAddr(_physicalAddr), logRawMsg(_logRawMsg), logData(_logData), bindings(_bindings)
 	{}
+
 	IpAddr getLocalIpAddr() const { return localIpAddr; }
 	bool getNatMode() const { return natMode; }
 	IpAddr getIpAddr() const { return ipAddr; }
