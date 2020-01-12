@@ -454,7 +454,7 @@ Events KnxHandler::receiveX(const Items& items)
 				              << " (expected: 0x" << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
 				sendDataMsg(createTunnelAck(seqNo));
-				return events;
+				continue;
 			}
 			if (seqNo != expectedSeqNo)
 			{
@@ -462,7 +462,7 @@ Events KnxHandler::receiveX(const Items& items)
 				              << " (expected: 0x" << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
 				lastReceivedSeqNo = seqNo;
-				return events;
+				continue;
 			}
 			lastReceivedSeqNo = seqNo;
 			sendDataMsg(createTunnelAck(seqNo));
