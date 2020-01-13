@@ -99,27 +99,41 @@ bool Handler::connect(const Items& items)
 
 	mosquitto_message_callback_set(client, onMqttMessage);
 
-	for (auto bindingPair : config.getBindings())
-	{
-		auto& binding = bindingPair.second;
-		bool owner = items.getOwnerId(binding.itemId) == id;
+	if (config.getBindings().size())
+		for (auto bindingPair : config.getBindings())
+		{
+			auto& binding = bindingPair.second;
+			bool owner = items.getOwnerId(binding.itemId) == id;
 
-		if (owner)
-			for (string stateTopic : binding.stateTopics)
+			if (owner)
+				for (string stateTopic : binding.stateTopics)
+				{
+					ec = mosquitto_subscribe(client, 0, stateTopic.c_str(), 0);
+					handleError("mosquitto_subscribe", ec);
+				}
+			if (binding.writeTopic != "" && !owner)
 			{
-				ec = mosquitto_subscribe(client, 0, stateTopic.c_str(), 0);
+				ec = mosquitto_subscribe(client, 0, binding.writeTopic.c_str(), 0);
 				handleError("mosquitto_subscribe", ec);
 			}
-		if (binding.writeTopic != "" && !owner)
-		{
-			ec = mosquitto_subscribe(client, 0, binding.writeTopic.c_str(), 0);
-			handleError("mosquitto_subscribe", ec);
+			if (binding.readTopic != "" && !owner)
+			{
+				ec = mosquitto_subscribe(client, 0, binding.readTopic.c_str(), 0);
+				handleError("mosquitto_subscribe", ec);
+			}
 		}
-		if (binding.readTopic != "" && !owner)
+	else
+	{
+		auto subscribe = [&] (TopicPattern topicPattern)
 		{
-			ec = mosquitto_subscribe(client, 0, binding.readTopic.c_str(), 0);
+			if (topicPattern.isNull())
+				return;
+			ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
 			handleError("mosquitto_subscribe", ec);
-		}
+		};
+//		subscribe(config.getStateTopicPattern());
+		subscribe(config.getWriteTopicPattern());
+		subscribe(config.getReadTopicPattern());
 	}
 
 	for (auto topic : config.getSubTopics())
@@ -127,17 +141,6 @@ bool Handler::connect(const Items& items)
 		ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
 		handleError("mosquitto_subscribe", ec);
 	}
-
-	auto subscribe = [&] (TopicPattern topicPattern)
-	{
-		if (topicPattern.isNull())
-			return;
-		ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
-		handleError("mosquitto_subscribe", ec);
-	};
-//	subscribe(config.getStateTopicPattern());
-	subscribe(config.getWriteTopicPattern());
-	subscribe(config.getReadTopicPattern());
 
 	autoDisconnect.disable();
 	connected = true;
@@ -217,40 +220,44 @@ Events Handler::receiveX(const Items& items)
 	int ec = mosquitto_loop(client, 0, 1);
 	handleError("mosquitto_loop", ec);
 
+	auto& bindings = config.getBindings();
 	for (auto& msg : receivedMsgs)
-	{
-		int eventCount = events.size();
-
-		for (auto bindingPair : config.getBindings())
+		if (bindings.size())
 		{
-			auto& binding = bindingPair.second;
+			int eventCount = events.size();
 
-			if (binding.writeTopic == msg.topic)
-				events.add(Event(id, binding.itemId, EventType::WRITE_REQ, msg.payload));
-			else if (binding.readTopic == msg.topic)
-				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
-				events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.payload));
+			for (auto bindingPair : bindings)
+			{
+				auto& binding = bindingPair.second;
+
+				if (binding.writeTopic == msg.topic)
+					events.add(Event(id, binding.itemId, EventType::WRITE_REQ, msg.payload));
+				else if (binding.readTopic == msg.topic)
+					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+				else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
+					events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.payload));
+			}
+
+			if (eventCount == events.size() && config.getSubTopics().size() == 0)
+				logger.warn() << "No item for topic " << msg.topic << endOfMsg();
 		}
-
-		string itemId;
-		auto getItemId = [&] (TopicPattern topicPattern)
+		else
 		{
-			if (topicPattern.isNull())
-				return false;
-			itemId = topicPattern.getItemId(msg.topic);
-			return itemId.length() > 0;
-		};
-		if (getItemId(config.getWriteTopicPattern()))
-			events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
-		else if (getItemId(config.getReadTopicPattern()))
-			events.add(Event(id, itemId, EventType::READ_REQ, msg.payload));
-//		else if (getItemId(config.getStateTopicPattern()))
-//			events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
-
-		if (eventCount == events.size() && config.getSubTopics().size() == 0)
-			logger.warn() << "No item for topic " << msg.topic << endOfMsg();
-	}
+			string itemId;
+			auto getItemId = [&] (TopicPattern topicPattern)
+			{
+				if (topicPattern.isNull())
+					return false;
+				itemId = topicPattern.getItemId(msg.topic);
+				return itemId.length() > 0 && items.exists(itemId);
+			};
+			if (getItemId(config.getWriteTopicPattern()))
+				events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
+			else if (getItemId(config.getReadTopicPattern()))
+				events.add(Event(id, itemId, EventType::READ_REQ, msg.payload));
+//			else if (getItemId(config.getStateTopicPattern()))
+//				events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
+		}
 
 	receivedMsgs.clear();
 
@@ -293,23 +300,26 @@ Events Handler::sendX(const Items& items, const Events& events)
 				sendMessage(topic, event.getValue().getString(), config.getRetainFlag());
 		};
 
-		auto bindingPos = bindings.find(itemId);
-		if (bindingPos != bindings.end())
+		if (bindings.size())
 		{
-			auto& binding = bindingPos->second;
+			auto bindingPos = bindings.find(itemId);
+			if (bindingPos != bindings.end())
+			{
+				auto& binding = bindingPos->second;
 
-			if (event.getType() == EventType::STATE_IND)
-				for (string stateTopic : binding.stateTopics)
-					sendMessageWithPayload(stateTopic, config.getRetainFlag());
-			else if (event.getType() == EventType::WRITE_REQ)
-			{
-				if (binding.writeTopic != "")
-					sendMessageWithPayload(binding.writeTopic, false);
-			}
-			else if (event.getType() == EventType::READ_REQ)
-			{
-				if (binding.readTopic != "")
-					sendMessage(binding.readTopic, "", false);
+				if (event.getType() == EventType::STATE_IND)
+					for (string stateTopic : binding.stateTopics)
+						sendMessageWithPayload(stateTopic, config.getRetainFlag());
+				else if (event.getType() == EventType::WRITE_REQ)
+				{
+					if (binding.writeTopic != "")
+						sendMessageWithPayload(binding.writeTopic, false);
+				}
+				else if (event.getType() == EventType::READ_REQ)
+				{
+					if (binding.readTopic != "")
+						sendMessage(binding.readTopic, "", false);
+				}
 			}
 		}
 		else
@@ -331,7 +341,7 @@ Events Handler::sendX(const Items& items, const Events& events)
 //			}
 		}
 	}
-	
+
 	return Events();
 }
 
