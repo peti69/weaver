@@ -188,10 +188,10 @@ Items Config::getItems() const
 
 		string ownerId = getString(itemValue, "ownerId");
 
-		bool readable = getBool(itemValue, "readable", true);
-		bool writable = getBool(itemValue, "writable", true);
+		Item item(itemId, type, ownerId);
 
-		Item item(itemId, type, ownerId, readable, writable);
+		item.setReadable(getBool(itemValue, "readable", true));
+		item.setWritable(getBool(itemValue, "writable", true));
 
 		item.setPollInterval(getInt(itemValue, "pollInterval", 0));
 
@@ -291,10 +291,21 @@ Links Config::getLinks(const Items& items, Log& log) const
 		links.add(Link(id, numberAsString, booleanAsString, falseValue, trueValue, unwritableFalseValue,
 				unwritableTrueValue, voidAsString, voidValue, modifiers, handler, logger));
 	}
-	
+
 	for (auto itemPair : items)
-		if (!links.exists(itemPair.second.getOwnerId()))
-			throw std::runtime_error("Item " + itemPair.first + " associated with unknown link " + itemPair.second.getOwnerId());
+	{
+		auto& item = itemPair.second;
+
+		auto linkPair = links.find(item.getOwnerId());
+		if (linkPair == links.end())
+			throw std::runtime_error("Item " + item.getId() + " associated with unknown link " + item.getOwnerId());
+		auto& link = linkPair->second;
+
+		if (!link.supports(EventType::READ_REQ))
+			item.setReadable(false);
+		if (!link.supports(EventType::WRITE_REQ))
+			item.setWritable(false);
+	}
 
 	return links;
 }

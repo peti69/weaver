@@ -165,8 +165,8 @@ int main(int argc, char* argv[])
 
 			// remove READ_REQ and generate STATE_IND
 			if (  event.getType() == EventType::READ_REQ
-			   && (  !link.supports(EventType::READ_REQ) // if item can not be read
-			      || item.isSendOnChangeEnabled() // or if only changes are forwarded
+			   && (  !item.isReadable() // if item can not be read
+//			      || item.isSendOnChangeEnabled() // or if only changes are forwarded
 			      )
 			   )
 			{

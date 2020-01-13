@@ -115,7 +115,7 @@ private:
 	bool readable;
 
 	// Indicates whether the item can be modified by means of WRITE_REQ to the owner link.
-	bool writeable;
+	bool writable;
 
 	// Frequency in which the link generates READ_REQ events and passes them to its handler.
 	int pollInterval;
@@ -160,17 +160,20 @@ private:
 	std::time_t lastPollTime;
 
 public:	
-	Item(string id, ValueType type, string ownerId, bool readable, bool writable) :
+	Item(string id, ValueType type, string ownerId) :
 		id(id), type(type), ownerId(ownerId),
-		readable(readable), writeable(writable), pollInterval(0),
+		readable(true), writable(true), pollInterval(0),
 		sendOnTimer(false), duration(0),
 		sendOnChange(false), relVariation(0.0), absVariation(0.0), minimum(0.0), maximum(0.0),
 		lastSendTime(0), lastPollTime(0) {}
 	string getId() const { return id; }
 	ValueType getType() const { return type; }
 	string getOwnerId() const { return ownerId; }
-	bool isReadable() const  { return readable; }
-	bool isWritable() const  { return writeable; }
+
+	void setReadable(bool _readable) { readable = _readable; }
+	bool isReadable() const { return readable; }
+	void setWritable(bool _writable) { writable = _writable; }
+	bool isWritable() const { return writable; }
 
 	void setPollInterval(int _pollInterval) { pollInterval = _pollInterval; }
 
@@ -188,8 +191,6 @@ public:
 	std::time_t getLastSendTime() const { return lastSendTime; }
 	void setLastPollTime(std::time_t _lastPollTime) { lastPollTime = _lastPollTime; }
 	std::time_t getLastPollTime() const { return lastPollTime; }
-
-	//bool isPollEnabled() const { return pollInterval; }
 
 	bool isPollRequired(std::time_t now) const;
 
