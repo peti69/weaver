@@ -217,7 +217,10 @@ void Link::send(Items& items, const Events& events)
 				else
 					event.setValue(Value(value.getBoolean() ? unwritableTrueValue : unwritableFalseValue));
 			else if (value.getType() == ValueType::VOID && voidAsString)
-				event.setValue(Value(voidValue));
+				if (item.isWritable())
+					event.setValue(Value(voidValue));
+				else
+					event.setValue(Value(unwritableVoidValue));
 		}
 
 		eventPos++;

@@ -104,13 +104,13 @@
 		{ "id": "BP_Aral", "type": "number", "ownerId": "tankerkönig", "writable": false, "pollInterval": 600 },
 		{ "id": "BP_Esso", "type": "number", "ownerId": "tankerkönig", "writable": false, "pollInterval": 600 },
 
-		{ "id": "Handy_Peter", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Handy_Beate", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Handy_Meike", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Handy_Merle", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-
-		{ "id": "Fernseher_Wohnen_2", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Fernseher_Hobbyraum_2", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Peters_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Beates_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Meikes_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Merles_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_TV_Wohnen", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_TV_Hobbyraum", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Chromecast", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
 
 		{ "id": "Strom_Zaehlerstand", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 1 }, "sendOnTimer": {} },
 		{ "id": "Stromverbrauch_Aktuell_Gesamt", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
@@ -348,10 +348,10 @@
 				"bindings":	[
 					{ "itemId": "Haustuerklingel", "writeGa": "3/3/15", "dpt": "1.001" },
 
-					{ "itemId": "Handy_Peter", "stateGa": "5/0/30", "dpt": "1.001" },
-					{ "itemId": "Handy_Beate", "stateGa": "5/0/31", "dpt": "1.001" },
-					{ "itemId": "Handy_Meike", "stateGa": "5/0/32", "dpt": "1.001" },
-					{ "itemId": "Handy_Merle", "stateGa": "5/0/33", "dpt": "1.001" },
+					{ "itemId": "Netzwerk_Peters_Handy", "stateGa": "5/0/30", "dpt": "1.001" },
+					{ "itemId": "Netzwerk_Beates_Handy", "stateGa": "5/0/31", "dpt": "1.001" },
+					{ "itemId": "Netzwerk_Meikes_Handy", "stateGa": "5/0/32", "dpt": "1.001" },
+					{ "itemId": "Netzwerk_Merles_Handy", "stateGa": "5/0/33", "dpt": "1.001" },
 
 					{ "itemId": "Strom_Zaehlerstand", "stateGa": "3/4/10", "dpt": "13.013" },
 					{ "itemId": "Stromverbrauch_Aktuell_Phase1", "stateGa": "3/4/11", "dpt": "14.056" },
@@ -429,7 +429,6 @@
 		{
 			"id": "ebusd",
 			"numberAsString": {},
-			"voidAsString": { "value": "true" },
 
 			// Link type specific parametrization.
 			"mqtt":	{
@@ -459,19 +458,19 @@
 				// Optional, default is no topic. 
 				//"subTopics": [ "ebus/#" ],
 
-				// STATE_IND events for items which are not explicitly bound are sent on the topic 
-				// derived from this pattern if defined. Optional, default is no topic pattern. 
+				// In case explicit mapping is not used STATE_IND events are sent on the topic derived from this 
+				// pattern if defined (implicit mapping). Optional, default is no topic pattern. 
 				//"stateTopicPattern": "%ItemId%/state",
 
-				// WRITE_REQ events for items which are not explicitly bound are received on the topic 
-				// derived from this pattern if defined. Optional, default is no topic pattern. 
+				// In case explicit mapping is not used WRITE_REQ events are received on the topic derived from this 
+				// pattern if defined (implicit mapping). Optional, default is no topic pattern. 
 				//"writeTopicPattern": "%ItemId%/write",
 
-				// READ_REQ events for items which are not explicitly bound are received on the topic 
-				// derived from this pattern if defined. Optional, default is no topic pattern. 
+				// In case explicit mapping is not used READ_REQ events are received on the topic derived from this 
+				// pattern if defined (implicit mapping). Optional, default is no topic pattern. 
 				//"readTopicPattern": "%ItemId%/read",
 
-				// Mapping from MQTT to items and vice versa.
+				// Explicit mapping from MQTT to items and vice versa.
 				"bindings":	[
 					{ "itemId": "Temperatur_Aussen", "stateTopic": "ebus/aussen_temp/wert", "readTopic": "ebus/aussen_temp/wert/get" },
 
@@ -542,13 +541,16 @@
 				"unwritableFalseValue": "CLOSED", 
 				"unwritableTrueValue": "OPEN" 
 			},
-			"voidAsString": { "value": "ON"},
+			"voidAsString": { 
+				"value": "ON",
+				"unwritableValue": "OPEN" 
+			},
 
 			"mqtt":	{
 				"clientIdPrefix": "weaver_openhab",
 				"hostname": "192.168.25.9",
 				"retainFlag": true,
-				//"logMessages": true,
+				"logMessages": true,
 				"stateTopicPattern": "openhab/%ItemId%/state",
 				"writeTopicPattern": "openhab/%ItemId%/write",
 				"readTopicPattern": "openhab/%ItemId%/read"
@@ -665,7 +667,7 @@
 				//"verboseMode": true,
 				"bindings": [
 					{
-						"itemId": "Fernseher_Wohnen_2", 
+						"itemId": "Netzwerk_TV_Wohnen", 
 						"url": "http://192.168.25.4:49000/upnp/control/hosts",
 						"headers": [ 
 							"Content-type: text/xml;charset=\"utf-8\"", 
@@ -675,7 +677,7 @@
 						"responsePattern": ".*<NewActive>([0-1])</NewActive>.*"
 					},
 					{
-						"itemId": "Fernseher_Hobbyraum_2", 
+						"itemId": "Netzwerk_TV_Hobbyraum", 
 						"url": "http://192.168.25.4:49000/upnp/control/hosts",
 						"headers": [ 
 							"Content-type: text/xml;charset=\"utf-8\"", 
@@ -685,7 +687,17 @@
 						"responsePattern": ".*<NewActive>([0-1])</NewActive>.*"
 					},
 					{
-						"itemId": "Handy_Peter", 
+						"itemId": "Netzwerk_Chromecast", 
+						"url": "http://192.168.25.4:49000/upnp/control/hosts",
+						"headers": [ 
+							"Content-type: text/xml;charset=\"utf-8\"", 
+							"SoapAction: urn:dslforum-org:service:Hosts:1#GetSpecificHostEntry" 
+						],
+						"request": "<?xml version=\"1.0\" encoding=\"utf-8\"?><s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" ><s:Body><u:GetSpecificHostEntry xmlns:u=\"urn:dslforum-org:service:Hosts:1\"><NewMACAddress>6C:AD:F8:A9:4C:41</NewMACAddress></u:GetSpecificHostEntry></s:Body></s:Envelope>\n",
+						"responsePattern": ".*<NewActive>([0-1])</NewActive>.*"
+					},
+					{
+						"itemId": "Netzwerk_Peters_Handy", 
 						"url": "http://192.168.25.4:49000/upnp/control/hosts",
 						"headers": [ 
 							"Content-type: text/xml;charset=\"utf-8\"", 
@@ -695,7 +707,7 @@
 						"responsePattern": ".*<NewActive>([0-1])</NewActive>.*"
 					},
 					{
-						"itemId": "Handy_Beate", 
+						"itemId": "Netzwerk_Beates_Handy", 
 						"url": "http://192.168.25.4:49000/upnp/control/hosts",
 						"headers": [ 
 							"Content-type: text/xml;charset=\"utf-8\"", 
@@ -705,7 +717,7 @@
 						"responsePattern": ".*<NewActive>([0-1])</NewActive>.*"
 					},
 					{
-						"itemId": "Handy_Meike", 
+						"itemId": "Netzwerk_Meikes_Handy", 
 						"url": "http://192.168.25.4:49000/upnp/control/hosts",
 						"headers": [ 
 							"Content-type: text/xml;charset=\"utf-8\"", 
@@ -715,7 +727,7 @@
 						"responsePattern": ".*<NewActive>([0-1])</NewActive>.*"
 					},
 					{
-						"itemId": "Handy_Merle", 
+						"itemId": "Netzwerk_Merles_Handy", 
 						"url": "http://192.168.25.4:49000/upnp/control/hosts",
 						"headers": [ 
 							"Content-type: text/xml;charset=\"utf-8\"", 
@@ -730,7 +742,6 @@
 
 		{
 			"id": "generator",
-			"voidAsString": { "value": "" },
 
 			// This link type supports the regular triggering of events.
 			"generator": {

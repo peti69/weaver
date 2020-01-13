@@ -245,10 +245,12 @@ Links Config::getLinks(const Items& items, Log& log) const
 
 		bool voidAsString = hasMember(linkValue, "voidAsString");
 		string voidValue;
+		string unwritableVoidValue;
 		if (voidAsString)
 		{
 			auto& voidAsStringValue = getObject(linkValue, "voidAsString");
 			voidValue = getString(voidAsStringValue, "value", "");
+			unwritableVoidValue = getString(voidAsStringValue, "unwritableValue", "");
 		}
 
 		Modifiers modifiers;
@@ -289,23 +291,12 @@ Links Config::getLinks(const Items& items, Log& log) const
 			throw std::runtime_error("Link with unknown or missing type in configuration");
 
 		links.add(Link(id, numberAsString, booleanAsString, falseValue, trueValue, unwritableFalseValue,
-				unwritableTrueValue, voidAsString, voidValue, modifiers, handler, logger));
+				unwritableTrueValue, voidAsString, voidValue, unwritableVoidValue, modifiers, handler, logger));
 	}
 
 	for (auto itemPair : items)
-	{
-		auto& item = itemPair.second;
-
-		auto linkPair = links.find(item.getOwnerId());
-		if (linkPair == links.end())
-			throw std::runtime_error("Item " + item.getId() + " associated with unknown link " + item.getOwnerId());
-		auto& link = linkPair->second;
-
-		if (!link.supports(EventType::READ_REQ))
-			item.setReadable(false);
-		if (!link.supports(EventType::WRITE_REQ))
-			item.setWritable(false);
-	}
+		if (!links.exists(itemPair.second.getOwnerId()))
+			throw std::runtime_error("Item " + itemPair.first + " associated with unknown link " + itemPair.second.getOwnerId());
 
 	return links;
 }

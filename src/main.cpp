@@ -81,6 +81,20 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	// manipulate item properties depending on link properties
+	for (auto& itemPair : items)
+	{
+		auto& item = itemPair.second;
+		auto linkPair = links.find(item.getOwnerId());
+		assert(linkPair != links.end());
+		auto& link = linkPair->second;
+
+		if (!link.supports(EventType::READ_REQ))
+			item.setReadable(false);
+		if (!link.supports(EventType::WRITE_REQ))
+			item.setWritable(false);
+	}
+
 	for (;;)
 	{
 		// wait for event

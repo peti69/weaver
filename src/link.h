@@ -83,8 +83,11 @@ private:
 	// and that an automatic conversion is required.
 	bool voidAsString;
 
-	// In case voidAsString = true: String to be used.
+	// In case voidAsString = true: String to be used for a writable item.
 	string voidValue;
+
+	// In case voidAsString = true: String to be used for an  unwritable item.
+	string unwritableVoidValue;
 
 	// Alteration rules for events and their values which are transmitted over the link.
 	Modifiers modifiers;
@@ -102,12 +105,12 @@ public:
 	Link(string _id, bool numberAsString,
 		bool booleanAsString, string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
-		bool voidAsString, string voidValue,
+		bool voidAsString, string voidValue, string unwritableVoidValue,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
 		id(_id), numberAsString(numberAsString),
 		booleanAsString(booleanAsString), falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
-		voidAsString(voidAsString), voidValue(voidValue),
+		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
 		modifiers(modifiers), handler(handler), logger(logger) {}
 	string getId() const { return id; }
 	bool supports(EventType eventType) const;
