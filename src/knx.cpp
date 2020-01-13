@@ -380,7 +380,7 @@ Events KnxHandler::receiveX(const Items& items)
 	TimePoint now = system_clock::now();
 
 	Events events;
-	
+
 	if (state == DISCONNECTED)
 	{
 		if (lastConnectTry + config.getReconnectInterval() > now)
@@ -391,7 +391,7 @@ Events KnxHandler::receiveX(const Items& items)
 		if (socket == -1)
 			logger.errorX() << unixError("socket") << endOfMsg();
 		auto autoClose = finally([this] { ::close(socket); state = DISCONNECTED; });
-		
+
 		sockaddr_in localAddr;
 		localAddr.sin_family = AF_INET;
 		localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -399,7 +399,7 @@ Events KnxHandler::receiveX(const Items& items)
 		int rc = bind(socket, reinterpret_cast<sockaddr*>(&localAddr), sizeof(localAddr));
 		if (rc == -1)
 			logger.errorX() << unixError("bind") << endOfMsg();
-		
+
 		socklen_t localAddrLen = sizeof(localAddr);
 		rc = getsockname(socket, reinterpret_cast<sockaddr*>(&localAddr), &localAddrLen);
 		if (rc == -1)
@@ -415,28 +415,32 @@ Events KnxHandler::receiveX(const Items& items)
 		state = WAIT_FOR_CONN_RESP;
 		lastControlReqSendTime = now;
 		autoClose.disable();
-
-		return events;
 	}
-	
-	if (state == CONNECTED && !ongoingConnStateReq && lastControlReqSendTime + config.getConnStateReqInterval() <= now)
+	else if (state == CONNECTED)
 	{
-		lastControlReqSendTime = now;
-		ongoingConnStateReq = true;
-		sendControlMsg(createConnStateReq());
-	}
-	else if (state == CONNECTED && ongoingConnStateReq && lastControlReqSendTime + config.getControlRespTimeout() <= now)
-		logger.errorX() << "CONNECTION STATE REQUEST not answered in time" << endOfMsg();
-	else if (state == WAIT_FOR_CONN_RESP && lastControlReqSendTime + config.getControlRespTimeout() <= now)
-		logger.errorX() << "CONNECTION REQUEST not answered in time" << endOfMsg();
+		if (ongoingConnStateReq && lastControlReqSendTime + config.getControlRespTimeout() <= now)
+			logger.errorX() << "CONNECTION STATE REQUEST not answered in time" << endOfMsg();
 
-	processPendingTunnelAck();
-	processPendingLDataCons();
+		if (!ongoingConnStateReq && lastControlReqSendTime + config.getConnStateReqInterval() <= now)
+		{
+			lastControlReqSendTime = now;
+			ongoingConnStateReq = true;
+			sendControlMsg(createConnStateReq());
+		}
+
+		processPendingTunnelAck();
+		processPendingLDataCons();
+	}
+	else if (state == WAIT_FOR_CONN_RESP)
+	{
+		if (lastControlReqSendTime + config.getControlRespTimeout() <= now)
+			logger.errorX() << "CONNECTION REQUEST not answered in time" << endOfMsg();
+	}
 
 	ByteString msg;
 	IpAddr senderIpAddr;
 	IpPort senderIpPort;
-	while (receiveMsg(msg, senderIpAddr, senderIpPort))
+	while (state != DISCONNECTED && receiveMsg(msg, senderIpAddr, senderIpPort))
 	{
 		checkMsg(msg);
 
@@ -524,14 +528,13 @@ Events KnxHandler::receiveX(const Items& items)
 
 			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
 			close();
-
-			return events;
 		}
 		else
 			logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
 	}
 
-	processWaitingLDataReqs();
+	if (state == CONNECTED)
+		processWaitingLDataReqs();
 
 	return events;
 }
@@ -707,23 +710,18 @@ void KnxHandler::processPendingTunnelAck()
 	if (lastTunnelReqSendTime + config.getTunnelAckTimeout() > system_clock::now())
 		return;
 
-	if (lastTunnelReqSendAttempts == 0)
-	{
-		logger.warn() << "First TUNNEL REQUEST with sequence number 0x" << cnvToHexStr(lastSentSeqNo)
-		              << " for GA " << lastSentLDataReq.ga.toStr()
-		              << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
-
-		sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
-		lastTunnelReqSendAttempts++;
-	}
-	else
-	{
+	if (lastTunnelReqSendAttempts > 0)
 		logger.errorX() << "Second TUNNEL REQUEST with sequence number 0x" << cnvToHexStr(lastSentSeqNo)
 		                << " for GA " << lastSentLDataReq.ga.toStr()
 		                << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
 
-		lastTunnelReqSendTime = TimePoint::min();
-	}
+
+	logger.warn() << "First TUNNEL REQUEST with sequence number 0x" << cnvToHexStr(lastSentSeqNo)
+	              << " for GA " << lastSentLDataReq.ga.toStr()
+	              << " was not acknowledged in time (Item " << lastSentLDataReq.itemId << ")" << endOfMsg();
+
+	sendTunnelReq(lastSentLDataReq, lastSentSeqNo);
+	lastTunnelReqSendAttempts++;
 }
 
 void KnxHandler::processPendingLDataCons()
