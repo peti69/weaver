@@ -59,6 +59,9 @@ private:
 	// Id assigned to the link.
 	string id;
 
+	// Only in case the link is enabled events are transmitted over the link.
+	bool enabled;
+
 	// Indicates that values for number items are transmitted over the link as strings
 	// and that an automatic conversion is required.
 	bool numberAsString;
@@ -102,17 +105,18 @@ private:
 	Events pendingEvents;
 
 public:
-	Link(string _id, bool numberAsString,
+	Link(string id, bool enabled, bool numberAsString,
 		bool booleanAsString, string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
-		id(_id), numberAsString(numberAsString),
+		id(id), enabled(enabled), numberAsString(numberAsString),
 		booleanAsString(booleanAsString), falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
 		modifiers(modifiers), handler(handler), logger(logger) {}
 	string getId() const { return id; }
+	bool isEnabled() const { return enabled; }
 	bool supports(EventType eventType) const;
 	long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd);
 	void send(Items& items, const Events& events);

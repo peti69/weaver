@@ -226,6 +226,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 	for (auto& linkValue : linksValue.GetArray())
 	{
 		string id = getString(linkValue, "id");
+		bool enabled = getBool(linkValue, "enabled", true);
 
 		bool numberAsString = hasMember(linkValue, "numberAsString");
 
@@ -290,7 +291,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
 
-		links.add(Link(id, numberAsString, booleanAsString, falseValue, trueValue, unwritableFalseValue,
+		links.add(Link(id, enabled, numberAsString, booleanAsString, falseValue, trueValue, unwritableFalseValue,
 				unwritableTrueValue, voidAsString, voidValue, unwritableVoidValue, modifiers, handler, logger));
 	}
 

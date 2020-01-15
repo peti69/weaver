@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
 		cout << "Logging initialization failed: " << error.what() << endl;
 		return 1;
 	}
-	Logger logger = log.newLogger("MAIN");
+	Logger logger = log.newLogger("main");
 
 	// first log messages
 	logger.info() << "Started" << endOfMsg();
@@ -107,11 +107,12 @@ int main(int argc, char* argv[])
 			int maxFd = 0;
 			long timeoutMs = 100;
 			for (auto& linkPair : links)
-			{
-				long ms = linkPair.second.collectFds(&readFds, &writeFds, &excpFds, &maxFd);
-				if (ms != -1)
-					timeoutMs = std::min(timeoutMs, ms);
-			}
+				if (linkPair.second.isEnabled())
+				{
+					long ms = linkPair.second.collectFds(&readFds, &writeFds, &excpFds, &maxFd);
+					if (ms != -1)
+						timeoutMs = std::min(timeoutMs, ms);
+				}
 
 //			cout << "maxFd: " << maxFd << endl;
 //			for (int fd = 0; fd < 1000; fd++)
@@ -140,14 +141,15 @@ int main(int argc, char* argv[])
 		// receive events
 		Events events;
 		for (auto& linkPair : links)
-			try
-			{
-				events.splice(events.begin(), linkPair.second.receive(items));
-			}
-			catch (const std::exception& error)
-			{
-				logger.error() << "Error on link " << linkPair.first << " when receiving events: " << error.what() << endOfMsg();
-			}
+			if (linkPair.second.isEnabled())
+				try
+				{
+					events.splice(events.begin(), linkPair.second.receive(items));
+				}
+				catch (const std::exception& error)
+				{
+					logger.error() << "Error on link " << linkPair.first << " when receiving events: " << error.what() << endOfMsg();
+				}
 
 		// analyze received events and generate some new events
 		for (auto eventPos = events.begin(); eventPos != events.end();)
@@ -237,14 +239,15 @@ int main(int argc, char* argv[])
 
 		// send events
 		for (auto& linkPair : links)
-			try
-			{
-				linkPair.second.send(items, events);
-			}
-			catch (const std::exception& error)
-			{
-				logger.error() << "Error on link " << linkPair.first << " when sending events: " << error.what() << endOfMsg();
-			}
+			if (linkPair.second.isEnabled())
+				try
+				{
+					linkPair.second.send(items, events);
+				}
+				catch (const std::exception& error)
+				{
+					logger.error() << "Error on link " << linkPair.first << " when sending events: " << error.what() << endOfMsg();
+				}
 	}
 
 	// shutdown all links
