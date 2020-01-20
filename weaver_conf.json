@@ -10,12 +10,14 @@
 	"logEvents": true,
 
 	// Only evaluated in case the parameter logEvents is set to true. It indicates whether suppressed STATE_IND events (no
-	// significant value change compared to former STATE_IND) will be logged or not. Optional, default is false.
+	// significant value change compared to former STATE_IND) and READ_REQ events (polling enabled or not supported by link)
+	// will be logged or not. Optional, default is true.
 	//"logSuppressedEvents": true,
 
-	// Only evaluated in case the parameter logEvents is set to true. It indicates whether generated READ_REQ events (polling)
-	// will be logged or not. Optional, default is false.
-	//"logGeneratedEvents": false,
+	// Only evaluated in case the parameter logEvents is set to true. It indicates whether generated READ_REQ events 
+	// (polling enabled) and STATE_IND events (no STATE_IND for past time period) will be logged or not. Optional, 
+	// default is true.
+	//"logGeneratedEvents": true,
 
 	// Defines the name of the file to which the log messages are written. In case no name is given or in case
 	// an empty name is given the log message are only witten to standard out (stdout). Optional, default is empty.
@@ -76,7 +78,7 @@
 				//"minimum": -100.0,
 
 				// Upper bound of range. Optional, default is a very large positive number.
-				//"minimum": 100.0,
+				//"maximum": 100.0,
 			//}
 
 			// STATE_IND events can be generated automatically after a timespan without activity. The time interval 
@@ -90,8 +92,8 @@
 
 		{ "id": "Telefonanruf_Eingehend", "type": "string", "ownerId": "fritzbox_callmonitor", "writable": false }, // Nummer des Anrufenden
 		{ "id": "Telefonanruf_Ausgehend", "type": "string", "ownerId": "fritzbox_callmonitor", "writable": false }, // Nummer des Gerufenen
-		{ "id": "Telefonanruf_Beginnt", "type": "boolean", "ownerId": "fritzbox_callmonitor", "writable": false },
-		{ "id": "Telefonanruf_Endet", "type": "boolean", "ownerId": "fritzbox_callmonitor", "writable": false },
+		{ "id": "Telefonanruf_Beginnt", "type": "void", "ownerId": "fritzbox_callmonitor", "writable": false },
+		{ "id": "Telefonanruf_Endet", "type": "void", "ownerId": "fritzbox_callmonitor", "writable": false },
 
 		{ "id": "Haustuerklingel", "type": "void", "ownerId": "sonos_api", "readable": false },
 
@@ -101,16 +103,16 @@
 		{ "id": "FSE_Merle_Durchsage", "type": "void", "ownerId": "sonos_api", "readable": false },
 		{ "id": "FSE_Eltern_Durchsage", "type": "void", "ownerId": "sonos_api", "readable": false },
 
-		{ "id": "BP_Aral", "type": "number", "ownerId": "tankerkönig", "writable": false, "pollInterval": 600 },
-		{ "id": "BP_Esso", "type": "number", "ownerId": "tankerkönig", "writable": false, "pollInterval": 600 },
+		{ "id": "BP_Aral", "type": "number", "ownerId": "tankerkönig", "writable": false, "pollingInterval": 600 },
+		{ "id": "BP_Esso", "type": "number", "ownerId": "tankerkönig", "writable": false, "pollingInterval": 600 },
 
-		{ "id": "Netzwerk_Peters_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Netzwerk_Beates_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Netzwerk_Meikes_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Netzwerk_Merles_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Netzwerk_TV_Wohnen", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Netzwerk_TV_Hobbyraum", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Netzwerk_Chromecast", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Peters_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Beates_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Meikes_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Merles_Handy", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_TV_Wohnen", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_TV_Hobbyraum", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Netzwerk_Chromecast", "type": "boolean", "ownerId": "fritzbox_tr064", "writable": false, "pollingInterval": 10, "sendOnChange": {}, "sendOnTimer": {} },
 
 		{ "id": "Strom_Zaehlerstand", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "absVariation": 1 }, "sendOnTimer": {} },
 		{ "id": "Stromverbrauch_Aktuell_Gesamt", "type": "number", "ownerId": "stromzaehler", "sendOnChange": { "relVariation": 5 }, "sendOnTimer": {} },
@@ -124,47 +126,50 @@
 		{ "id": "Helligkeit_Aussen_Daemmerung", "type": "number", "ownerId": "wetterstation", "sendOnChange": {}, "sendOnTimer": {} },
 		{ "id": "Windgeschwindigkeit", "type": "number", "ownerId": "wetterstation", "sendOnChange": { "absVariation": 1 }, "sendOnTimer": {} },
 		{ "id": "Regen", "type": "boolean", "ownerId": "wetterstation", "sendOnChange": {}, "sendOnTimer": {} },
-		{ "id": "Temperatur_Aussen", "type": "number", "ownerId": "ebusd", "writable": false },
+		{ "id": "Temperatur_Aussen", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
 		{ "id": "Windalarm", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 		{ "id": "Regenalarm", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 
-		{ "id": "Puffer_SP1_Temperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "Puffer_SP2_Temperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "Puffer_TD2_Temperatur", "type": "number", "ownerId": "ebusd", "writable": false },
+		{ "id": "Haustuerfalle_Unklar", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 
-		{ "id": "FBH_Modus", "type": "number", "ownerId": "ebusd" },
-		{ "id": "FBH_Raum_Solltemperatur", "type": "number", "ownerId": "ebusd" },
-		{ "id": "FBH_Absenktemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "FBH_Heizkurve", "type": "number", "ownerId": "ebusd" },
-		{ "id": "FBH_Abschalttemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "FBH_Vorlauf_Solltemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "FBH_Vorlauf_Isttemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "FBH_Vorlauf_Puffertemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
+		{ "id": "Puffer_SP1_Temperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Puffer_SP2_Temperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "Puffer_TD2_Temperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
 
-		{ "id": "WW_Modus", "type": "number", "ownerId": "ebusd" },
-		{ "id": "WW_ZK_Solltemperatur", "type": "number", "ownerId": "ebusd" },
-		{ "id": "WW_ZK_Volumenstrom", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "WW_ZK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "WW_PK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "WW_PK_Ruecklauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "WW_PK_Mischerstatus", "type": "number", "ownerId": "ebusd", "writable": false },
+		{ "id": "FBH_Modus", "type": "number", "ownerId": "ebusd", "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Raum_Solltemperatur", "type": "number", "ownerId": "ebusd", "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Absenktemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Heizkurve", "type": "number", "ownerId": "ebusd", "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Abschalttemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Vorlauf_Solltemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Vorlauf_Isttemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "FBH_Vorlauf_Puffertemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+
+		{ "id": "WW_Modus", "type": "number", "ownerId": "ebusd", "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "WW_ZK_Solltemperatur", "type": "number", "ownerId": "ebusd", "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "WW_ZK_Volumenstrom", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "WW_ZK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "WW_ZK_Ruecklauftemperatur", "type": "number", "ownerId": "timberwolf", "writable": false },
+		{ "id": "WW_PK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "WW_PK_Ruecklauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "WW_PK_Mischerstatus", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
 		{ "id": "Zirkulationspumpe", "type": "boolean", "ownerId": "timberwolf" },
 		{ "id": "WW_Thermenlauf", "type": "boolean", "ownerId": "timberwolf", "writable": false },
 		{ "id": "WW_ZPA_Pumpenlauf_Starten", "type": "void", "ownerId": "storage" },
 		{ "id": "WW_ZPA_Pumpenlauf_Notwendig", "type": "boolean", "ownerId": "storage" },
 		{ "id": "WW_ZPA_Pumpenlauf_Unnoetig", "type": "boolean", "ownerId": "storage" },
 
-		{ "id": "ST_Tagesertrag", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_Gesamtertrag", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_KK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_KK_Ruecklauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_KK_Pumpenleistung", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_KK_Pumpenlaufzeit", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_PK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_PK_Ruecklauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_PK_Pumpenleistung", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_PK_Pumpenlaufzeit", "type": "number", "ownerId": "ebusd", "writable": false },
-		{ "id": "ST_PK_Volumenstrom", "type": "number", "ownerId": "ebusd", "writable": false },
+		{ "id": "ST_Tagesertrag", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_Gesamtertrag", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_KK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_KK_Ruecklauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_KK_Pumpenleistung", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_KK_Pumpenlaufzeit", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_PK_Vorlauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_PK_Ruecklauftemperatur", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_PK_Pumpenleistung", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_PK_Pumpenlaufzeit", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
+		{ "id": "ST_PK_Volumenstrom", "type": "number", "ownerId": "ebusd", "writable": false, "pollingInterval": 60, "sendOnChange": {}, "sendOnTimer": {} },
 
 		{ "id": "EMA_Aktiv", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 		{ "id": "EMA_Voralarm_Dauer", "type": "number", "ownerId": "storage", "sendOnTimer": {} }, // seconds
@@ -186,6 +191,10 @@
 		{
 			// Identifier for this link.
 			"id": "stromzaehler",
+
+			// Only in case the link is enabled events and values are transmitted over it.
+			// Optional, default is true.
+			"enabled": false,
 
 			// If present values for boolean items are transmitted over the link as string and an 
 			// automatic conversion is performed. Optional, default is no conversion.
@@ -263,6 +272,7 @@
 
 		{
 			"id": "wetterstation", 
+			"enabled": false,
 			"numberAsString": {},
 			"booleanAsString": { "falseValue": "0", "trueValue": "1" },
 			"modifiers" : [ 
@@ -295,13 +305,14 @@
 
 		{
 			"id": "timberwolf",
+			"enabled": false,
 
 			// Link type specific parametrization.
 			"knx": {
 				// IP address passed to the KNX/IP gateway and used by it to contact weaver. 
 				// It is ignored and not delivered in case the NAT mode is enabled. 
 				"localIpAddr": "192.168.25.10",
-			
+
 				// Usage of network address translation (NAT mode) for accessing the KNX/IP gateway.
 				// This mode is usually needed when the gateway is located on another network behind 
 				// a router. Optional, default is false.
@@ -309,7 +320,7 @@
 			
 				// IP address of KNX/IP gateway.
 				"ipAddr": "192.168.25.9",
-			
+
 				// IP port on which KNX/IP gateway accepts tunnel requests. Optional, default is 3671.
 				"ipPort": 3674,
 
@@ -369,6 +380,8 @@
 					{ "itemId": "Windalarm", "stateGa": "3/1/4", "writeGa": "3/1/4", "dpt": "1.001" },
 					{ "itemId": "Regenalarm", "stateGa": "3/1/3", "writeGa": "3/1/3", "dpt": "1.001" },
 
+					{ "itemId": "Haustuerfalle_Unklar", "stateGa": "3/3/25", "dpt": "1.001" },
+
 					{ "itemId": "Puffer_SP1_Temperatur", "stateGa": "3/6/10", "dpt": "9.001" },
 					{ "itemId": "Puffer_SP2_Temperatur", "stateGa": "3/6/11", "dpt": "9.001" },
 					{ "itemId": "Puffer_TD2_Temperatur", "stateGa": "3/6/12", "dpt": "9.001" },
@@ -385,6 +398,7 @@
 					{ "itemId": "WW_Modus", "stateGa": "3/6/40", "writeGa": "3/6/50", "dpt": "5.010" },
 					{ "itemId": "WW_ZK_Solltemperatur", "stateGa": "3/6/41", "writeGa": "3/6/51", "dpt": "9.001" },
 					{ "itemId": "WW_ZK_Vorlauftemperatur", "stateGa": "3/6/45", "dpt": "9.001" },
+					{ "itemId": "WW_ZK_Ruecklauftemperatur", "stateGa": "3/6/48", "dpt": "9.001" },
 					{ "itemId": "WW_ZK_Volumenstrom", "stateGa": "3/6/42", "dpt": "9.025" },
 					{ "itemId": "WW_PK_Vorlauftemperatur", "stateGa": "3/6/44", "dpt": "9.001" },
 					{ "itemId": "WW_PK_Ruecklauftemperatur", "stateGa": "3/6/46", "dpt": "9.001" },
@@ -456,7 +470,7 @@
 				// Topics to which weaver subsribes but without necessarily associating the received messages 
 				// with any item. This can be useful for debugging purpose in conjunction with the logMessages flag. 
 				// Optional, default is no topic. 
-				//"subTopics": [ "ebus/#" ],
+				//"subTopics": [ "ebusd/#" ],
 
 				// In case explicit mapping is not used STATE_IND events are sent on the topic derived from this 
 				// pattern if defined (implicit mapping). Optional, default is no topic pattern. 
@@ -472,62 +486,62 @@
 
 				// Explicit mapping from MQTT to items and vice versa.
 				"bindings":	[
-					{ "itemId": "Temperatur_Aussen", "stateTopic": "ebus/aussen_temp/wert", "readTopic": "ebus/aussen_temp/wert/get" },
+					{ "itemId": "Temperatur_Aussen", "stateTopic": "ebusd/aussen_temp/wert", "readTopic": "ebusd/aussen_temp/wert/get" },
 
-					{ "itemId": "Puffer_SP1_Temperatur", "stateTopic": "ebus/puffer_sp1/temp", "readTopic": "ebus/puffer_sp1/temp/get" },
-					{ "itemId": "Puffer_SP2_Temperatur", "stateTopic": "ebus/puffer_sp2/temp", "readTopic": "ebus/puffer_sp2/temp/get" },
-					{ "itemId": "Puffer_TD2_Temperatur", "stateTopic": "ebus/puffer_td2/temp", "readTopic": "ebus/puffer_td2/temp/get" },
+					{ "itemId": "Puffer_SP1_Temperatur", "stateTopic": "ebusd/puffer_sp1/temp", "readTopic": "ebusd/puffer_sp1/temp/get" },
+					{ "itemId": "Puffer_SP2_Temperatur", "stateTopic": "ebusd/puffer_sp2/temp", "readTopic": "ebusd/puffer_sp2/temp/get" },
+					{ "itemId": "Puffer_TD2_Temperatur", "stateTopic": "ebusd/puffer_td2/temp", "readTopic": "ebusd/puffer_td2/temp/get" },
 
 					{ 
 						"itemId": "FBH_Modus",
-						"stateTopics": [ "ebus/fbh_raum_temp_modus/modus", "ebus/fbh_modus/wert" ],
-						"readTopic": "ebus/fbh_raum_temp_modus/modus/get",
-						"writeTopic": "ebus/fbh_modus/wert/set"
+						"stateTopics": [ "ebusd/fbh_raum_temp_modus/modus", "ebusd/fbh_modus/wert" ],
+						"readTopic": "ebusd/fbh_raum_temp_modus/modus/get",
+						"writeTopic": "ebusd/fbh_modus/wert/set"
 					},
 					{
 						"itemId": "FBH_Raum_Solltemperatur",
-						"stateTopics": [ "ebus/fbh_raum_temp_modus/temp", "ebus/fbh_raum_temp/wert" ],
-						"readTopic": "ebus/fbh_raum_temp_modus/temp/get",
-						"writeTopic": "ebus/fbh_raum_temp/wert/set"
+						"stateTopics": [ "ebusd/fbh_raum_temp_modus/temp", "ebusd/fbh_raum_temp/wert" ],
+						"readTopic": "ebusd/fbh_raum_temp_modus/temp/get",
+						"writeTopic": "ebusd/fbh_raum_temp/wert/set"
 					},
-					{ "itemId": "FBH_Absenktemperatur",			"stateTopic": "ebus/fbh_absenk_temp/wert",		"readTopic": "ebus/fbh_absenk_temp/wert/get" },
-					{ "itemId": "FBH_Heizkurve",				"stateTopic": "ebus/fbh_heizkurve/wert", 		"readTopic": "ebus/fbh_heizkurve/wert/get",			"writeTopic": "ebus/fbh_heizkurve/wert/set" },
-					{ "itemId": "FBH_Abschalttemperatur",		"stateTopic": "ebus/fbh_abschalt_temp/wert", 	"readTopic": "ebus/fbh_abschalt_temp/wert/get" },
-					{ "itemId": "FBH_Vorlauf_Solltemperatur",	"stateTopic": "ebus/fbh_vorlauf_soll_temp/wert","readTopic": "ebus/fbh_vorlauf_soll_temp/wert/get" },
-					{ "itemId": "FBH_Vorlauf_Isttemperatur", 	"stateTopic": "ebus/fbh_vf2/temp", 				"readTopic": "ebus/fbh_vf2/temp/get" },
-					{ "itemId": "FBH_Vorlauf_Puffertemperatur",	"stateTopic": "ebus/fbh_vf1/temp", 				"readTopic": "ebus/fbh_vf1/temp/get" },
+					{ "itemId": "FBH_Absenktemperatur",			"stateTopic": "ebusd/fbh_absenk_temp/wert",			"readTopic": "ebusd/fbh_absenk_temp/wert/get" },
+					{ "itemId": "FBH_Heizkurve",				"stateTopic": "ebusd/fbh_heizkurve/wert", 			"readTopic": "ebusd/fbh_heizkurve/wert/get",			"writeTopic": "ebusd/fbh_heizkurve/wert/set" },
+					{ "itemId": "FBH_Abschalttemperatur",		"stateTopic": "ebusd/fbh_abschalt_temp/wert", 		"readTopic": "ebusd/fbh_abschalt_temp/wert/get" },
+					{ "itemId": "FBH_Vorlauf_Solltemperatur",	"stateTopic": "ebusd/fbh_vorlauf_soll_temp/wert",	"readTopic": "ebusd/fbh_vorlauf_soll_temp/wert/get" },
+					{ "itemId": "FBH_Vorlauf_Isttemperatur", 	"stateTopic": "ebusd/fbh_vf2/temp", 				"readTopic": "ebusd/fbh_vf2/temp/get" },
+					{ "itemId": "FBH_Vorlauf_Puffertemperatur",	"stateTopic": "ebusd/fbh_vf1/temp", 				"readTopic": "ebusd/fbh_vf1/temp/get" },
 
 					{
 						"itemId": "WW_Modus",
-						"stateTopics": [ "ebus/ww_soll_temp_modus/modus", "ebus/ww_modus/wert" ],
-						"readTopic": "ebus/ww_soll_temp_modus/modus/get",
-						"writeTopic": "ebus/ww_modus/wert/set"
+						"stateTopics": [ "ebusd/ww_soll_temp_modus/modus", "ebusd/ww_modus/wert" ],
+						"readTopic": "ebusd/ww_soll_temp_modus/modus/get",
+						"writeTopic": "ebusd/ww_modus/wert/set"
 					},
 					{
 						"itemId": "WW_ZK_Solltemperatur",
-						"stateTopics": [ "ebus/ww_soll_temp_modus/temp", "ebus/ww_soll_temp/wert" ],
-						"readTopic": "ebus/ww_soll_temp_modus/temp/get",
-						"writeTopic": "ebus/ww_soll_temp/wert/set"
+						"stateTopics": [ "ebusd/ww_soll_temp_modus/temp", "ebusd/ww_soll_temp/wert" ],
+						"readTopic": "ebusd/ww_soll_temp_modus/temp/get",
+						"writeTopic": "ebusd/ww_soll_temp/wert/set"
 					},
-					{ "itemId": "WW_ZK_Volumenstrom", 			"stateTopic": "ebus/ww_zk_volumenstrom/wert",	"readTopic": "ebus/ww_zk_volumenstrom/wert/get" },
-					{ "itemId": "WW_ZK_Vorlauftemperatur", 		"stateTopic": "ebus/ww_ntc3/temp", 				"readTopic": "ebus/ww_ntc3/temp/get" },
-					{ "itemId": "WW_PK_Vorlauftemperatur", 		"stateTopic": "ebus/ww_ntc1/temp", 				"readTopic": "ebus/ww_ntc1/temp/get" },
-					{ "itemId": "WW_PK_Ruecklauftemperatur", 	"stateTopic": "ebus/ww_ntc2/temp", 				"readTopic": "ebus/ww_ntc2/temp/get" },
-					{ "itemId": "WW_PK_Mischerstatus", 			"stateTopic": "ebus/ww_pk_mischer_status/wert",	"readTopic": "ebus/ww_pk_mischer_status/wert/get" },
+					{ "itemId": "WW_ZK_Volumenstrom", 			"stateTopic": "ebusd/ww_zk_volumenstrom/wert",		"readTopic": "ebusd/ww_zk_volumenstrom/wert/get" },
+					{ "itemId": "WW_ZK_Vorlauftemperatur", 		"stateTopic": "ebusd/ww_ntc3/temp", 				"readTopic": "ebusd/ww_ntc3/temp/get" },
+					{ "itemId": "WW_PK_Vorlauftemperatur", 		"stateTopic": "ebusd/ww_ntc1/temp", 				"readTopic": "ebusd/ww_ntc1/temp/get" },
+					{ "itemId": "WW_PK_Ruecklauftemperatur", 	"stateTopic": "ebusd/ww_ntc2/temp", 				"readTopic": "ebusd/ww_ntc2/temp/get" },
+					{ "itemId": "WW_PK_Mischerstatus", 			"stateTopic": "ebusd/ww_pk_mischer_status/wert",	"readTopic": "ebusd/ww_pk_mischer_status/wert/get" },
 
-					{ "itemId": "ST_Tagesertrag", 				"stateTopic": "ebus/st_tagesertrag/wert",		"readTopic": "ebus/st_tagesertrag/wert/get" },
-					{ "itemId": "ST_Gesamtertrag", 				"stateTopic": "ebus/st_gesamtertrag/wert",		"readTopic": "ebus/st_gesamtertrag/wert/get" },
-					{ "itemId": "ST_KK_Vorlauftemperatur", 		"stateTopic": "ebus/st_kk_vorlauf/temp", 		"readTopic": "ebus/st_kk_vorlauf/temp/get" },
-					{ "itemId": "ST_KK_Ruecklauftemperatur",	"stateTopic": "ebus/st_kk_ruecklauf/temp", 		"readTopic": "ebus/st_kk_ruecklauf/temp/get" },
-					{ "itemId": "ST_KK_Pumpenleistung",			"stateTopic": "ebus/st_kk_pumpe_status/wert", 	"readTopic": "ebus/st_kk_pumpe_status/wert/get" },
-					{ "itemId": "ST_KK_Pumpenlaufzeit",			"stateTopic": "ebus/st_kk_pumpe_laufzeit/wert",	"readTopic": "ebus/st_kk_pumpe_laufzeit/wert/get" },
-					{ "itemId": "ST_PK_Vorlauftemperatur", 		"stateTopic": "ebus/st_pk_vorlauf/temp", 		"readTopic": "ebus/st_pk_vorlauf/temp/get" },
-					{ "itemId": "ST_PK_Ruecklauftemperatur",	"stateTopic": "ebus/st_pk_ruecklauf/temp", 		"readTopic": "ebus/st_pk_ruecklauf/temp/get" },
-					{ "itemId": "ST_PK_Pumpenleistung", 		"stateTopic": "ebus/st_pk_pumpe_status/wert", 	"readTopic": "ebus/st_pk_pumpe_status/wert/get" },
-					{ "itemId": "ST_PK_Pumpenlaufzeit",			"stateTopic": "ebus/st_pk_pumpe_laufzeit/wert",	"readTopic": "ebus/st_pk_pumpe_laufzeit/wert/get" },
-					{ "itemId": "ST_PK_Volumenstrom",			"stateTopic": "ebus/st_pk_volumenstrom/wert",	"readTopic": "ebus/st_pk_volumenstrom/wert/get" },
+					{ "itemId": "ST_Tagesertrag", 				"stateTopic": "ebusd/st_tagesertrag/wert",			"readTopic": "ebusd/st_tagesertrag/wert/get" },
+					{ "itemId": "ST_Gesamtertrag", 				"stateTopic": "ebusd/st_gesamtertrag/wert",			"readTopic": "ebusd/st_gesamtertrag/wert/get" },
+					{ "itemId": "ST_KK_Vorlauftemperatur", 		"stateTopic": "ebusd/st_kk_vorlauf/temp", 			"readTopic": "ebusd/st_kk_vorlauf/temp/get" },
+					{ "itemId": "ST_KK_Ruecklauftemperatur",	"stateTopic": "ebusd/st_kk_ruecklauf/temp", 		"readTopic": "ebusd/st_kk_ruecklauf/temp/get" },
+					{ "itemId": "ST_KK_Pumpenleistung",			"stateTopic": "ebusd/st_kk_pumpe_status/wert", 		"readTopic": "ebusd/st_kk_pumpe_status/wert/get" },
+					{ "itemId": "ST_KK_Pumpenlaufzeit",			"stateTopic": "ebusd/st_kk_pumpe_laufzeit/wert",	"readTopic": "ebusd/st_kk_pumpe_laufzeit/wert/get" },
+					{ "itemId": "ST_PK_Vorlauftemperatur", 		"stateTopic": "ebusd/st_pk_vorlauf/temp", 			"readTopic": "ebusd/st_pk_vorlauf/temp/get" },
+					{ "itemId": "ST_PK_Ruecklauftemperatur",	"stateTopic": "ebusd/st_pk_ruecklauf/temp", 		"readTopic": "ebusd/st_pk_ruecklauf/temp/get" },
+					{ "itemId": "ST_PK_Pumpenleistung", 		"stateTopic": "ebusd/st_pk_pumpe_status/wert", 		"readTopic": "ebusd/st_pk_pumpe_status/wert/get" },
+					{ "itemId": "ST_PK_Pumpenlaufzeit",			"stateTopic": "ebusd/st_pk_pumpe_laufzeit/wert",	"readTopic": "ebusd/st_pk_pumpe_laufzeit/wert/get" },
+					{ "itemId": "ST_PK_Volumenstrom",			"stateTopic": "ebusd/st_pk_volumenstrom/wert",		"readTopic": "ebusd/st_pk_volumenstrom/wert/get" },
 
-					{ "itemId": "Herzschlag_ebusd", "stateTopic": "ebus/global/signal" },
+					{ "itemId": "Herzschlag_ebusd", "stateTopic": "ebusd/global/signal" },
 				]
 			}
 		},
@@ -550,7 +564,7 @@
 				"clientIdPrefix": "weaver_openhab",
 				"hostname": "192.168.25.9",
 				"retainFlag": true,
-				"logMessages": true,
+				//"logMessages": true,
 				"stateTopicPattern": "openhab/%ItemId%/state",
 				"writeTopicPattern": "openhab/%ItemId%/write",
 				"readTopicPattern": "openhab/%ItemId%/read"
