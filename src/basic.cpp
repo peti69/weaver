@@ -102,9 +102,22 @@ bool Value::operator==(const Value& x) const
 	       );
 }
 
-bool Item::isPollRequired(std::time_t now) const
+bool Item::isPollingRequired(std::time_t now) const
 {
-	return pollInterval && lastPollTime + pollInterval <= now;
+	assert(pollingInterval);
+	return lastPollingTime + pollingInterval <= now;
+}
+
+void Item::initPolling(std::time_t now)
+{
+	assert(pollingInterval);
+	lastPollingTime = now - std::rand() % pollingInterval;
+}
+
+void Item::pollingDone(std::time_t now)
+{
+	assert(pollingInterval);
+	lastPollingTime = now;
 }
 
 bool Item::isSendRequired(std::time_t now) const

@@ -155,8 +155,8 @@ void Config::read(string fileName)
 GlobalConfig Config::getGlobalConfig() const
 {
 	bool logEvents = getBool(document, "logEvents", false);
-	bool logSuppressedEvents = getBool(document, "logSuppressedEvents", false);
-	bool logGeneratedEvents = getBool(document, "logGeneratedEvents", false);
+	bool logSuppressedEvents = getBool(document, "logSuppressedEvents", true);
+	bool logGeneratedEvents = getBool(document, "logGeneratedEvents", true);
 
 	return GlobalConfig(logEvents, logSuppressedEvents, logGeneratedEvents);
 }
@@ -193,7 +193,7 @@ Items Config::getItems() const
 		item.setReadable(getBool(itemValue, "readable", true));
 		item.setWritable(getBool(itemValue, "writable", true));
 
-		item.setPollInterval(getInt(itemValue, "pollInterval", 0));
+		item.setPollingInterval(getInt(itemValue, "pollingInterval", 0));
 
 		if (hasMember(itemValue, "sendOnTimer"))
 		{

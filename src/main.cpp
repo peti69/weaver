@@ -8,13 +8,13 @@ void sighandler(int signo)
 {
 }
 
-void logEvent(const Logger& logger, const Event& event, string prefix = "")
+void logEvent(const Logger& logger, const Event& event, string postfix = "")
 {
 	LogMsg logMsg = logger.debug();
-	logMsg << prefix << event.getType().toStr() << " from " << event.getOriginId() << " for " << event.getItemId();
+	logMsg << event.getType().toStr() << " from " << event.getOriginId() << " for " << event.getItemId();
 	if (event.getType() != EventType::READ_REQ)
 		logMsg << ": " << event.getValue().toStr() << " [" << event.getValue().getType().toStr() << "]";
-	logMsg << endOfMsg();
+	logMsg << postfix << endOfMsg();
 }
 
 int main(int argc, char* argv[])
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 	logger.info() << "Started" << endOfMsg();
 	logger.info() << "Using configuration file " << argv[1] << endOfMsg();
 
-	// initialize
+	// initialize items and links
 	Links links;
 	Items items;
 	GlobalConfig config;
@@ -74,25 +74,30 @@ int main(int argc, char* argv[])
 		config = configFile.getGlobalConfig();
 		items = configFile.getItems();
 		links = configFile.getLinks(items, log);
+
+		std::time_t now = std::time(0);
+		for (auto& itemPair : items)
+		{
+			auto& item = itemPair.second;
+			auto linkPair = links.find(item.getOwnerId());
+			assert(linkPair != links.end());
+			auto& link = linkPair->second;
+
+			// manipulate item properties depending on link properties
+			if (!link.supports(EventType::READ_REQ))
+				item.setReadable(false);
+			if (!link.supports(EventType::WRITE_REQ))
+				item.setWritable(false);
+
+			// prepare polling
+			if (item.isPollingEnabled())
+				item.initPolling(now);
+		}
 	}
 	catch (const std::exception& error)
 	{
 		logger.error() << "Initialization failed: " << error.what() << endOfMsg();
 		return 1;
-	}
-
-	// manipulate item properties depending on link properties
-	for (auto& itemPair : items)
-	{
-		auto& item = itemPair.second;
-		auto linkPair = links.find(item.getOwnerId());
-		assert(linkPair != links.end());
-		auto& link = linkPair->second;
-
-		if (!link.supports(EventType::READ_REQ))
-			item.setReadable(false);
-		if (!link.supports(EventType::WRITE_REQ))
-			item.setWritable(false);
 	}
 
 	for (;;)
@@ -151,7 +156,9 @@ int main(int argc, char* argv[])
 					logger.error() << "Error on link " << linkPair.first << " when receiving events: " << error.what() << endOfMsg();
 				}
 
-		// analyze received events and generate some new events
+		// analyze received events
+		Events suppressedEvents;
+		Events generatedEvents;
 		for (auto eventPos = events.begin(); eventPos != events.end();)
 		{
 			// provide event
@@ -172,9 +179,7 @@ int main(int argc, char* argv[])
 			   && !item.isSendRequired(event.getValue()) // if item value did not change (that much)
 			   )
 				{
-					if (config.getLogEvents() && config.getLogSuppressedEvents())
-						logEvent(logger, event, "Suppressing: ");
-
+					suppressedEvents.add(event);
 					eventPos = events.erase(eventPos);
 					continue;
 				}
@@ -182,17 +187,16 @@ int main(int argc, char* argv[])
 			// remove READ_REQ and generate STATE_IND
 			if (  event.getType() == EventType::READ_REQ
 			   && (  !item.isReadable() // if item can not be read
+			      || item.isPollingEnabled()
 //			      || item.isSendOnChangeEnabled() // or if only changes are forwarded
 			      )
 			   )
 			{
-				if (config.getLogEvents())
-					logEvent(logger, event);
-
+				suppressedEvents.add(event);
 				const Value& value = item.getLastSendValue();
 				if (!value.isNull())
 				{
-					event = Event("main", item.getId(), EventType::STATE_IND, value);
+					generatedEvents.add(Event("main", item.getId(), EventType::STATE_IND, value));
 					eventPos++;
 				}
 				else
@@ -210,7 +214,7 @@ int main(int argc, char* argv[])
 			eventPos++;
 		}
 
-		// analyze items and generate some new events
+		// analyze items
 		for (auto& itemPair : items)
 		{
 			// provide item
@@ -219,23 +223,33 @@ int main(int argc, char* argv[])
 			// generate STATE_IND depending on send timer
 			if (item.isSendRequired(now))
 			{
-				events.add(Event("main", item.getId(), EventType::STATE_IND, item.getLastSendValue()));
+				generatedEvents.add(Event("main", item.getId(), EventType::STATE_IND, item.getLastSendValue()));
 				item.setLastSendTime(now);
 			}
 
-			// generate READ_REQ depending on poll timer
-			if (item.isPollRequired(now))
+			// generate READ_REQ depending on polling timer
+			if (item.isPollingEnabled() && item.isPollingRequired(now))
 			{
-				events.add(Event("main", item.getId(), EventType::READ_REQ, Value()));
-				item.setLastPollTime(now);
+				generatedEvents.add(Event("main", item.getId(), EventType::READ_REQ, Value()));
+				item.pollingDone(now);
 			}
 		}
 
 		// log events
 		if (config.getLogEvents())
+		{
+			if (config.getLogSuppressedEvents())
+				for (auto& event : suppressedEvents)
+					logEvent(logger, event, " (suppressed)");
 			for (auto& event : events)
-				if (event.getType() != EventType::READ_REQ || event.getOriginId() != "main" || config.getLogGeneratedEvents())
-					logEvent(logger, event);
+				logEvent(logger, event);
+			if (config.getLogGeneratedEvents())
+				for (auto& event : generatedEvents)
+					logEvent(logger, event, " (generated)");
+		}
+
+		// append generated events
+		events.splice(events.end(), generatedEvents);
 
 		// send events
 		for (auto& linkPair : links)
