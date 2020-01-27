@@ -305,7 +305,7 @@
 
 		{
 			"id": "timberwolf",
-			"enabled": false,
+			//"enabled": false,
 
 			// Link type specific parametrization.
 			"knx": {

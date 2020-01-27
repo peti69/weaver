@@ -145,34 +145,21 @@ ByteString DatapointType::exportValue(const Value& value) const
 		}
 		else if (mainNo == 9)
 		{
-			int E = 0;
+			uint32_t E = 0;
 			while ((d < -20.48 || d > 20.47) && E <= 15) { d = d / 2.0; E++; }
 			if (d >= -20.48 && d <= 20.47)
 			{
-				int M = d * 100.0;
-				bool sign = M < 0;
-				if (sign) M *= -1;
+				uint32_t M = d * 100.0;
 				Byte bytes[3];
 				bytes[0] = 0x00;
-				bytes[1] = (E << 3) | ((M >> 8) & 0x07);
+				bytes[1] = ((M >> 24) & 0x80) | (E << 3) | ((M >> 8) & 0x07);
 				bytes[2] = M & 0xFF;
 				return ByteString(bytes, sizeof(bytes));
 			}
 		}
-		else if (mainNo == 12)
+		else if (mainNo == 12 || mainNo == 13)
 		{
 			uint32_t i = d;
-			Byte bytes[5];
-			bytes[0] = 0x00;
-			bytes[1] = (i >> 24) & 0xFF;
-			bytes[2] = (i >> 16) & 0xFF;
-			bytes[3] = (i >> 8) & 0xFF;
-			bytes[4] = i & 0xFF;
-			return ByteString(bytes, sizeof(bytes));
-		}
-		else if (mainNo == 13)
-		{
-			int32_t i = d;
 			Byte bytes[5];
 			bytes[0] = 0x00;
 			bytes[1] = (i >> 24) & 0xFF;
