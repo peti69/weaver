@@ -220,18 +220,26 @@ int main(int argc, char* argv[])
 			// provide item
 			auto& item = itemPair.second;
 
-			// generate STATE_IND depending on send timer
-			if (item.isSendRequired(now))
-			{
-				generatedEvents.add(Event("main", item.getId(), EventType::STATE_IND, item.getLastSendValue()));
-				item.setLastSendTime(now);
-			}
+			// provide link
+			auto linkPos = links.find(item.getOwnerId());
+			assert(linkPos != links.end());
+			auto& link = linkPos->second;
 
-			// generate READ_REQ depending on polling timer
-			if (item.isPollingEnabled() && item.isPollingRequired(now))
+			if (link.isEnabled())
 			{
-				generatedEvents.add(Event("main", item.getId(), EventType::READ_REQ, Value()));
-				item.pollingDone(now);
+				// generate STATE_IND depending on send timer
+				if (item.isSendRequired(now))
+				{
+					generatedEvents.add(Event("main", item.getId(), EventType::STATE_IND, item.getLastSendValue()));
+					item.setLastSendTime(now);
+				}
+
+				// generate READ_REQ depending on polling timer
+				if (item.isPollingEnabled() && item.isPollingRequired(now))
+				{
+					generatedEvents.add(Event("main", item.getId(), EventType::READ_REQ, Value()));
+					item.pollingDone(now);
+				}
 			}
 		}
 
