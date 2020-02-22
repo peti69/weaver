@@ -3,6 +3,7 @@
 
 #include <ctime>
 #include <set>
+#include <regex>
 
 #include <mosquitto.h>
 
@@ -51,9 +52,12 @@ public:
 		Topics stateTopics;
 		string writeTopic;
 		string readTopic;
-
-		Binding(string _itemId, Topics _stateTopics, string _writeTopic, string _readTopic) :
-			itemId(_itemId), stateTopics(_stateTopics), writeTopic(_writeTopic), readTopic(_readTopic)
+		std::regex inPattern;
+		string outPattern;
+		Binding(string itemId, Topics stateTopics, string writeTopic, string readTopic,
+				std::regex inPattern, string outPattern) :
+			itemId(itemId), stateTopics(stateTopics), writeTopic(writeTopic), readTopic(readTopic),
+			inPattern(inPattern), outPattern(outPattern)
 		{}
 	};
 	class Bindings: public std::map<string, Binding>
@@ -64,54 +68,74 @@ public:
 	};
 
 private:
-	string clientIdPrefix;
+	string clientId;
 	string hostname;
 	int port;
+	bool tlsFlag;
+	string caFile;
+	string caPath;
+	string ciphers;
 	int reconnectInterval;
+	string username;
+	string password;
 	bool retainFlag;
-	bool logMsgs;
 	TopicPattern stateTopicPattern;
 	TopicPattern writeTopicPattern;
 	TopicPattern readTopicPattern;
 	Topics subTopics;
+	bool logMsgs;
 	Bindings bindings;
 
 public:
-	Config(string _clientIdPrefix, string _hostname, int _port, int _reconnectInterval,
-		bool _retainFlag, bool _logMsgs, Topics _subTopics, TopicPattern _stateTopicPattern,
-		TopicPattern _writeTopicPattern, TopicPattern _readTopicPattern, Bindings _bindings) :
-		clientIdPrefix(_clientIdPrefix), hostname(_hostname), port(_port), 
-		reconnectInterval(_reconnectInterval), retainFlag(_retainFlag), logMsgs(_logMsgs), 
-		subTopics(_subTopics), stateTopicPattern(_stateTopicPattern),
-		writeTopicPattern(_writeTopicPattern), readTopicPattern(_readTopicPattern), bindings(_bindings)
+	Config(string clientId, string hostname, int port, bool tlsFlag, string caFile, string caPath, string ciphers,
+		int reconnectInterval, string username, string password, bool retainFlag,
+		TopicPattern stateTopicPattern, TopicPattern writeTopicPattern, TopicPattern readTopicPattern,
+		Topics subTopics, bool logMsgs, Bindings bindings) :
+		clientId(clientId), hostname(hostname), port(port), tlsFlag(tlsFlag), caFile(caFile), caPath(caPath), ciphers(ciphers),
+		reconnectInterval(reconnectInterval), username(username), password(password), retainFlag(retainFlag),
+		stateTopicPattern(stateTopicPattern), writeTopicPattern(writeTopicPattern), readTopicPattern(readTopicPattern),
+		subTopics(subTopics), logMsgs(logMsgs), bindings(bindings)
 	{}
-	string getClientIdPrefix() const { return clientIdPrefix; }
+	string getClientId() const { return clientId; }
 	string getHostname() const { return hostname; }
 	int getPort() const { return port; }
+	bool getTlsFlag() const { return tlsFlag; }
+	string getCaFile() const { return caFile; }
+	string getCaPath() const { return caPath; }
+	string getCiphers() const { return ciphers; }
 	int getReconnectInterval() const { return reconnectInterval; }
+	string getUsername() const { return username; }
+	string getPassword() const { return password; }
 	bool getRetainFlag() const { return retainFlag; }
-	bool getLogMsgs() const {return logMsgs; }
-	const Topics& getSubTopics() const {return subTopics; }
 	TopicPattern getStateTopicPattern() const { return stateTopicPattern; }
 	TopicPattern getWriteTopicPattern() const { return writeTopicPattern; }
 	TopicPattern getReadTopicPattern() const { return readTopicPattern; }
+	const Topics& getSubTopics() const {return subTopics; }
+	bool getLogMsgs() const {return logMsgs; }
 	const Bindings& getBindings() const { return bindings; }
 };
 
 class Handler: public HandlerIf
 {
 private:
+	enum State
+	{
+		DISCONNECTED,
+		CONNECTING,
+		SUBSCRIBE_PENDING,
+		CONNECTED,
+	};
+	State state;
 	string id;
 	Config config;
 	Logger logger;
 	struct mosquitto* client;
-	bool connected;
 	std::time_t lastConnectTry;
 	struct Msg 
 	{
 		string topic;
 		string payload;
-		Msg(string _topic, string _payload) : topic(_topic), payload(_payload) {}
+		Msg(string topic, string payload) : topic(topic), payload(payload) {}
 	};
 	std::list<Msg> receivedMsgs;
 
@@ -124,14 +148,15 @@ public:
 	virtual Events send(const Items& items, const Events& events) override;
 
 private:
-	bool connect(const Items& items);
 	void disconnect();
 	Events receiveX(const Items& items);
 	Events sendX(const Items& items, const Events& events);
 	void handleError(string funcName, int errorCode);
+	void onConnect(int rc);
 	void onMessage(const Msg& msg);
 	void sendMessage(string topic, string payload, bool reatainFlag);
 
+	friend void onMqttConnect(struct mosquitto*, void*, int);
 	friend void onMqttMessage(struct mosquitto*, void*, const struct mosquitto_message*);
 };
 

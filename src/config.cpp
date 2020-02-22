@@ -304,23 +304,24 @@ Links Config::getLinks(const Items& items, Log& log) const
 
 std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const Items& items) const
 {
-	string clientIdPrefix = getString(value, "clientIdPrefix", "weaver");
+	string clientId = getString(value, "clientId", "weaver");
 	string hostname = getString(value, "hostname");
 	int port = getInt(value, "port", 1883);
+	bool tlsFlag = hasMember(value, "tls");
+	string caFile, caPath, ciphers;
+	if (tlsFlag)
+	{
+		auto& tlsValue = getObject(value, "tls");
+		caFile = getString(tlsValue, "caFile", "");
+		caPath = getString(tlsValue, "caPath", "");
+		ciphers = getString(tlsValue, "ciphers", "");
+	}
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
+
+	string username = getString(value, "username", "");
+	string password = getString(value, "password", "");
 	bool retainFlag = getBool(value, "retainFlag", false);
 	
-	bool logMsgs = getBool(value, "logMessages", false);
-
-	Mqtt::Config::Topics subTopics;
-	if (hasMember(value, "subTopics"))
-		for (auto& topicValue : getArray(value, "subTopics").GetArray())
-		{
-			if (!topicValue.IsString())
-				throw std::runtime_error("Field subTopics is not a string array");
-			subTopics.insert(topicValue.GetString());
-		}
-
 	auto getTopicPattern = [this, &value] (string fieldName)
 	{
 		if (!hasMember(value, fieldName))
@@ -334,6 +335,16 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 	Mqtt::TopicPattern stateTopicPattern = getTopicPattern("stateTopicPattern");
 	Mqtt::TopicPattern writeTopicPattern = getTopicPattern("writeTopicPattern");
 	Mqtt::TopicPattern readTopicPattern = getTopicPattern("readTopicPattern");
+
+	Mqtt::Config::Topics subTopics;
+	if (hasMember(value, "subTopics"))
+		for (auto& topicValue : getArray(value, "subTopics").GetArray())
+		{
+			if (!topicValue.IsString())
+				throw std::runtime_error("Field subTopics is not a string array");
+			subTopics.insert(topicValue.GetString());
+		}
+	bool logMsgs = getBool(value, "logMessages", false);
 
 	Mqtt::Config::Bindings bindings;
 	if (hasMember(value, "bindings"))
@@ -358,11 +369,16 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 			string writeTopic = getString(bindingValue, "writeTopic", "");
 			string readTopic = getString(bindingValue, "readTopic", "");
 
-			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic));
+			std::regex inPattern = convertPattern("inPattern", getString(bindingValue, "inPattern", "^(.*)$"));
+			string outPattern = getString(bindingValue, "outPattern", "%s");
+
+			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, inPattern, outPattern));
 		}
 	}
 
-	return std::make_shared<Mqtt::Config>(clientIdPrefix, hostname, port, reconnectInterval, retainFlag, logMsgs, subTopics, stateTopicPattern, writeTopicPattern, readTopicPattern, bindings);
+	return std::make_shared<Mqtt::Config>(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
+			reconnectInterval, username, password, retainFlag, stateTopicPattern,
+			writeTopicPattern, readTopicPattern, subTopics, logMsgs, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const
@@ -537,7 +553,7 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Item
 
 		string request = getString(bindingValue, "request", "");
 
-		std::regex responsePattern = convertPattern("pattern", getString(bindingValue, "responsePattern"));
+		std::regex responsePattern = convertPattern("responsePattern", getString(bindingValue, "responsePattern"));
 
 		bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
 	}

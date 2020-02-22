@@ -54,21 +54,28 @@ TopicPattern TopicPattern::fromStr(string topicPatternStr)
 	return TopicPattern(topicPatternStr);
 }
 
+void onMqttConnect(struct mosquitto* client, void* handler, int rc)
+{
+	static_cast<Handler*>(handler)->onConnect(rc);
+}
+
 void onMqttMessage(struct mosquitto* client, void* handler, const struct mosquitto_message* msg)
 {
-	//static_cast<Handler*>(handler)->onMessage(msg);
 	static_cast<Handler*>(handler)->onMessage(Handler::Msg(msg->topic, string(static_cast<char*>(msg->payload), msg->payloadlen)));
 }
 
 Handler::Handler(string _id, Config _config, Logger _logger) :
-	id(_id), config(_config), logger(_logger), client(0), connected(false), lastConnectTry(0)
+	id(_id), config(_config), logger(_logger), client(0), state(DISCONNECTED), lastConnectTry(0)
 {
 	mosquitto_lib_init();
-	client = mosquitto_new((config.getClientIdPrefix() + "." + cnvToStr(getpid())).c_str(), true, this);
+	client = mosquitto_new(config.getClientId().c_str(), true, this);
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
 
 	// TODO: Enable TCP_NO_DELAY when being on new Mosquitto library.
+
+	mosquitto_connect_callback_set(client, onMqttConnect);
+	mosquitto_message_callback_set(client, onMqttMessage);
 
 	int major, minor, revision;
 	mosquitto_lib_version(&major, &minor, &revision);
@@ -78,87 +85,28 @@ Handler::Handler(string _id, Config _config, Logger _logger) :
 Handler::~Handler()
 {
 	disconnect();
-	
+
 	mosquitto_destroy(client);
 	mosquitto_lib_cleanup();
 }
 
-bool Handler::connect(const Items& items)
-{
-	if (connected)
-		return true;
-
-	std::time_t now = std::time(0);
-	if (lastConnectTry + config.getReconnectInterval() > now)
-		return false;
-	lastConnectTry = now;
-
-	int ec = mosquitto_connect(client, config.getHostname().c_str(), config.getPort(), 60);
-	handleError("mosquitto_connect", ec);
-	auto autoDisconnect = finally([this] { mosquitto_disconnect(client); });
-
-	mosquitto_message_callback_set(client, onMqttMessage);
-
-	if (config.getBindings().size())
-		for (auto bindingPair : config.getBindings())
-		{
-			auto& binding = bindingPair.second;
-			bool owner = items.getOwnerId(binding.itemId) == id;
-
-			if (owner)
-				for (string stateTopic : binding.stateTopics)
-				{
-					ec = mosquitto_subscribe(client, 0, stateTopic.c_str(), 0);
-					handleError("mosquitto_subscribe", ec);
-				}
-			if (binding.writeTopic != "" && !owner)
-			{
-				ec = mosquitto_subscribe(client, 0, binding.writeTopic.c_str(), 0);
-				handleError("mosquitto_subscribe", ec);
-			}
-			if (binding.readTopic != "" && !owner)
-			{
-				ec = mosquitto_subscribe(client, 0, binding.readTopic.c_str(), 0);
-				handleError("mosquitto_subscribe", ec);
-			}
-		}
-	else
-	{
-		auto subscribe = [&] (TopicPattern topicPattern)
-		{
-			if (topicPattern.isNull())
-				return;
-			ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
-			handleError("mosquitto_subscribe", ec);
-		};
-//		subscribe(config.getStateTopicPattern());
-		subscribe(config.getWriteTopicPattern());
-		subscribe(config.getReadTopicPattern());
-	}
-
-	for (auto topic : config.getSubTopics())
-	{
-		ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
-		handleError("mosquitto_subscribe", ec);
-	}
-
-	autoDisconnect.disable();
-	connected = true;
-	logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
-
-	return true;
-}
-	
 void Handler::disconnect()
 {
-	if (!connected)
+	if (state == DISCONNECTED)
 		return;
 
-	mosquitto_disconnect(client);
-	connected = false;
-	lastConnectTry = 0;
+	if (state == CONNECTED)
+	{
+		lastConnectTry = 0;
 
-	logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+		logger.info() << "Disconnected from MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+	}
+	else
+		lastConnectTry = std::time(0);
+
+	mosquitto_disconnect(client);
+	state = DISCONNECTED;
+	receivedMsgs.clear();
 }
 
 long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
@@ -169,7 +117,7 @@ long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int
 		FD_SET(socket, readFds);
 		*maxFd = std::max(*maxFd, socket);
 	}
-	return mosquitto_want_write(client) ? 0 : -1;
+	return mosquitto_want_write(client) || state == SUBSCRIBE_PENDING ? 0 : -1;
 }
 
 void Handler::handleError(string funcName, int errorCode)
@@ -181,10 +129,13 @@ void Handler::handleError(string funcName, int errorCode)
 		if (errorCode == MOSQ_ERR_ERRNO)
 			logMsg << " due to system error " << errno << " (" << strerror(errno) << ")";
 		logMsg << endOfMsg();
-
-//		if (errorCode == MOSQ_ERR_CONN_LOST)
-//			disconnect();
 	}
+}
+
+void Handler::onConnect(int rc)
+{
+	if (state == CONNECTING)
+		state = SUBSCRIBE_PENDING;
 }
 
 void Handler::onMessage(const Msg& msg)
@@ -213,37 +164,124 @@ Events Handler::receive(const Items& items)
 Events Handler::receiveX(const Items& items)
 {
 	Events events;
-	
-	if (!connect(items))
-		return events;
+
+	if (state == DISCONNECTED)
+	{
+		std::time_t now = std::time(0);
+		if (lastConnectTry + config.getReconnectInterval() > now)
+			return events;
+		lastConnectTry = now;
+
+		string username = config.getUsername();
+		string password = config.getPassword();
+		int ec = mosquitto_username_pw_set(client, username.empty() ? 0 : username.c_str(), password.empty() ? 0 : password.c_str());
+		handleError("mosquitto_username_pw_set", ec);
+
+		if (config.getTlsFlag())
+		{
+			string caFile = config.getCaFile();
+			string caPath = config.getCaPath();
+			ec = mosquitto_tls_set(client, caFile.empty() ? 0 : caFile.c_str(), caPath.empty() ? 0 : caPath.c_str(), 0, 0, 0);
+			handleError("mosquitto_tls_set", ec);
+
+			string ciphers = config.getCiphers();
+			ec = mosquitto_tls_opts_set(client, 0, 0, ciphers.empty() ? 0 : ciphers.c_str());
+			handleError("mosquitto_tls_opts_set", ec);
+
+//			ec = mosquitto_tls_insecure_set(client, true);
+//			handleError("mosquitto_tls_insecure_set", ec);
+		}
+
+		ec = mosquitto_connect(client, config.getHostname().c_str(), config.getPort(), 60);
+		handleError("mosquitto_connect", ec);
+
+		state = CONNECTING;
+	}
 
 	int ec = mosquitto_loop(client, 0, 1);
 	handleError("mosquitto_loop", ec);
 
+	if (state == SUBSCRIBE_PENDING)
+	{
+		state = CONNECTED;
+
+		logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+
+		if (config.getBindings().size())
+			for (auto bindingPair : config.getBindings())
+			{
+				auto& binding = bindingPair.second;
+				bool owner = items.getOwnerId(binding.itemId) == id;
+
+				if (owner)
+					for (string stateTopic : binding.stateTopics)
+					{
+						int ec = mosquitto_subscribe(client, 0, stateTopic.c_str(), 0);
+						handleError("mosquitto_subscribe", ec);
+					}
+				if (binding.writeTopic != "" && !owner)
+				{
+					int ec = mosquitto_subscribe(client, 0, binding.writeTopic.c_str(), 0);
+					handleError("mosquitto_subscribe", ec);
+				}
+				if (binding.readTopic != "" && !owner)
+				{
+					int ec = mosquitto_subscribe(client, 0, binding.readTopic.c_str(), 0);
+					handleError("mosquitto_subscribe", ec);
+				}
+			}
+		else
+		{
+			auto subscribe = [&] (TopicPattern topicPattern)
+			{
+				if (topicPattern.isNull())
+					return;
+				int ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
+				handleError("mosquitto_subscribe", ec);
+			};
+	//		subscribe(config.getStateTopicPattern());
+			subscribe(config.getWriteTopicPattern());
+			subscribe(config.getReadTopicPattern());
+		}
+
+		for (auto topic : config.getSubTopics())
+		{
+			int ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
+			handleError("mosquitto_subscribe", ec);
+		}
+	}
+
 	auto& bindings = config.getBindings();
 	for (auto& msg : receivedMsgs)
+	{
 		if (bindings.size())
 		{
-			int eventCount = events.size();
-
 			for (auto bindingPair : bindings)
 			{
 				auto& binding = bindingPair.second;
 
-				if (binding.writeTopic == msg.topic)
-					events.add(Event(id, binding.itemId, EventType::WRITE_REQ, msg.payload));
-				else if (binding.readTopic == msg.topic)
-					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-				else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
-					events.add(Event(id, binding.itemId, EventType::STATE_IND, msg.payload));
-			}
+				auto analyzePayload = [&] (EventType type)
+				{
+					std::smatch match;
+					if (std::regex_search(msg.payload, match, binding.inPattern))
+						if (match.size() == 2)
+							events.add(Event(id, binding.itemId, type, string(match[1])));
+						else
+							events.add(Event(id, binding.itemId, type, Value::newVoid()));
+				};
 
-			if (eventCount == events.size() && config.getSubTopics().size() == 0)
-				logger.warn() << "No item for topic " << msg.topic << endOfMsg();
+				if (binding.readTopic == msg.topic)
+					events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+				else if (binding.writeTopic == msg.topic)
+					analyzePayload(EventType::WRITE_REQ);
+				else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
+					analyzePayload(EventType::STATE_IND);
+			}
 		}
 		else
 		{
 			string itemId;
+
 			auto getItemId = [&] (TopicPattern topicPattern)
 			{
 				if (topicPattern.isNull())
@@ -251,13 +289,15 @@ Events Handler::receiveX(const Items& items)
 				itemId = topicPattern.getItemId(msg.topic);
 				return itemId.length() > 0 && items.exists(itemId);
 			};
+
 			if (getItemId(config.getWriteTopicPattern()))
 				events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
 			else if (getItemId(config.getReadTopicPattern()))
-				events.add(Event(id, itemId, EventType::READ_REQ, msg.payload));
+				events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
 //			else if (getItemId(config.getStateTopicPattern()))
 //				events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
 		}
+	}
 
 	receivedMsgs.clear();
 
@@ -281,7 +321,7 @@ Events Handler::send(const Items& items, const Events& events)
 
 Events Handler::sendX(const Items& items, const Events& events)
 {
-	if (!connected)
+	if (state != CONNECTED)
 		return Events();
 
 	int ec = mosquitto_loop(client, 0, 1);
@@ -291,14 +331,7 @@ Events Handler::sendX(const Items& items, const Events& events)
 	for (auto& event : events)
 	{
 		string itemId = event.getItemId();
-
-		auto sendMessageWithPayload = [&] (string topic, bool retainFlag)
-		{
-			if (!event.getValue().isString())
-				logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
-			else
-				sendMessage(topic, event.getValue().getString(), config.getRetainFlag());
-		};
+		const Value& value = event.getValue();
 
 		if (bindings.size())
 		{
@@ -306,6 +339,30 @@ Events Handler::sendX(const Items& items, const Events& events)
 			if (bindingPos != bindings.end())
 			{
 				auto& binding = bindingPos->second;
+
+				auto sendMessageWithPayload = [&] (string topic, bool retainFlag)
+				{
+					if (!value.isString())
+						logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
+					else
+					{
+						string pattern = binding.outPattern;
+						string::size_type pos = pattern.find("%time");
+						if (pos != string::npos)
+							pattern.replace(pos, 5, cnvToStr(std::time(0)));
+
+						string str;
+						str.resize(100);
+						int n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
+						if (n >= str.capacity())
+						{
+							str.resize(n + 1);
+							snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
+						}
+
+						sendMessage(topic, str, config.getRetainFlag());
+					}
+				};
 
 				if (event.getType() == EventType::STATE_IND)
 					for (string stateTopic : binding.stateTopics)
@@ -326,8 +383,8 @@ Events Handler::sendX(const Items& items, const Events& events)
 		{
 			if (event.getType() == EventType::STATE_IND)
 			{
-				if (!config.getStateTopicPattern().isNull())
-					sendMessageWithPayload(config.getStateTopicPattern().createPubTopic(itemId), config.getRetainFlag());
+				if (!config.getStateTopicPattern().isNull() && value.isString())
+					sendMessage(config.getStateTopicPattern().createPubTopic(itemId), value.getString(), config.getRetainFlag());
 			}
 //			else if (event.getType() == EventType::WRITE_REQ)
 //			{
