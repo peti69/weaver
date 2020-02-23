@@ -184,6 +184,13 @@
 
 		{ "id": "Herzschlag_ebusd", "type": "void", "ownerId": "ebusd", "readable": false, "writable": false },
 		{ "id": "Herzschlag_weaver", "type": "void", "ownerId": "generator", "readable": false, "writable": false },
+
+		{ "id": "Saugroboter_Ladestand", "type": "number", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} },
+		{ "id": "Saugroboter_Staubbehaelter_Voll", "type": "boolean", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} },
+		{ "id": "Saugroboter_Modus", "type": "string", "ownerId": "saugroboter", "readable": false, "writable": true, "sendOnTimer": {} }, // charging, cleaning, pausing
+	
+		{ "id": "Fehler_weaver_timberwolf", "type": "number", "ownerId": "timberwolf", "readable": false, "writable": false, "sendOnTimer": {} }, // charging, cleaning, pausing
+		{ "id": "Fehler_weaver_saugroboter", "type": "number", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} }, // charging, cleaning, pausing
 	],
 
 	// Interfaces to other systems and/or devices.
@@ -195,6 +202,9 @@
 			// Only in case the link is enabled events and values are transmitted over it.
 			// Optional, default is true.
 			"enabled": false,
+
+			// Id of item on which the number of occurred errors is reported. Optional, default is none. 
+			//"errorCounter": "",
 
 			// If present values for boolean items are transmitted over the link as string and an 
 			// automatic conversion is performed. Optional, default is no conversion.
@@ -305,7 +315,8 @@
 
 		{
 			"id": "timberwolf",
-			//"enabled": false,
+			"enabled": false,
+			"errorCounter": "Fehler_weaver_timberwolf",
 
 			// Link type specific parametrization.
 			"knx": {
@@ -442,13 +453,13 @@
 
 		{
 			"id": "ebusd",
+			"enabled": false,
 			"numberAsString": {},
 
 			// Link type specific parametrization.
 			"mqtt":	{
-				// Prefix of client id passed to MQTT broker when connecting. It is expanded with "." and 
-				// the process id. Optional, default is "weaver".
-				"clientIdPrefix": "weaver_ebusd",
+				// Client id passed to MQTT broker when connecting. Optional, default is "weaver".
+				"clientId": "weaver2ebusd.test",
 
 				// Hostname or IP address of the MQTT broker.
 				"hostname": "192.168.25.9",
@@ -456,21 +467,35 @@
 				// IP port on which MQTT broker is listening. Optional, default is 1883.
 				//"port": 1883,
 
-				// Delay in seconds between reconnect attempts to the MQTT broker when link has been lost.
+				// Parameters for TLS communication to MQTT broker.
+				//"tls": {
+					// Path to a file containing the PEM encoded trusted CA certificates. 
+					// Optional, default is none.
+					//"caFile": "",
+
+					// Path to a directory containing the PEM encoded trusted CA certificate files. 
+					// Optional, default is none.
+					//"caPath": "",
+
+					// String describing the ciphers available for use. See the “openssl ciphers” tool for more 
+					// information. Optional, per default the default ciphers will be used.
+					//"ciphers": "",
+				//},
+
+				// Delay in seconds between attempts to connect to the MQTT broker.
 				// Optional, default is 60. 
 				//"reconnectInterval": 60,
 
+				// In case authentication is required by the MQTT Broker a user name must be provided. 
+				// Optional, default is no authentication.
+				//"username": "USERNAME",
+
+				// If a user name is given also the corresponding password must be provided. 
+				// Optional, default is no authentication.
+				//"password": "PASSWORD",
+ 
 				// Retain flag for STATE_IND induced messages. Optional, default is false.
 				"retainFlag": true,
-
-				// Enables logging of all received and sent messages (payload and topic). 
-				// Optional, default is false. 
-				//"logMessages": true,
-
-				// Topics to which weaver subsribes but without necessarily associating the received messages 
-				// with any item. This can be useful for debugging purpose in conjunction with the logMessages flag. 
-				// Optional, default is no topic. 
-				//"subTopics": [ "ebusd/#" ],
 
 				// In case explicit mapping is not used STATE_IND events are sent on the topic derived from this 
 				// pattern if defined (implicit mapping). Optional, default is no topic pattern. 
@@ -484,9 +509,18 @@
 				// pattern if defined (implicit mapping). Optional, default is no topic pattern. 
 				//"readTopicPattern": "%ItemId%/read",
 
+				// Topics to which weaver subsribes but without necessarily associating the received messages 
+				// with any item. This can be useful for debugging purpose in conjunction with the logMessages flag. 
+				// Optional, default is no topic. 
+				//"subTopics": [ "ebusd/#" ],
+
+				// Enables logging of all received and sent messages (payload and topic). 
+				// Optional, default is false. 
+				//"logMessages": true,
+
 				// Explicit mapping from MQTT to items and vice versa.
 				"bindings":	[
-					{ "itemId": "Temperatur_Aussen", "stateTopic": "ebusd/aussen_temp/wert", "readTopic": "ebusd/aussen_temp/wert/get" },
+					{ "itemId": "Temperatur_Aussen", "stateTopic": "ebusd/aussen_temp/wert", "readTopic": "ebusd/aussen_temp/wert/get" },	// automatically generated each minute
 
 					{ "itemId": "Puffer_SP1_Temperatur", "stateTopic": "ebusd/puffer_sp1/temp", "readTopic": "ebusd/puffer_sp1/temp/get" },
 					{ "itemId": "Puffer_SP2_Temperatur", "stateTopic": "ebusd/puffer_sp2/temp", "readTopic": "ebusd/puffer_sp2/temp/get" },
@@ -494,13 +528,13 @@
 
 					{ 
 						"itemId": "FBH_Modus",
-						"stateTopics": [ "ebusd/fbh_raum_temp_modus/modus", "ebusd/fbh_modus/wert" ],
+						"stateTopics": [ "ebusd/fbh_raum_temp_modus/modus", "ebusd/fbh_modus/wert" ],	// automatically generated each minute
 						"readTopic": "ebusd/fbh_raum_temp_modus/modus/get",
 						"writeTopic": "ebusd/fbh_modus/wert/set"
 					},
 					{
 						"itemId": "FBH_Raum_Solltemperatur",
-						"stateTopics": [ "ebusd/fbh_raum_temp_modus/temp", "ebusd/fbh_raum_temp/wert" ],
+						"stateTopics": [ "ebusd/fbh_raum_temp_modus/temp", "ebusd/fbh_raum_temp/wert" ],	// automatically generated each minute
 						"readTopic": "ebusd/fbh_raum_temp_modus/temp/get",
 						"writeTopic": "ebusd/fbh_raum_temp/wert/set"
 					},
@@ -513,13 +547,13 @@
 
 					{
 						"itemId": "WW_Modus",
-						"stateTopics": [ "ebusd/ww_soll_temp_modus/modus", "ebusd/ww_modus/wert" ],
+						"stateTopics": [ "ebusd/ww_soll_temp_modus/modus", "ebusd/ww_modus/wert" ],	// automatically generated each minute
 						"readTopic": "ebusd/ww_soll_temp_modus/modus/get",
 						"writeTopic": "ebusd/ww_modus/wert/set"
 					},
 					{
 						"itemId": "WW_ZK_Solltemperatur",
-						"stateTopics": [ "ebusd/ww_soll_temp_modus/temp", "ebusd/ww_soll_temp/wert" ],
+						"stateTopics": [ "ebusd/ww_soll_temp_modus/temp", "ebusd/ww_soll_temp/wert" ],	// automatically generated each minute
 						"readTopic": "ebusd/ww_soll_temp_modus/temp/get",
 						"writeTopic": "ebusd/ww_soll_temp/wert/set"
 					},
@@ -561,13 +595,56 @@
 			},
 
 			"mqtt":	{
-				"clientIdPrefix": "weaver_openhab",
+				"clientId": "weaver2openhab.test",
 				"hostname": "192.168.25.9",
 				"retainFlag": true,
-				//"logMessages": true,
 				"stateTopicPattern": "openhab/%ItemId%/state",
 				"writeTopicPattern": "openhab/%ItemId%/write",
-				"readTopicPattern": "openhab/%ItemId%/read"
+				"readTopicPattern": "openhab/%ItemId%/read",
+				//"logMessages": true,
+			}
+		},
+
+		{
+			"id": "saugroboter",
+			"enabled": true,
+			"errorCounter": "Fehler_weaver_saugroboter",
+			"numberAsString": {},
+			"booleanAsString": {},
+
+			"mqtt":	{
+				"clientId": "6977C20452523600",
+				"hostname": "192.168.25.23",
+				"port": 8883,
+				"tls": {
+					"caFile": "roomba.cert",
+					"ciphers": "AES128-SHA256",
+				},
+				"username": "6977C20452523600",
+				"password": ":1:1528396960:sBhBS5scnjdmxs0I",
+				"retainFlag": false,
+				"subTopics": [ "#" ],
+				"logMessages": true,
+				"bindings": [
+					{ 
+						"itemId": "Saugroboter_Ladestand", 
+						"stateTopic": "$aws/things/6977C20452523600/shadow/update", 
+						"inPattern": "\"batPct\":([0-9]+)" 
+					},
+					{ 
+						"itemId": "Saugroboter_Staubbehaelter_Voll", 
+						"stateTopic": "$aws/things/6977C20452523600/shadow/update", 
+						"inPattern": "\"bin\".*\"full\":([a-z]+)" 
+					},
+					{ 
+						"itemId": "Saugroboter_Modus", 
+						"stateTopic": "$aws/things/6977C20452523600/shadow/update", 
+						"writeTopic": "cmd",
+						"inPattern": "\"cleanMissionStatus\".*\"phase\":\"([A-Za-z]+)\"",
+						"outPattern": "{ \"command\": \"%s\", \"time\": 0, \"initiator\": \"localApp\" }",
+//						"outPattern": "{\"command\":\"%s\",\"time\":%time,\"initiator\":\"localApp\"}",
+					},
+				]
 			}
 		},
 
@@ -620,6 +697,7 @@
 
 		{
 			"id": "tankerkönig",
+			"enabled": false,
 			"numberAsString": {},
 
 			"http": {
@@ -674,6 +752,7 @@
 
 		{
 			"id": "fritzbox_tr064",
+			"enabled": false,
 			"booleanAsString": { "falseValue": "0", "trueValue": "1" },
 
 			"http": {
@@ -792,7 +871,7 @@
 			// This link type supports persistency for the items it owns.
 			"storage": {
 				// File in which the item values are stored.
-				"fileName": "../weaver_states.json"
+				"fileName": "weaver_states.json"
 			}
 		}
 	]
