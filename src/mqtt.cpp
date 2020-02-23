@@ -66,23 +66,7 @@ void onMessage(struct mosquitto* client, void* handler, const struct mosquitto_m
 
 void onLog(struct mosquitto* client, void* handler, int level, const char* msg)
 {
-	string levelStr;
-	switch (level)
-	{
-		case MOSQ_LOG_INFO:
-			levelStr = "INFO"; break;
-		case MOSQ_LOG_NOTICE:
-			levelStr = "NOTICE"; break;
-		case MOSQ_LOG_WARNING:
-			levelStr = "WARNING"; break;
-		case MOSQ_LOG_ERR:
-			levelStr = "ERROR"; break;
-		case MOSQ_LOG_DEBUG:
-			levelStr = "DEBUG"; break;
-		default:
-			levelStr = "???"; break;
-	}
-	cout << "MQTT " << levelStr << ": " << msg << endl;
+	static_cast<Handler*>(handler)->onLog(level, msg);
 }
 
 Handler::Handler(string _id, Config _config, Logger _logger) :
@@ -97,7 +81,7 @@ Handler::Handler(string _id, Config _config, Logger _logger) :
 
 	mosquitto_connect_callback_set(client, Mqtt::onConnect);
 	mosquitto_message_callback_set(client, Mqtt::onMessage);
-	//mosquitto_log_callback_set(client, Mqtt::onLog);
+	mosquitto_log_callback_set(client, Mqtt::onLog);
 
 	int major, minor, revision;
 	mosquitto_lib_version(&major, &minor, &revision);
@@ -139,7 +123,7 @@ long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int
 		FD_SET(socket, readFds);
 		*maxFd = std::max(*maxFd, socket);
 	}
-	return mosquitto_want_write(client) || state == SUBSCRIBE_PENDING ? 0 : -1;
+	return mosquitto_want_write(client) || state == CONNECTING_SUCCEEDED || state == CONNECTING_FAILED ? 0 : -1;
 }
 
 void Handler::handleError(string funcName, int errorCode)
@@ -154,10 +138,38 @@ void Handler::handleError(string funcName, int errorCode)
 	}
 }
 
+void Handler::onLog(int level, string text)
+{
+	if (!config.getLogLibEvents())
+		return;
+
+	string levelStr;
+	switch (level)
+	{
+		case MOSQ_LOG_INFO:
+			levelStr = "INFO"; break;
+		case MOSQ_LOG_NOTICE:
+			levelStr = "NOTICE"; break;
+		case MOSQ_LOG_WARNING:
+			levelStr = "WARNING"; break;
+		case MOSQ_LOG_ERR:
+			levelStr = "ERROR"; break;
+		case MOSQ_LOG_DEBUG:
+			levelStr = "DEBUG"; break;
+		default:
+			levelStr = "???"; break;
+	}
+
+	logger.debug() << text << " (" << levelStr << ")" << endOfMsg();
+}
+
 void Handler::onConnect(int rc)
 {
 	if (state == CONNECTING)
-		state = SUBSCRIBE_PENDING;
+		if (rc == 0)
+			state = CONNECTING_SUCCEEDED;
+		else
+			state = CONNECTING_FAILED;
 }
 
 void Handler::onMessage(const Msg& msg)
@@ -230,7 +242,7 @@ Events Handler::receiveX(const Items& items)
 	int ec = mosquitto_loop(client, 0, 1);
 	handleError("mosquitto_loop", ec);
 
-	if (state == SUBSCRIBE_PENDING)
+	if (state == CONNECTING_SUCCEEDED)
 	{
 		state = CONNECTED;
 

@@ -84,17 +84,18 @@ private:
 	TopicPattern readTopicPattern;
 	Topics subTopics;
 	bool logMsgs;
+	bool logLibEvents;
 	Bindings bindings;
 
 public:
 	Config(string clientId, string hostname, int port, bool tlsFlag, string caFile, string caPath, string ciphers,
 		int reconnectInterval, string username, string password, bool retainFlag,
 		TopicPattern stateTopicPattern, TopicPattern writeTopicPattern, TopicPattern readTopicPattern,
-		Topics subTopics, bool logMsgs, Bindings bindings) :
+		Topics subTopics, bool logMsgs, bool logLibEvents, Bindings bindings) :
 		clientId(clientId), hostname(hostname), port(port), tlsFlag(tlsFlag), caFile(caFile), caPath(caPath), ciphers(ciphers),
 		reconnectInterval(reconnectInterval), username(username), password(password), retainFlag(retainFlag),
 		stateTopicPattern(stateTopicPattern), writeTopicPattern(writeTopicPattern), readTopicPattern(readTopicPattern),
-		subTopics(subTopics), logMsgs(logMsgs), bindings(bindings)
+		subTopics(subTopics), logMsgs(logMsgs), logLibEvents(logLibEvents), bindings(bindings)
 	{}
 	string getClientId() const { return clientId; }
 	string getHostname() const { return hostname; }
@@ -112,6 +113,7 @@ public:
 	TopicPattern getReadTopicPattern() const { return readTopicPattern; }
 	const Topics& getSubTopics() const {return subTopics; }
 	bool getLogMsgs() const {return logMsgs; }
+	bool getLogLibEvents() const { return logLibEvents; }
 	const Bindings& getBindings() const { return bindings; }
 };
 
@@ -122,7 +124,8 @@ private:
 	{
 		DISCONNECTED,
 		CONNECTING,
-		SUBSCRIBE_PENDING,
+		CONNECTING_FAILED,
+		CONNECTING_SUCCEEDED,
 		CONNECTED,
 	};
 	State state;
@@ -139,7 +142,7 @@ private:
 	};
 	std::list<Msg> receivedMsgs;
 
-	// State of handler.
+	// External state of handler.
 	HandlerState handlerState;
 
 public:
@@ -156,6 +159,7 @@ private:
 	Events receiveX(const Items& items);
 	Events sendX(const Items& items, const Events& events);
 	void handleError(string funcName, int errorCode);
+	void onLog(int level, string text);
 	void onConnect(int rc);
 	void onMessage(const Msg& msg);
 	void sendMessage(string topic, string payload, bool reatainFlag);

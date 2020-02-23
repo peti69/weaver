@@ -270,7 +270,7 @@ private:
 	// Attention: Timeouts are currently not detected.
 	std::set<string> receivedReadReqs;
 
-	// State of handler.
+	// External state of handler.
 	HandlerState handlerState;
 
 public:

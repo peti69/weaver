@@ -22,7 +22,6 @@
 	// Defines the name of the file to which the log messages are written. In case no name is given or in case
 	// an empty name is given the log message are only witten to standard out (stdout). Optional, default is empty.
 	//"logFileName": "/weaver/log/weaver.log",
-	//"logFileName": "/home/peter/weaver/weaver.log",
 
 	// Defines the maximum size of the log file in bytes. When the log file becomes bigger it is renamed (for backup) 
 	// and a new empty one is created. If 0 is given the size of the log file is not limited and log file backups are 
@@ -493,7 +492,7 @@
 				// If a user name is given also the corresponding password must be provided. 
 				// Optional, default is no authentication.
 				//"password": "PASSWORD",
- 
+
 				// Retain flag for STATE_IND induced messages. Optional, default is false.
 				"retainFlag": true,
 
@@ -517,6 +516,10 @@
 				// Enables logging of all received and sent messages (payload and topic). 
 				// Optional, default is false. 
 				//"logMessages": true,
+				
+				// Enables logging of all log events provided by the underlaying MQTT library (libmosquitto).  
+				// Optional, default is false. 
+				//"logLibEvents": true,
 
 				// Explicit mapping from MQTT to items and vice versa.
 				"bindings":	[
@@ -602,12 +605,13 @@
 				"writeTopicPattern": "openhab/%ItemId%/write",
 				"readTopicPattern": "openhab/%ItemId%/read",
 				//"logMessages": true,
+				"logLibEvents": true,
 			}
 		},
 
 		{
 			"id": "saugroboter",
-			"enabled": true,
+			"enabled": false,
 			"errorCounter": "Fehler_weaver_saugroboter",
 			"numberAsString": {},
 			"booleanAsString": {},
@@ -625,8 +629,9 @@
 				"retainFlag": false,
 				"subTopics": [ "#" ],
 				"logMessages": true,
+				//"logLibEvents": true,
 				"bindings": [
-					{ 
+					{
 						"itemId": "Saugroboter_Ladestand", 
 						"stateTopic": "$aws/things/6977C20452523600/shadow/update", 
 						"inPattern": "\"batPct\":([0-9]+)" 

@@ -350,6 +350,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 			subTopics.insert(topicValue.GetString());
 		}
 	bool logMsgs = getBool(value, "logMessages", false);
+	bool logLibEvents = getBool(value, "logLibEvents", false);
 
 	Mqtt::Config::Bindings bindings;
 	if (hasMember(value, "bindings"))
@@ -383,7 +384,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 
 	return std::make_shared<Mqtt::Config>(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
 			reconnectInterval, username, password, retainFlag, stateTopicPattern,
-			writeTopicPattern, readTopicPattern, subTopics, logMsgs, bindings);
+			writeTopicPattern, readTopicPattern, subTopics, logMsgs, logLibEvents, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const
