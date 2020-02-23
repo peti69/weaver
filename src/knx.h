@@ -270,10 +270,14 @@ private:
 	// Attention: Timeouts are currently not detected.
 	std::set<string> receivedReadReqs;
 
+	// State of handler.
+	HandlerState handlerState;
+
 public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
 	virtual bool supports(EventType eventType) const override { return true; }
+	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;

@@ -139,10 +139,14 @@ private:
 	};
 	std::list<Msg> receivedMsgs;
 
+	// State of handler.
+	HandlerState handlerState;
+
 public:
 	Handler(string _id, Config _config, Logger _logger);
 	virtual ~Handler();
 	virtual bool supports(EventType eventType) const override { return true; }
+	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;
@@ -156,8 +160,9 @@ private:
 	void onMessage(const Msg& msg);
 	void sendMessage(string topic, string payload, bool reatainFlag);
 
-	friend void onMqttConnect(struct mosquitto*, void*, int);
-	friend void onMqttMessage(struct mosquitto*, void*, const struct mosquitto_message*);
+	friend void onConnect(struct mosquitto*, void*, int);
+	friend void onMessage(struct mosquitto*, void*, const struct mosquitto_message*);
+	friend void onLog(struct mosquitto*, void*, int, const char*);
 };
 
 }

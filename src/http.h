@@ -67,6 +67,7 @@ public:
 	HttpHandler(string _id, HttpConfig _config, Logger _logger);
 	virtual ~HttpHandler();
 	virtual bool supports(EventType eventType) const override { return eventType != EventType::STATE_IND; }
+	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;

@@ -36,7 +36,20 @@ Events Link::receive(Items& items)
 		pendingEvents.clear();
 	}
 	else
+	{
 		events = handler->receive(items);
+
+		if (errorCounter != "")
+		{
+			// monitor handler state
+			HandlerState state = handler->getState();
+			if (state.errorCounter != oldHandlerState.errorCounter)
+			{
+				events.add(Event(id, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
+				oldHandlerState = state;
+			}
+		}
+	}
 
 	for (auto eventPos = events.begin(); eventPos != events.end();)
 	{
@@ -227,6 +240,17 @@ void Link::send(Items& items, const Events& events)
 	}
 
 	pendingEvents = handler->send(items, modifiedEvents);
+
+	if (errorCounter != "")
+	{
+		// monitor handler state
+		HandlerState state = handler->getState();
+		if (state.errorCounter != oldHandlerState.errorCounter)
+		{
+			pendingEvents.add(Event(id, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
+			oldHandlerState = state;
+		}
+	}
 }
 
 

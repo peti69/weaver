@@ -228,6 +228,10 @@ Links Config::getLinks(const Items& items, Log& log) const
 		string id = getString(linkValue, "id");
 		bool enabled = getBool(linkValue, "enabled", true);
 
+		string errorCounter = getString(linkValue, "errorCounter", "");
+		if (errorCounter != "" && !items.exists(errorCounter))
+			throw std::runtime_error("Invalid value " + errorCounter + " for field errorCounter in configuration");
+
 		bool numberAsString = hasMember(linkValue, "numberAsString");
 
 		bool booleanAsString = hasMember(linkValue, "booleanAsString");
@@ -291,8 +295,9 @@ Links Config::getLinks(const Items& items, Log& log) const
 		else
 			throw std::runtime_error("Link with unknown or missing type in configuration");
 
-		links.add(Link(id, enabled, numberAsString, booleanAsString, falseValue, trueValue, unwritableFalseValue,
-				unwritableTrueValue, voidAsString, voidValue, unwritableVoidValue, modifiers, handler, logger));
+		links.add(Link(id, enabled, errorCounter, numberAsString, booleanAsString, falseValue, trueValue,
+				unwritableFalseValue, unwritableTrueValue, voidAsString, voidValue, unwritableVoidValue,
+				modifiers, handler, logger));
 	}
 
 	for (auto itemPair : items)

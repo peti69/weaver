@@ -54,28 +54,50 @@ TopicPattern TopicPattern::fromStr(string topicPatternStr)
 	return TopicPattern(topicPatternStr);
 }
 
-void onMqttConnect(struct mosquitto* client, void* handler, int rc)
+void onConnect(struct mosquitto* client, void* handler, int rc)
 {
 	static_cast<Handler*>(handler)->onConnect(rc);
 }
 
-void onMqttMessage(struct mosquitto* client, void* handler, const struct mosquitto_message* msg)
+void onMessage(struct mosquitto* client, void* handler, const struct mosquitto_message* msg)
 {
 	static_cast<Handler*>(handler)->onMessage(Handler::Msg(msg->topic, string(static_cast<char*>(msg->payload), msg->payloadlen)));
+}
+
+void onLog(struct mosquitto* client, void* handler, int level, const char* msg)
+{
+	string levelStr;
+	switch (level)
+	{
+		case MOSQ_LOG_INFO:
+			levelStr = "INFO"; break;
+		case MOSQ_LOG_NOTICE:
+			levelStr = "NOTICE"; break;
+		case MOSQ_LOG_WARNING:
+			levelStr = "WARNING"; break;
+		case MOSQ_LOG_ERR:
+			levelStr = "ERROR"; break;
+		case MOSQ_LOG_DEBUG:
+			levelStr = "DEBUG"; break;
+		default:
+			levelStr = "???"; break;
+	}
+	cout << "MQTT " << levelStr << ": " << msg << endl;
 }
 
 Handler::Handler(string _id, Config _config, Logger _logger) :
 	id(_id), config(_config), logger(_logger), client(0), state(DISCONNECTED), lastConnectTry(0)
 {
+	handlerState.errorCounter = 0;
+
 	mosquitto_lib_init();
 	client = mosquitto_new(config.getClientId().c_str(), true, this);
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
 
-	// TODO: Enable TCP_NO_DELAY when being on new Mosquitto library.
-
-	mosquitto_connect_callback_set(client, onMqttConnect);
-	mosquitto_message_callback_set(client, onMqttMessage);
+	mosquitto_connect_callback_set(client, Mqtt::onConnect);
+	mosquitto_message_callback_set(client, Mqtt::onMessage);
+	//mosquitto_log_callback_set(client, Mqtt::onLog);
 
 	int major, minor, revision;
 	mosquitto_lib_version(&major, &minor, &revision);
@@ -154,6 +176,8 @@ Events Handler::receive(const Items& items)
 	}
 	catch (const std::exception& ex)
 	{
+		handlerState.errorCounter++;
+
 		logger.error() << ex.what() << endOfMsg();
 	}
 
@@ -171,6 +195,11 @@ Events Handler::receiveX(const Items& items)
 		if (lastConnectTry + config.getReconnectInterval() > now)
 			return events;
 		lastConnectTry = now;
+
+		// TODO: Enable TCP_NO_DELAY when being on new Mosquitto library.
+
+//		int ec = mosquitto_int_option(client, MQTT_PROTOCOL_V311, true);
+//		handleError("mosquitto_int_option", ec);
 
 		string username = config.getUsername();
 		string password = config.getPassword();
@@ -312,6 +341,8 @@ Events Handler::send(const Items& items, const Events& events)
 	}
 	catch (const std::exception& ex)
 	{
+		handlerState.errorCounter++;
+
 		logger.error() << ex.what() << endOfMsg();
 	}
 

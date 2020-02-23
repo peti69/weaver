@@ -32,7 +32,15 @@ public:
 	bool exists(string itemId) const { return find(itemId) != end(); }
 };
 
-// Interface for exchanging events with external systems.
+// State of an interface to an external system.
+struct HandlerState
+{
+	int errorCounter;
+
+	HandlerState() : errorCounter(-1) {}
+};
+
+// Interface for exchanging events with an external system.
 class HandlerIf
 {
 public:
@@ -41,6 +49,9 @@ public:
 	// Indicates whether the handler generates (STATE_IND) or accepts (READ_REQ, WRITE_REQ)
 	// events of the passed type for items it owns.
 	virtual bool supports(EventType eventType) const = 0;
+
+	// Returns the current state of the handler.
+	virtual HandlerState getState() const = 0;
 
 	// Fetches all data from the handler for feeding the select() system call. The return value
 	// is the time duration in milliseconds until when the handler has to be called at latest.
@@ -61,6 +72,9 @@ private:
 
 	// Only in case the link is enabled events are transmitted over the link.
 	bool enabled;
+
+	// Id of item on which the number of errors on the link will be reported.
+	string errorCounter;
 
 	// Indicates that values for number items are transmitted over the link as strings
 	// and that an automatic conversion is required.
@@ -95,22 +109,25 @@ private:
 	// Alteration rules for events and their values which are transmitted over the link.
 	Modifiers modifiers;
 
-	// Actual interface for the exchange of events with the external systems.
+	// Handler embedded into the link.
 	std::shared_ptr<HandlerIf> handler;
 
 	// Logger for any kind of logging in the context of the link.
 	Logger logger;
 
+	// Last retrieved handler state
+	HandlerState oldHandlerState;
+
 	// Events generated in send() and waiting to be returned by receive().
 	Events pendingEvents;
 
 public:
-	Link(string id, bool enabled, bool numberAsString,
+	Link(string id, bool enabled, string errorCounter, bool numberAsString,
 		bool booleanAsString, string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
-		id(id), enabled(enabled), numberAsString(numberAsString),
+		id(id), enabled(enabled), errorCounter(errorCounter), numberAsString(numberAsString),
 		booleanAsString(booleanAsString), falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),

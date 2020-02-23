@@ -303,6 +303,7 @@ KnxHandler::KnxHandler(string _id, KnxConfig _config, Logger _logger) :
 	lastConnectTry(TimePoint::min()), lastControlReqSendTime(TimePoint::min()),
 	lastTunnelReqSendTime(TimePoint::min())
 {
+	handlerState.errorCounter = 0;
 }
 
 KnxHandler::~KnxHandler() 
@@ -355,6 +356,8 @@ Events KnxHandler::receive(const Items& items)
 	}
 	catch (const std::exception& ex)
 	{
+		handlerState.errorCounter++;
+
 		logger.error() << ex.what() << endOfMsg();
 	}
 
@@ -513,8 +516,10 @@ Events KnxHandler::receiveX(const Items& items)
 		{
 			sendControlMsg(createDiscResp());
 
-			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
+			handlerState.errorCounter++;
 			close();
+
+			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
 		}
 		else
 			logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
@@ -537,6 +542,8 @@ Events KnxHandler::send(const Items& items, const Events& events)
 	}
 	catch (const std::exception& ex)
 	{
+		handlerState.errorCounter++;
+
 		logger.error() << ex.what() << endOfMsg();
 	}
 
@@ -729,8 +736,12 @@ void KnxHandler::processPendingLDataCons()
 				              << " was not confirmed in time (Item " << ldataReq.itemId << ")" << endOfMsg();
 			}
 			else
+			{
+				handlerState.errorCounter++;
+
 				logger.error() << "Second L_Data.req for GA " << ldataReq.ga.toStr()
 				               << " was not confirmed in time (Item " << ldataReq.itemId << ")" << endOfMsg();
+			}
 			pos = sentLDataReqs.erase(pos);
 		}
 		else

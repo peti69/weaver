@@ -44,6 +44,7 @@ private:
 public:
 	Tr064(string _id, Tr064Config _config, Logger _logger);
 	virtual bool supports(EventType eventType) const override { return true; }
+	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
 	virtual Events send(const Items& items, const Events& events) override;
