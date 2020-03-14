@@ -76,6 +76,7 @@ private:
 	string caPath;
 	string ciphers;
 	int reconnectInterval;
+	int idleTimeout;
 	string username;
 	string password;
 	bool retainFlag;
@@ -89,11 +90,13 @@ private:
 
 public:
 	Config(string clientId, string hostname, int port, bool tlsFlag, string caFile, string caPath, string ciphers,
-		int reconnectInterval, string username, string password, bool retainFlag,
+		int reconnectInterval, int idleTimeout, string username, string password, bool retainFlag,
 		TopicPattern stateTopicPattern, TopicPattern writeTopicPattern, TopicPattern readTopicPattern,
 		Topics subTopics, bool logMsgs, bool logLibEvents, Bindings bindings) :
-		clientId(clientId), hostname(hostname), port(port), tlsFlag(tlsFlag), caFile(caFile), caPath(caPath), ciphers(ciphers),
-		reconnectInterval(reconnectInterval), username(username), password(password), retainFlag(retainFlag),
+		clientId(clientId), hostname(hostname), port(port),
+		tlsFlag(tlsFlag), caFile(caFile), caPath(caPath), ciphers(ciphers),
+		reconnectInterval(reconnectInterval), idleTimeout(idleTimeout),
+		username(username), password(password), retainFlag(retainFlag),
 		stateTopicPattern(stateTopicPattern), writeTopicPattern(writeTopicPattern), readTopicPattern(readTopicPattern),
 		subTopics(subTopics), logMsgs(logMsgs), logLibEvents(logLibEvents), bindings(bindings)
 	{}
@@ -105,6 +108,7 @@ public:
 	string getCaPath() const { return caPath; }
 	string getCiphers() const { return ciphers; }
 	int getReconnectInterval() const { return reconnectInterval; }
+	int getIdleTimeout() const { return idleTimeout; }
 	string getUsername() const { return username; }
 	string getPassword() const { return password; }
 	bool getRetainFlag() const { return retainFlag; }
@@ -134,13 +138,18 @@ private:
 	Logger logger;
 	struct mosquitto* client;
 	std::time_t lastConnectTry;
+	std::time_t lastMsgSendTime;
 	struct Msg 
 	{
 		string topic;
 		string payload;
-		Msg(string topic, string payload) : topic(topic), payload(payload) {}
+		bool retainFlag;
+		Msg(string topic, string payload, bool reatianFlag) :
+			topic(topic), payload(payload), retainFlag(retainFlag) {
+		}
 	};
 	std::list<Msg> receivedMsgs;
+	std::list<Msg> waitingMsgs;
 
 	// External state of handler.
 	HandlerState handlerState;
@@ -157,12 +166,12 @@ public:
 private:
 	void disconnect();
 	Events receiveX(const Items& items);
-	Events sendX(const Items& items, const Events& events);
+	void sendX(const Items& items, const Events& events);
 	void handleError(string funcName, int errorCode);
 	void onLog(int level, string text);
 	void onConnect(int rc);
 	void onMessage(const Msg& msg);
-	void sendMessage(string topic, string payload, bool reatainFlag);
+	void sendMessage(string topic, string payload, bool retainFlag);
 
 	friend void onConnect(struct mosquitto*, void*, int);
 	friend void onMessage(struct mosquitto*, void*, const struct mosquitto_message*);

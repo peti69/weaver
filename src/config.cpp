@@ -312,6 +312,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 	string clientId = getString(value, "clientId", "weaver");
 	string hostname = getString(value, "hostname");
 	int port = getInt(value, "port", 1883);
+
 	bool tlsFlag = hasMember(value, "tls");
 	string caFile, caPath, ciphers;
 	if (tlsFlag)
@@ -321,12 +322,14 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 		caPath = getString(tlsValue, "caPath", "");
 		ciphers = getString(tlsValue, "ciphers", "");
 	}
+
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
+	int idleTimeout = getInt(value, "idleTimeout", 0);
 
 	string username = getString(value, "username", "");
 	string password = getString(value, "password", "");
 	bool retainFlag = getBool(value, "retainFlag", false);
-	
+
 	auto getTopicPattern = [this, &value] (string fieldName)
 	{
 		if (!hasMember(value, fieldName))
@@ -383,7 +386,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 	}
 
 	return std::make_shared<Mqtt::Config>(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
-			reconnectInterval, username, password, retainFlag, stateTopicPattern,
+			reconnectInterval, idleTimeout, username, password, retainFlag, stateTopicPattern,
 			writeTopicPattern, readTopicPattern, subTopics, logMsgs, logLibEvents, bindings);
 }
 

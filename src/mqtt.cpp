@@ -61,7 +61,7 @@ void onConnect(struct mosquitto* client, void* handler, int rc)
 
 void onMessage(struct mosquitto* client, void* handler, const struct mosquitto_message* msg)
 {
-	static_cast<Handler*>(handler)->onMessage(Handler::Msg(msg->topic, string(static_cast<char*>(msg->payload), msg->payloadlen)));
+	static_cast<Handler*>(handler)->onMessage(Handler::Msg(msg->topic, string(static_cast<char*>(msg->payload), msg->payloadlen), false));
 }
 
 void onLog(struct mosquitto* client, void* handler, int level, const char* msg)
@@ -70,7 +70,8 @@ void onLog(struct mosquitto* client, void* handler, int level, const char* msg)
 }
 
 Handler::Handler(string _id, Config _config, Logger _logger) :
-	id(_id), config(_config), logger(_logger), client(0), state(DISCONNECTED), lastConnectTry(0)
+	id(_id), config(_config), logger(_logger), client(0), state(DISCONNECTED),
+	lastConnectTry(0), lastMsgSendTime(0)
 {
 	handlerState.errorCounter = 0;
 
@@ -112,7 +113,7 @@ void Handler::disconnect()
 
 	mosquitto_disconnect(client);
 	state = DISCONNECTED;
-	receivedMsgs.clear();
+	waitingMsgs.clear();
 }
 
 long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
@@ -123,7 +124,8 @@ long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int
 		FD_SET(socket, readFds);
 		*maxFd = std::max(*maxFd, socket);
 	}
-	return mosquitto_want_write(client) || state == CONNECTING_SUCCEEDED || state == CONNECTING_FAILED ? 0 : -1;
+	return mosquitto_want_write(client) || state == CONNECTING_SUCCEEDED
+		|| state == CONNECTING_FAILED || waitingMsgs.size() ? 0 : -1;
 }
 
 void Handler::handleError(string funcName, int errorCode)
@@ -203,6 +205,9 @@ Events Handler::receiveX(const Items& items)
 
 	if (state == DISCONNECTED)
 	{
+		if (config.getIdleTimeout() && !waitingMsgs.size())
+			return events;
+
 		std::time_t now = std::time(0);
 		if (lastConnectTry + config.getReconnectInterval() > now)
 			return events;
@@ -210,12 +215,16 @@ Events Handler::receiveX(const Items& items)
 
 		// TODO: Enable TCP_NO_DELAY when being on new Mosquitto library.
 
-//		int ec = mosquitto_int_option(client, MQTT_PROTOCOL_V311, true);
-//		handleError("mosquitto_int_option", ec);
+		//int ec = mosquitto_int_option(client, MQTT_PROTOCOL_V311, true);
+		//handleError("mosquitto_int_option", ec);
+
+		int version = MQTT_PROTOCOL_V311;
+		int ec = mosquitto_opts_set(client, MOSQ_OPT_PROTOCOL_VERSION, &version);
+		handleError("mosquitto_opts_set", ec);
 
 		string username = config.getUsername();
 		string password = config.getPassword();
-		int ec = mosquitto_username_pw_set(client, username.empty() ? 0 : username.c_str(), password.empty() ? 0 : password.c_str());
+		ec = mosquitto_username_pw_set(client, username.empty() ? 0 : username.c_str(), password.empty() ? 0 : password.c_str());
 		handleError("mosquitto_username_pw_set", ec);
 
 		if (config.getTlsFlag())
@@ -229,18 +238,19 @@ Events Handler::receiveX(const Items& items)
 			ec = mosquitto_tls_opts_set(client, 0, 0, ciphers.empty() ? 0 : ciphers.c_str());
 			handleError("mosquitto_tls_opts_set", ec);
 
-//			ec = mosquitto_tls_insecure_set(client, true);
-//			handleError("mosquitto_tls_insecure_set", ec);
+			//ec = mosquitto_tls_insecure_set(client, true);
+			//handleError("mosquitto_tls_insecure_set", ec);
 		}
 
 		ec = mosquitto_connect(client, config.getHostname().c_str(), config.getPort(), 60);
 		handleError("mosquitto_connect", ec);
 
 		state = CONNECTING;
+		receivedMsgs.clear();
 	}
 
 	int ec = mosquitto_loop(client, 0, 1);
-	handleError("mosquitto_loop", ec);
+	handleError("mosquitto_loop#1", ec);
 
 	if (state == CONNECTING_SUCCEEDED)
 	{
@@ -280,7 +290,7 @@ Events Handler::receiveX(const Items& items)
 				int ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
 				handleError("mosquitto_subscribe", ec);
 			};
-	//		subscribe(config.getStateTopicPattern());
+			//subscribe(config.getStateTopicPattern());
 			subscribe(config.getWriteTopicPattern());
 			subscribe(config.getReadTopicPattern());
 		}
@@ -290,6 +300,16 @@ Events Handler::receiveX(const Items& items)
 			int ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
 			handleError("mosquitto_subscribe", ec);
 		}
+
+		for (auto& msg : waitingMsgs)
+			sendMessage(msg.topic, msg.payload, msg.retainFlag);
+		waitingMsgs.clear();
+	}
+
+	if (state == CONNECTED && config.getIdleTimeout() && lastMsgSendTime + config.getIdleTimeout() <= std::time(0))
+	{
+		disconnect();
+		return events;
 	}
 
 	auto& bindings = config.getBindings();
@@ -335,11 +355,10 @@ Events Handler::receiveX(const Items& items)
 				events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
 			else if (getItemId(config.getReadTopicPattern()))
 				events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
-//			else if (getItemId(config.getStateTopicPattern()))
-//				events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
+			//else if (getItemId(config.getStateTopicPattern()))
+			//	events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
 		}
 	}
-
 	receivedMsgs.clear();
 
 	return events;
@@ -349,7 +368,8 @@ Events Handler::send(const Items& items, const Events& events)
 {
 	try
 	{
-		return sendX(items, events);
+		sendX(items, events);
+		return Events();
 	}
 	catch (const std::exception& ex)
 	{
@@ -362,13 +382,18 @@ Events Handler::send(const Items& items, const Events& events)
 	return Events();
 }
 
-Events Handler::sendX(const Items& items, const Events& events)
+void Handler::sendX(const Items& items, const Events& events)
 {
-	if (state != CONNECTED)
-		return Events();
-
-	int ec = mosquitto_loop(client, 0, 1);
-	handleError("mosquitto_loop", ec);
+	auto sendMsg = [this] (string topic, string payload, bool retainFlag)
+	{
+		if (state != CONNECTED)
+		{
+			if (config.getIdleTimeout())
+				waitingMsgs.push_back(Msg(topic, payload, retainFlag));
+		}
+		else
+			sendMessage(topic, payload, retainFlag);
+	};
 
 	auto& bindings = config.getBindings();
 	for (auto& event : events)
@@ -383,7 +408,7 @@ Events Handler::sendX(const Items& items, const Events& events)
 			{
 				auto& binding = bindingPos->second;
 
-				auto sendMessageWithPayload = [&] (string topic, bool retainFlag)
+				auto sendMsgWithPayload = [&] (string topic, bool retainFlag)
 				{
 					if (!value.isString())
 						logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
@@ -403,22 +428,22 @@ Events Handler::sendX(const Items& items, const Events& events)
 							snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
 						}
 
-						sendMessage(topic, str, config.getRetainFlag());
+						sendMsg(topic, str, config.getRetainFlag());
 					}
 				};
 
 				if (event.getType() == EventType::STATE_IND)
 					for (string stateTopic : binding.stateTopics)
-						sendMessageWithPayload(stateTopic, config.getRetainFlag());
+						sendMsgWithPayload(stateTopic, config.getRetainFlag());
 				else if (event.getType() == EventType::WRITE_REQ)
 				{
 					if (binding.writeTopic != "")
-						sendMessageWithPayload(binding.writeTopic, false);
+						sendMsgWithPayload(binding.writeTopic, false);
 				}
 				else if (event.getType() == EventType::READ_REQ)
 				{
 					if (binding.readTopic != "")
-						sendMessage(binding.readTopic, "", false);
+						sendMsg(binding.readTopic, "", false);
 				}
 			}
 		}
@@ -427,30 +452,36 @@ Events Handler::sendX(const Items& items, const Events& events)
 			if (event.getType() == EventType::STATE_IND)
 			{
 				if (!config.getStateTopicPattern().isNull() && value.isString())
-					sendMessage(config.getStateTopicPattern().createPubTopic(itemId), value.getString(), config.getRetainFlag());
+					sendMsg(config.getStateTopicPattern().createPubTopic(itemId), value.getString(), config.getRetainFlag());
 			}
 //			else if (event.getType() == EventType::WRITE_REQ)
 //			{
 //				if (!config.getWriteTopicPattern().isNull())
-//					sendMessage(config.getWriteTopicPattern().createPubTopic(itemId), payload, false);
+//					sendMsg(config.getWriteTopicPattern().createPubTopic(itemId), payload, false);
 //			}
 //			else if (event.getType() == EventType::READ_REQ)
 //			{
 //				if (!config.getReadTopicPattern().isNull())
-//					sendMessage(config.getReadTopicPattern().createPubTopic(itemId), "", false);
+//					sendMsg(config.getReadTopicPattern().createPubTopic(itemId), "", false);
 //			}
 		}
 	}
 
-	return Events();
+	if (state == CONNECTED)
+	{
+		int ec = mosquitto_loop(client, 0, 1);
+		handleError("mosquitto_loop#2", ec);
+	}
 }
 
 void Handler::sendMessage(string topic, string payload, bool retainFlag)
 {
+	lastMsgSendTime = std::time(0);
+
 	if (config.getLogMsgs())
 		logger.debug() << "S " << topic << ": " << payload << endOfMsg();
 
-	int ec = mosquitto_publish(client, 0, topic.c_str(), payload.length(), 
+	int ec = mosquitto_publish(client, 0, topic.c_str(), payload.length(),
 		reinterpret_cast<const uint8_t*>(payload.data()), 0, retainFlag);
 	handleError("mosquitto_publish", ec);
 }
