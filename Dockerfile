@@ -27,6 +27,7 @@ RUN set -x && \
 	install -d /usr/bin && \
 	install -s -m755 /build/weaver/src/weaver /usr/bin/weaver && \
 	install -m644 /build/weaver/weaver_conf.json /weaver/conf && \
+	install -m644 /build/weaver/roomba.cert /weaver/conf && \
 	apk del build-deps && \
 	rm -rf /build
 
@@ -34,4 +35,6 @@ ENV TZ Europe/Berlin
 
 VOLUME ["/weaver/conf", "/weaver/log"]
 
-CMD ["/usr/bin/weaver", "/weaver/conf/weaver_conf.json"]
+WORKDIR /weaver
+
+CMD ["/usr/bin/weaver", "conf/weaver_conf.json"]
