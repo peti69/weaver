@@ -21,12 +21,12 @@
 
 	// Defines the name of the file to which the log messages are written. In case no name is given or in case
 	// an empty name is given the log message are only witten to standard out (stdout). Optional, default is empty.
-	//"logFileName": "/weaver/log/weaver.log",
+	//"logFileName": "log/weaver.log",
 
 	// Defines the maximum size of the log file in bytes. When the log file becomes bigger it is renamed (for backup) 
 	// and a new empty one is created. If 0 is given the size of the log file is not limited and log file backups are 
 	// not performed. Optional, default is 0. 
-	"maxLogFileSize": 10000000,
+	"maxLogFileSize": 1000000,
 
 	// Defines the maximum number of log file backups. When the number of files becomes larger the oldest file will be deleted. 
 	// If 0 is given log file backups are not performed. Optional, default is 0. 
@@ -181,15 +181,17 @@
 		{ "id": "Alarm", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 		{ "id": "Abschreckmodus", "type": "boolean", "ownerId": "storage", "sendOnTimer": {} },
 
-		{ "id": "Herzschlag_ebusd", "type": "void", "ownerId": "ebusd", "readable": false, "writable": false },
-		{ "id": "Herzschlag_weaver", "type": "void", "ownerId": "generator", "readable": false, "writable": false },
-
 		{ "id": "Saugroboter_Ladestand", "type": "number", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} },
 		{ "id": "Saugroboter_Staubbehaelter_Voll", "type": "boolean", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} },
 		{ "id": "Saugroboter_Modus", "type": "string", "ownerId": "saugroboter", "readable": false, "writable": true, "sendOnTimer": {} }, // charging, cleaning, pausing
 	
-		{ "id": "Fehler_weaver_timberwolf", "type": "number", "ownerId": "timberwolf", "readable": false, "writable": false, "sendOnTimer": {} }, // charging, cleaning, pausing
-		{ "id": "Fehler_weaver_saugroboter", "type": "number", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} }, // charging, cleaning, pausing
+		{ "id": "Herzschlag_ebusd", "type": "void", "ownerId": "ebusd", "readable": false, "writable": false },
+		{ "id": "Herzschlag_weaver", "type": "void", "ownerId": "generator", "readable": false, "writable": false },
+
+		{ "id": "Fehler_weaver_timberwolf", "type": "number", "ownerId": "timberwolf", "readable": false, "writable": false, "sendOnTimer": {} },
+		{ "id": "Fehler_weaver_saugroboter", "type": "number", "ownerId": "saugroboter", "readable": false, "writable": false, "sendOnTimer": {} },
+		{ "id": "Fehler_weaver_ebusd", "type": "number", "ownerId": "ebusd", "readable": false, "writable": false, "sendOnTimer": {} },
+		{ "id": "Fehler_weaver_openhab", "type": "number", "ownerId": "openhab", "readable": false, "writable": false, "sendOnTimer": {} },
 	],
 
 	// Interfaces to other systems and/or devices.
@@ -452,7 +454,8 @@
 
 		{
 			"id": "ebusd",
-			"enabled": false,
+			//"enabled": false,
+			"errorCounter": "Fehler_weaver_ebusd",
 			"numberAsString": {},
 
 			// Link type specific parametrization.
@@ -485,6 +488,11 @@
 				// Optional, default is 60. 
 				//"reconnectInterval": 60,
 
+				// If no events have been sent in this time period to the MQTT broker the connection is 
+				// closed and openend as soon as the next event has to be delivered. The value 0 disables 
+				// this behaviour and the MQTT connection is never actively stopped. Optional, default is 0.
+				//"idleTimeout": 30,
+
 				// In case authentication is required by the MQTT Broker a user name must be provided. 
 				// Optional, default is no authentication.
 				//"username": "USERNAME",
@@ -516,7 +524,7 @@
 				// Enables logging of all received and sent messages (payload and topic). 
 				// Optional, default is false. 
 				//"logMessages": true,
-				
+
 				// Enables logging of all log events provided by the underlaying MQTT library (libmosquitto).  
 				// Optional, default is false. 
 				//"logLibEvents": true,
@@ -578,13 +586,15 @@
 					{ "itemId": "ST_PK_Pumpenlaufzeit",			"stateTopic": "ebusd/st_pk_pumpe_laufzeit/wert",	"readTopic": "ebusd/st_pk_pumpe_laufzeit/wert/get" },
 					{ "itemId": "ST_PK_Volumenstrom",			"stateTopic": "ebusd/st_pk_volumenstrom/wert",		"readTopic": "ebusd/st_pk_volumenstrom/wert/get" },
 
-					{ "itemId": "Herzschlag_ebusd", "stateTopic": "ebusd/global/signal" },
+					{ "itemId": "Herzschlag_ebusd", "stateTopic": "ebusd/global/uptime" },
 				]
 			}
 		},
 
 		{
 			"id": "openhab",
+			//"enabled": false,
+			"errorCounter": "Fehler_weaver_openhab",
 			"numberAsString": {},
 			"booleanAsString": { 
 				"falseValue": "OFF", 
@@ -605,18 +615,18 @@
 				"writeTopicPattern": "openhab/%ItemId%/write",
 				"readTopicPattern": "openhab/%ItemId%/read",
 				//"logMessages": true,
-				"logLibEvents": true,
+				//"logLibEvents": true,
 			}
 		},
 
 		{
 			"id": "saugroboter",
-			"enabled": false,
+			//"enabled": false,
 			"errorCounter": "Fehler_weaver_saugroboter",
 			"numberAsString": {},
 			"booleanAsString": {},
 
-			"mqtt":	{
+			"mqtt": {
 				"clientId": "6977C20452523600",
 				"hostname": "192.168.25.23",
 				"port": 8883,
@@ -624,12 +634,13 @@
 					"caFile": "roomba.cert",
 					"ciphers": "AES128-SHA256",
 				},
+				//"idleTimeout": 30,
 				"username": "6977C20452523600",
 				"password": ":1:1528396960:sBhBS5scnjdmxs0I",
 				"retainFlag": false,
 				"subTopics": [ "#" ],
-				"logMessages": true,
-				//"logLibEvents": true,
+				//"logMessages": true,
+				"logLibEvents": true,
 				"bindings": [
 					{
 						"itemId": "Saugroboter_Ladestand", 
@@ -725,6 +736,7 @@
 
 		{
 			"id": "fritzbox_callmonitor",
+			"enabled": false,
 
 			"tcp": {
 				// IP address or name of remote system to which the connection will be established. 
@@ -840,6 +852,7 @@
 
 		{
 			"id": "generator",
+			"enabled": false,
 
 			// This link type supports the regular triggering of events.
 			"generator": {
