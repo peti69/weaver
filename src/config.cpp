@@ -192,6 +192,7 @@ Items Config::getItems() const
 
 		item.setReadable(getBool(itemValue, "readable", true));
 		item.setWritable(getBool(itemValue, "writable", true));
+		item.setResponsive(getBool(itemValue, "responsive", true));
 
 		item.setPollingInterval(getInt(itemValue, "pollingInterval", 0));
 

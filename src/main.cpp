@@ -188,7 +188,6 @@ int main(int argc, char* argv[])
 			if (  event.getType() == EventType::READ_REQ
 			   && (  !item.isReadable() // if item can not be read
 			      || item.isPollingEnabled()
-//			      || item.isSendOnChangeEnabled() // or if only changes are forwarded
 			      )
 			   )
 			{
@@ -203,6 +202,13 @@ int main(int argc, char* argv[])
 					eventPos = events.erase(eventPos);
 				continue;
 			}
+
+			// add READ_REQ
+			if (  event.getType() == EventType::WRITE_REQ
+			   && item.isReadable() // if item can be read
+			   && !item.isResponsive() // if item does not react actively
+			   )
+				generatedEvents.add(Event("main", item.getId(), EventType::READ_REQ, Value::newVoid()));
 
 			// store STATE_IND
 			if (event.getType() == EventType::STATE_IND)
