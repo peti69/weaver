@@ -382,7 +382,16 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 			std::regex inPattern = convertPattern("inPattern", getString(bindingValue, "inPattern", "^(.*)$"));
 			string outPattern = getString(bindingValue, "outPattern", "%s");
 
-			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, inPattern, outPattern));
+			Mqtt::Mappings mappings;
+			if (hasMember(bindingValue, "mappings"))
+				for (auto& mappingValue : getArray(bindingValue, "mappings").GetArray())
+				{
+					string internal = getString(mappingValue, "internal");
+					string external = getString(mappingValue, "external");
+					mappings.add(Mqtt::Mapping(internal, external));
+				}
+
+			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, inPattern, outPattern, mappings));
 		}
 	}
 

@@ -42,10 +42,31 @@ public:
 	static TopicPattern fromStr(string topicPatternStr);
 };
 
+class Mapping
+{
+	friend class Mappings;
+
+private:
+	string internal;
+	string external;
+
+public:
+	Mapping(string internal, string external) : internal(internal), external(external) {}
+};
+
+class Mappings: std::list<Mapping>
+{
+public:
+	void add(Mapping mapping) { push_back(mapping); }
+	string toInternal(string value) const;
+	string toExternal(string value) const;
+};
+
 class Config
 {
 public:
 	typedef std::set<string> Topics;
+
 	struct Binding
 	{
 		string itemId;
@@ -53,11 +74,13 @@ public:
 		string writeTopic;
 		string readTopic;
 		std::regex inPattern;
+		string inValue;
 		string outPattern;
+		Mappings mappings;
 		Binding(string itemId, Topics stateTopics, string writeTopic, string readTopic,
-				std::regex inPattern, string outPattern) :
+				std::regex inPattern, string outPattern, Mappings mappings) :
 			itemId(itemId), stateTopics(stateTopics), writeTopic(writeTopic), readTopic(readTopic),
-			inPattern(inPattern), outPattern(outPattern)
+			inPattern(inPattern), outPattern(outPattern), mappings(mappings)
 		{}
 	};
 	class Bindings: public std::map<string, Binding>
