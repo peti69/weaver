@@ -437,8 +437,9 @@ void Handler::sendX(const Items& items, const Events& events)
 					if (n >= str.capacity())
 					{
 						str.resize(n + 1);
-						snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
+						n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
 					}
+					str.resize(n);
 
 					sendMsg(topic, str, config.getRetainFlag());
 				}
