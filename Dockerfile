@@ -26,8 +26,8 @@ RUN set -x && \
 	mkdir -p /weaver/conf /weaver/log && \
 	install -d /usr/bin && \
 	install -s -m755 /build/weaver/src/weaver /usr/bin/weaver && \
-	install -m644 /build/weaver/weaver_conf.json /weaver/conf && \
-	install -m644 /build/weaver/roomba.cert /weaver/conf && \
+	install -m644 /build/weaver/conf/weaver.conf /weaver/conf && \
+	install -m644 /build/weaver/conf/roomba.cert /weaver/conf && \
 	apk del build-deps && \
 	rm -rf /build
 
