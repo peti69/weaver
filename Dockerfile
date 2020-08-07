@@ -37,4 +37,4 @@ VOLUME ["/weaver/conf", "/weaver/log"]
 
 WORKDIR /weaver
 
-CMD ["/usr/bin/weaver", "conf/weaver_conf.json"]
+CMD ["/usr/bin/weaver", "conf/weaver.conf"]
