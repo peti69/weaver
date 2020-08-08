@@ -340,8 +340,13 @@ Events Handler::receiveX(const Items& items)
 				std::smatch match;
 				if (std::regex_search(msg.payload, match, binding.inPattern))
 				{
-					if (match.size() == 2)
-						events.add(Event(id, binding.itemId, type, binding.mappings.toInternal(string(match[1]))));
+					if (match.size() > 1)
+					{
+						int i = 1;
+						while (i < match.size() && !match[i].matched) i++;
+						if (i < match.size())
+							events.add(Event(id, binding.itemId, type, binding.mappings.toInternal(string(match[i]))));
+					}
 					else
 						events.add(Event(id, binding.itemId, type, Value::newVoid()));
 				}
