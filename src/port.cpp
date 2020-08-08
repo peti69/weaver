@@ -42,6 +42,7 @@ bool PortConfig::isValidParity(string parityStr, Parity& parity)
 PortHandler::PortHandler(string _id, PortConfig _config, Logger _logger) : 
 	id(_id), config(_config), logger(_logger), fd(-1), lastOpenTry(0), lastDataReceipt(0)
 {
+	handlerState.errorCounter = 0;
 }
 
 PortHandler::~PortHandler() 
@@ -240,6 +241,8 @@ Events PortHandler::receive(const Items& items)
 	}
 	catch (const std::exception& ex)
 	{
+		handlerState.errorCounter++;
+
 		logger.error() << ex.what() << endOfMsg();
 	}
 

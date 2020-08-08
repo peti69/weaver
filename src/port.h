@@ -76,6 +76,7 @@ private:
 	std::time_t lastOpenTry;
 	std::time_t lastDataReceipt;
 	struct termios oldSettings;
+	HandlerState handlerState;
 
 public:
 	PortHandler(string _id, PortConfig _config, Logger _logger);
