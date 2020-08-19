@@ -152,13 +152,15 @@ Events HttpHandler::receiveX()
 						// compare returned response with response pattern
 						std::smatch match;
 						if (std::regex_search(response, match, binding.responsePattern))
-							if (match.size() == 2)
-								events.add(Event(id, itemId, EventType::STATE_IND, string(match[1])));
+							if (match.size() > 1)
+							{
+								int i = 1;
+								while (i < match.size() && !match[i].matched) i++;
+								if (i < match.size()) // this should always be true
+									events.add(Event(id, itemId, EventType::STATE_IND, string(match[i])));
+							}
 							else
 								events.add(Event(id, itemId, EventType::STATE_IND, Value::newVoid()));
-						else
-							logger.error() << "Transfer for item " << itemId << " returned invalid response "
-							               << response << endOfMsg();
 					}
 				}
 
@@ -218,6 +220,22 @@ Events HttpHandler::sendX(const Events& events)
 					logger.errorX() << "Function curl_slist_append() failed" << endOfMsg();
 			}
 			code = curl_easy_setopt(easyHandle, CURLOPT_HTTPHEADER, transfer.headers);
+			handleError("curl_easy_setopt", code);
+
+			// instruct cULR how to authenticate
+			if (config.getUser() != "" && config.getPassword() != "")
+			{
+				string userPassword = config.getUser() + ":" + config.getPassword();
+				code = curl_easy_setopt(easyHandle, CURLOPT_USERPWD, userPassword.c_str());
+				handleError("curl_easy_setopt", code);
+				code = curl_easy_setopt(easyHandle, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
+				handleError("curl_easy_setopt", code);
+			}
+
+			// instruct cURL not perform any validation of the server certificate
+			code = curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 0L);
+			handleError("curl_easy_setopt", code);
+			code = curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 0L);
 			handleError("curl_easy_setopt", code);
 
 			// instruct cURL how to handle the response

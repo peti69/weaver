@@ -27,13 +27,17 @@ public:
 	};
 
 private:
+	string user;
+	string password;
 	bool logTransfers;
 	bool verboseMode;
 	Bindings bindings;
 
 public:
-	HttpConfig(bool _logTransfers, bool _verboseMode, Bindings _bindings) :
-		logTransfers(_logTransfers), verboseMode(_verboseMode), bindings(_bindings) {}
+	HttpConfig(string _user, string _password, bool _logTransfers, bool _verboseMode, Bindings _bindings) :
+		user(_user), password(_password), logTransfers(_logTransfers), verboseMode(_verboseMode), bindings(_bindings) {}
+	string getUser() const { return user; }
+	string getPassword() const { return password; }
 	bool getLogTransfers() const { return logTransfers; }
 	bool getVerboseMode() const { return verboseMode; }
 	const Bindings& getBindings() const { return bindings; }

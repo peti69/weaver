@@ -344,7 +344,7 @@ Events Handler::receiveX(const Items& items)
 					{
 						int i = 1;
 						while (i < match.size() && !match[i].matched) i++;
-						if (i < match.size())
+						if (i < match.size()) // this should always be true
 							events.add(Event(id, binding.itemId, type, binding.mappings.toInternal(string(match[i]))));
 					}
 					else

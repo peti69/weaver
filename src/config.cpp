@@ -547,6 +547,9 @@ std::shared_ptr<Tr064Config> Config::getTr064Config(const Value& value, const It
 
 std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Items& items) const
 {
+	string user = getString(value, "user", "");
+	string password = getString(value, "password", "");
+
 	bool logTransfers = getBool(value, "logTransfers", false);
 
 	bool verboseMode = getBool(value, "verboseMode", false);
@@ -577,7 +580,7 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Item
 		bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
 	}
 
-	return std::make_shared<HttpConfig>(logTransfers, verboseMode, bindings);
+	return std::make_shared<HttpConfig>(user, password, logTransfers, verboseMode, bindings);
 }
 
 std::shared_ptr<TcpConfig> Config::getTcpConfig(const Value& value, const Items& items) const
