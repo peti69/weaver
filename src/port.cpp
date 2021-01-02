@@ -50,6 +50,25 @@ PortHandler::~PortHandler()
 	close(); 
 }
 
+void PortHandler::validate(Items& items) const
+{
+	auto& bindings = config.getBindings();
+
+	for (auto& itemPair : items)
+		if (itemPair.second.getOwnerId() == id && bindings.find(itemPair.first) == bindings.end())
+			throw std::runtime_error("Item " + itemPair.first + " has no binding for link " + itemPair.first);
+
+	for (auto& bindingPair : bindings)
+	{
+		Item& item = items.validate(bindingPair.first);
+		item.validateOwnerId(id);
+//		item.validateReadable(false);
+//		item.validateWritable(false);
+		item.setReadable(false);
+		item.setWritable(false);
+	}
+}
+
 bool PortHandler::open()
 {
 	// port already open?

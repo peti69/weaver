@@ -145,11 +145,23 @@ ByteString DatapointType::exportValue(const Value& value) const
 		}
 		else if (mainNo == 9)
 		{
-			uint32_t E = 0;
-			while ((d < -20.48 || d > 20.47) && E <= 15) { d = d / 2.0; E++; }
-			if (d >= -20.48 && d <= 20.47)
+//			uint32_t E = 0;
+//			while ((d < -20.48 || d > 20.47) && E <= 15) { d = d / 2.0; E++; }
+//			if (d >= -20.48 && d <= 20.47)
+//			{
+//				uint32_t M = d * 100.0;
+//				cout << "PEW: " << M << endl;
+//				Byte bytes[3];
+//				bytes[0] = 0x00;
+//				bytes[1] = ((M >> 24) & 0x80) | (E << 3) | ((M >> 8) & 0x07);
+//				bytes[2] = M & 0xFF;
+//				return ByteString(bytes, sizeof(bytes));
+//			}
+			int32_t E = 0;
+			int32_t M = d * 100.0;
+			while ((M < -2048 || M > 2047) && E <= 15) { M >>= 2; E++; }
+			if (M >= -2048 && M <= 2047)
 			{
-				uint32_t M = d * 100.0;
 				Byte bytes[3];
 				bytes[0] = 0x00;
 				bytes[1] = ((M >> 24) & 0x80) | (E << 3) | ((M >> 8) & 0x07);
@@ -199,9 +211,12 @@ Value DatapointType::importValue(ByteString bytes) const
 		return Value(1.0 * (bytes[1] << 8 | bytes[2]));
 	else if (mainNo == 9)
 	{
-		int E = bytes[1] >> 3 & 0x0F;
-		int M = (bytes[1] & 0x07) << 8 | bytes[2];
-		return Value((M << E) / 100.0);
+		int32_t E = (bytes[1] >> 3) & 0x0F;
+		int32_t M = (bytes[1] & 0x07) << 8 | bytes[2];
+		if (bytes[1] & 0x80)
+			return Value(((2048 - M) << E) / -100.0);
+		else
+			return Value((M << E) / 100.0);
 	}
 	else if (mainNo == 12 && bytes.length() == 5)
 		return Value(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
@@ -309,6 +324,18 @@ KnxHandler::KnxHandler(string _id, KnxConfig _config, Logger _logger) :
 KnxHandler::~KnxHandler() 
 { 
 	disconnect();
+}
+
+void KnxHandler::validate(Items& items) const
+{
+	auto& bindings = config.getBindings();
+
+	for (auto& itemPair : items)
+		if (itemPair.second.getOwnerId() == id && bindings.find(itemPair.first) == bindings.end())
+			throw std::runtime_error("Item " + itemPair.first + " has no binding for link " + itemPair.first);
+
+	for (auto& bindingPair : bindings)
+		items.validate(bindingPair.first);
 }
 
 void KnxHandler::close()
@@ -638,7 +665,7 @@ void KnxHandler::processReceivedLDataInd(ByteString msg, const Items& items, Eve
 	GroupAddr ga(msg[16], msg[17]);
 	ByteString data = msg.substr(20, msg[18]);
 
-	for (auto bindingPair : config.getBindings())
+	for (auto& bindingPair : config.getBindings())
 	{
 		auto& binding = bindingPair.second;
 		bool owner = items.getOwnerId(binding.itemId) == id;
@@ -1110,7 +1137,7 @@ string KnxHandler::getStatusCodeText(Byte statusCode) const
 
 string KnxHandler::getItemId(GroupAddr ga) const
 {
-	for (auto bindingPair : config.getBindings())
+	for (auto& bindingPair : config.getBindings())
 	{
 		auto& binding = bindingPair.second;
 		if (binding.stateGa == ga || binding.writeGa == ga)

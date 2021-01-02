@@ -46,9 +46,8 @@ class HandlerIf
 public:
 	virtual ~HandlerIf() {}
 
-	// Indicates whether the handler generates (STATE_IND) or accepts (READ_REQ, WRITE_REQ)
-	// events of the passed type for items it owns.
-	virtual bool supports(EventType eventType) const = 0;
+	// Enables the handler to validate but also to adapt the definition of the items it owns.
+	virtual void validate(Items& items) const = 0;
 
 	// Returns the current state of the handler.
 	virtual HandlerState getState() const = 0;
@@ -63,6 +62,9 @@ public:
 	// Events returned by receive() are passed to all handlers via this method.
 	virtual Events send(const Items& items, const Events& events) = 0;
 };
+
+// Link id used for events not produced or items not owned by a link handler.
+const string controlLinkId = "CONTROL";
 
 class Link
 {
@@ -134,7 +136,7 @@ public:
 		modifiers(modifiers), handler(handler), logger(logger) {}
 	string getId() const { return id; }
 	bool isEnabled() const { return enabled; }
-	bool supports(EventType eventType) const;
+	void validate(Items& items) const;
 	long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd);
 	void send(Items& items, const Events& events);
 	Events receive(Items& items);

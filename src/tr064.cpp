@@ -213,7 +213,7 @@ Events Tr064::receive(const Items& items)
 	
 	logger.debug() << "Message received:\n" << cnvToAsciiStr(msg) << endOfMsg();
 	
-	for (auto bindingPair : config.getBindings())
+	for (auto& bindingPair : config.getBindings())
 	{
 		auto& binding = bindingPair.second;
 		string itemId = binding.itemId;

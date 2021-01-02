@@ -276,7 +276,7 @@ private:
 public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
-	virtual bool supports(EventType eventType) const override { return true; }
+	virtual void validate(Items& items) const override;
 	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

@@ -7,6 +7,7 @@
 #include <rapidjson/prettywriter.h>
 
 #include <utility>
+#include <set>
 
 #include "storage.h"
 #include "finally.h"
@@ -18,6 +19,26 @@ Storage::Storage(string _id, StorageConfig _config, Logger _logger) :
 {
 }
 
+void Storage::validate(Items& items) const
+{
+	auto& bindings = config.getBindings();
+
+	for (auto& itemPair : items)
+		if (itemPair.second.getOwnerId() == id && bindings.find(itemPair.first) == bindings.end())
+			throw std::runtime_error("Item " + itemPair.first + " has no binding for link " + itemPair.first);
+
+	for (auto& bindingPair : config.getBindings())
+	{
+		Item& item = items.validate(bindingPair.first);
+		item.validateOwnerId(id);
+		item.setReadable(false);
+//		item.validateReadable(false);
+		item.validateWritable(true);
+		item.validateResponsive(true);
+		item.validateTypeNot(ValueType::VOID);
+	}
+}
+
 Events Storage::receiveX(const Items& items)
 {
 	Events newEvents;
@@ -27,7 +48,7 @@ Events Storage::receiveX(const Items& items)
 	{
 		// shell we perform another attempt to read the file?
 		std::time_t now = std::time(0);
-		if (lastFileReadTry + 60 > now)
+		if (lastFileReadTry + rereadInterval > now)
 			return newEvents;
 		lastFileReadTry = now;
 
@@ -49,9 +70,11 @@ Events Storage::receiveX(const Items& items)
 			logger.errorX() << "JSON document from file " << config.getFileName() << " is not an object" << endOfMsg();
 
 		// analyze DOM tree
+		std::set<string> itemsInFile;
 		for (auto iter = document.MemberBegin(); iter != document.MemberEnd(); iter++)
 		{
 			string itemId = iter->name.GetString();
+			itemsInFile.insert(itemId);
 
 			// verify item identifier
 			auto itemPos = items.find(itemId);
@@ -77,6 +100,14 @@ Events Storage::receiveX(const Items& items)
 			newEvents.add(Event(id, itemId, EventType::STATE_IND, value));
 		}
 
+		// generate STATE_IND for all items not found in file
+		for (auto& bindingPair : config.getBindings())
+		{
+			auto& binding = bindingPair.second;
+			if (itemsInFile.find(binding.itemId) == itemsInFile.end())
+				newEvents.add(Event(id, binding.itemId, EventType::STATE_IND, binding.initialValue));
+		}
+
 		fileRead = true;
 	}
 
@@ -99,6 +130,9 @@ Events Storage::receive(const Items& items)
 
 Events Storage::send(const Items& items, const Events& events)
 {
+	if (!fileRead)
+		return Events();
+
 	// analyze WRITE_REQ and determine changed values
 	std::map<string, Value> newValues;
 	for (auto& event : events)

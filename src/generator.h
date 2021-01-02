@@ -41,7 +41,7 @@ private:
 
 public:
 	Generator(string _id, GeneratorConfig _config, Logger _logger);
-	virtual bool supports(EventType eventType) const override { return true; }
+	virtual void validate(Items& items) const override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override { return -1; };
 	virtual Events receive(const Items& items) override;

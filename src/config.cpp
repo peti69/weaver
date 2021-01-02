@@ -230,8 +230,6 @@ Links Config::getLinks(const Items& items, Log& log) const
 		bool enabled = getBool(linkValue, "enabled", true);
 
 		string errorCounter = getString(linkValue, "errorCounter", "");
-		if (errorCounter != "" && !items.exists(errorCounter))
-			throw std::runtime_error("Invalid value " + errorCounter + " for field errorCounter in configuration");
 
 		bool numberAsString = hasMember(linkValue, "numberAsString");
 
@@ -265,11 +263,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 			auto& modifiersValue = getArray(linkValue, "modifiers");
 			for (auto& modifierValue : modifiersValue.GetArray())
 			{
-				string itemId = getString(modifierValue, "itemId");
-				if (!items.exists(itemId))
-					throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
-
-				Modifier modifier(itemId);
+				Modifier modifier(getString(modifierValue, "itemId"));
 				modifier.setFactor(getFloat(modifierValue, "factor", 1.0));
 				modifiers.add(modifier);
 			}
@@ -278,37 +272,33 @@ Links Config::getLinks(const Items& items, Log& log) const
 		Logger logger = log.newLogger(id);
 		std::shared_ptr<HandlerIf> handler;
 		if (hasMember(linkValue, "knx"))
-			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), items), logger));
+			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), id, items), logger));
 		else if (hasMember(linkValue, "mqtt"))
-			handler.reset(new Mqtt::Handler(id, *getMqttConfig(getObject(linkValue, "mqtt"), items), logger));
+			handler.reset(new Mqtt::Handler(id, *getMqttConfig(getObject(linkValue, "mqtt"), id, items), logger));
 		else if (hasMember(linkValue, "port"))
-			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), items), logger));
+			handler.reset(new PortHandler(id, *getPortConfig(getObject(linkValue, "port"), id, items), logger));
 		else if (hasMember(linkValue, "http"))
-			handler.reset(new HttpHandler(id, *getHttpConfig(getObject(linkValue, "http"), items), logger));
+			handler.reset(new HttpHandler(id, *getHttpConfig(getObject(linkValue, "http"), id, items), logger));
 		else if (hasMember(linkValue, "tcp"))
-			handler.reset(new TcpHandler(id, *getTcpConfig(getObject(linkValue, "tcp"), items), logger));
+			handler.reset(new TcpHandler(id, *getTcpConfig(getObject(linkValue, "tcp"), id, items), logger));
 		else if (hasMember(linkValue, "generator"))
-			handler.reset(new Generator(id, *getGeneratorConfig(getObject(linkValue, "generator"), items), logger));
+			handler.reset(new Generator(id, *getGeneratorConfig(getObject(linkValue, "generator"), id, items), logger));
 		else if (hasMember(linkValue, "tr064"))
-			handler.reset(new Tr064(id, *getTr064Config(getObject(linkValue, "tr064"), items), logger));
+			handler.reset(new Tr064(id, *getTr064Config(getObject(linkValue, "tr064"), id, items), logger));
 		else if (hasMember(linkValue, "storage"))
-			handler.reset(new Storage(id, *getStorageConfig(getObject(linkValue, "storage"), items), logger));
+			handler.reset(new Storage(id, *getStorageConfig(getObject(linkValue, "storage"), id, items), logger));
 		else
-			throw std::runtime_error("Link with unknown or missing type in configuration");
+			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
 		links.add(Link(id, enabled, errorCounter, numberAsString, booleanAsString, falseValue, trueValue,
 				unwritableFalseValue, unwritableTrueValue, voidAsString, voidValue, unwritableVoidValue,
 				modifiers, handler, logger));
 	}
 
-	for (auto itemPair : items)
-		if (!links.exists(itemPair.second.getOwnerId()))
-			throw std::runtime_error("Item " + itemPair.first + " associated with unknown link " + itemPair.second.getOwnerId());
-
 	return links;
 }
 
-std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const Items& items) const
+std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string linkId, const Items& items) const
 {
 	string clientId = getString(value, "clientId", "weaver");
 	string hostname = getString(value, "hostname");
@@ -363,8 +353,6 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 		for (auto& bindingValue : bindingsValue.GetArray())
 		{
 			string itemId = getString(bindingValue, "itemId");
-			if (!items.exists(itemId))
-				throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 			Mqtt::Config::Topics stateTopics;
 			if (hasMember(bindingValue, "stateTopic"))
@@ -400,7 +388,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, const It
 			writeTopicPattern, readTopicPattern, subTopics, logMsgs, logLibEvents, bindings);
 }
 
-std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items& items) const
+std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, string linkId, const Items& items) const
 {
 	string localIpAddrStr = getString(value, "localIpAddr");
 	IpAddr localIpAddr;
@@ -434,8 +422,6 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
 		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 		string stateGaStr = getString(bindingValue, "stateGa", "");
 		GroupAddr stateGa;
@@ -461,7 +447,7 @@ std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, const Items&
 	return std::make_shared<KnxConfig>(localIpAddr, natMode, ipAddr, ipPort, reconnectInterval, connStateReqInterval, controlRespTimeout, tunnelAckTimeout, ldataConTimeout, physicalAddr, logRawMsg, logData, bindings);
 }
 
-std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Items& items) const 
+std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, string linkId, const Items& items) const
 { 
 	string name = getString(value, "name");
 
@@ -496,8 +482,6 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
 		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 		std::regex pattern = convertPattern("pattern", getString(bindingValue, "pattern"));
 
@@ -507,15 +491,13 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, const Item
 	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, timeoutInterval, reopenInterval, msgPattern, logRawData, logRawDataInHex, bindings);
 }
 
-std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, const Items& items) const 
+std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, string linkId, const Items& items) const
 { 
 	const Value& bindingsValue = getArray(value, "bindings");
 	GeneratorConfig::Bindings bindings;
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
 		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 		string value = getString(bindingValue, "value");
 		int interval = getInt(bindingValue, "interval");
 		string eventTypeStr = getString(bindingValue, "eventType");
@@ -529,15 +511,13 @@ std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, 
 	return std::make_shared<GeneratorConfig>(bindings);
 }
 
-std::shared_ptr<Tr064Config> Config::getTr064Config(const Value& value, const Items& items) const
+std::shared_ptr<Tr064Config> Config::getTr064Config(const Value& value, string linkId, const Items& items) const
 {
 	const Value& bindingsValue = getArray(value, "bindings");
 	Tr064Config::Bindings bindings;
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
 		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 		
 		//bindings.add(GeneratorConfig::Binding(itemId, eventType, value, interval));
 	}
@@ -545,7 +525,7 @@ std::shared_ptr<Tr064Config> Config::getTr064Config(const Value& value, const It
 	return std::make_shared<Tr064Config>(bindings);
 }
 
-std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Items& items) const
+std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, string linkId, const Items& items) const
 {
 	string user = getString(value, "user", "");
 	string password = getString(value, "password", "");
@@ -559,8 +539,6 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Item
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
 		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 		string url = getString(bindingValue, "url");
 
@@ -583,7 +561,7 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, const Item
 	return std::make_shared<HttpConfig>(user, password, logTransfers, verboseMode, bindings);
 }
 
-std::shared_ptr<TcpConfig> Config::getTcpConfig(const Value& value, const Items& items) const
+std::shared_ptr<TcpConfig> Config::getTcpConfig(const Value& value, string linkId, const Items& items) const
 {
 	string hostname = getString(value, "hostname");
 	int port = getInt(value, "port");
@@ -600,8 +578,6 @@ std::shared_ptr<TcpConfig> Config::getTcpConfig(const Value& value, const Items&
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
 		string itemId = getString(bindingValue, "itemId");
-		if (!items.exists(itemId))
-			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
 
 		std::regex pattern = convertPattern("pattern", getString(bindingValue, "pattern"));
 
@@ -611,9 +587,32 @@ std::shared_ptr<TcpConfig> Config::getTcpConfig(const Value& value, const Items&
 	return std::make_shared<TcpConfig>(hostname, port, reconnectInterval, msgPattern, logRawData, logRawDataInHex, bindings);
 }
 
-std::shared_ptr<StorageConfig> Config::getStorageConfig(const Value& value, const Items& items) const
+std::shared_ptr<StorageConfig> Config::getStorageConfig(const Value& value, string linkId, const Items& items) const
 {
 	string fileName = getString(value, "fileName");
 
-	return std::make_shared<StorageConfig>(fileName);
+	const Value& bindingsValue = getArray(value, "bindings");
+	StorageConfig::Bindings bindings;
+	for (auto& bindingValue : bindingsValue.GetArray())
+	{
+		string itemId = getString(bindingValue, "itemId");
+		auto itemPos = items.find(itemId);
+		if (itemPos == items.end())
+			throw std::runtime_error("Invalid value " + itemId + " for field itemId in configuration");
+		const Item& item = itemPos->second;
+
+		::Value initialValue;
+		if (item.getType() == ValueType::BOOLEAN)
+			initialValue = ::Value(getBool(bindingValue, "initialBoolean"));
+		else if (item.getType() == ValueType::NUMBER)
+			initialValue = ::Value(getFloat(bindingValue, "initialNumber"));
+		else if (item.getType() == ValueType::STRING)
+			initialValue = ::Value(getString(bindingValue, "initialString"));
+		else
+			throw std::runtime_error("Item " + itemId + " can not be owned by storage links because of its type");
+
+		bindings.add(StorageConfig::Binding(itemId, initialValue));
+	}
+
+	return std::make_shared<StorageConfig>(fileName, bindings);
 }

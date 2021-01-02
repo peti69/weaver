@@ -56,14 +56,14 @@ private:
 	const Value& getObject(const Value& value, string name) const;
 	const Value& getArray(const Value& value, string name) const;
 	std::regex convertPattern(string fieldName, string pattern) const;
-	std::shared_ptr<Mqtt::Config> getMqttConfig(const Value& value, const Items& items) const;
-	std::shared_ptr<KnxConfig> getKnxConfig(const Value& value, const Items& items) const;
-	std::shared_ptr<PortConfig> getPortConfig(const Value& value, const Items& items) const;
-	std::shared_ptr<GeneratorConfig> getGeneratorConfig(const Value& value, const Items& items) const;
-	std::shared_ptr<Tr064Config> getTr064Config(const Value& value, const Items& items) const;
-	std::shared_ptr<StorageConfig> getStorageConfig(const Value& value, const Items& items) const;
-	std::shared_ptr<HttpConfig> getHttpConfig(const Value& value, const Items& items) const;
-	std::shared_ptr<TcpConfig> getTcpConfig(const Value& value, const Items& items) const;
+	std::shared_ptr<Mqtt::Config> getMqttConfig(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<KnxConfig> getKnxConfig(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<PortConfig> getPortConfig(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<GeneratorConfig> getGeneratorConfig(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<Tr064Config> getTr064Config(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<StorageConfig> getStorageConfig(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<HttpConfig> getHttpConfig(const Value& value, string linkId, const Items& items) const;
+	std::shared_ptr<TcpConfig> getTcpConfig(const Value& value, string linkId, const Items& items) const;
 
 public:
 	Config() {}

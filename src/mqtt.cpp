@@ -113,6 +113,14 @@ Handler::~Handler()
 	mosquitto_lib_cleanup();
 }
 
+void Handler::validate(Items& items) const
+{
+	auto& bindings = config.getBindings();
+
+	for (auto& bindingPair : bindings)
+		items.validate(bindingPair.first);
+}
+
 void Handler::disconnect()
 {
 	if (state == DISCONNECTED)
@@ -274,7 +282,7 @@ Events Handler::receiveX(const Items& items)
 
 		logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 
-		for (auto bindingPair : config.getBindings())
+		for (auto& bindingPair : config.getBindings())
 		{
 			auto& binding = bindingPair.second;
 			bool owner = items.getOwnerId(binding.itemId) == id;
@@ -331,7 +339,7 @@ Events Handler::receiveX(const Items& items)
 	auto& bindings = config.getBindings();
 	for (auto& msg : receivedMsgs)
 	{
-		for (auto bindingPair : bindings)
+		for (auto& bindingPair : bindings)
 		{
 			auto& binding = bindingPair.second;
 
@@ -367,6 +375,7 @@ Events Handler::receiveX(const Items& items)
 				return false;
 			itemId = topicPattern.getItemId(msg.topic);
 			return itemId.length() > 0 && items.exists(itemId);
+//			return itemId.length() > 0;
 		};
 
 		if (getItemId(config.getWriteTopicPattern()))

@@ -70,7 +70,7 @@ private:
 public:
 	HttpHandler(string _id, HttpConfig _config, Logger _logger);
 	virtual ~HttpHandler();
-	virtual bool supports(EventType eventType) const override { return eventType != EventType::STATE_IND; }
+	void validate(Items& items) const override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

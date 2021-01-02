@@ -8,13 +8,35 @@
 
 class StorageConfig
 {
+public:
+	struct Binding
+	{
+		// Item to which the binding applies.
+		string itemId;
+
+		// Before the first WRITE_REQ arrives the item has the value given here.
+		Value initialValue;
+
+		Binding(string _itemId, Value _initialValue) :
+			itemId(_itemId), initialValue(_initialValue) {};
+	};
+	class Bindings: public std::map<string, Binding>
+	{
+	public:
+		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
+	};
+
 private:
 	// Name of file in which the item values are stored.
 	string fileName;
 
+	// Item bindings.
+	Bindings bindings;
+
 public:
-	StorageConfig(string _fileName) : fileName(_fileName) {}
+	StorageConfig(string _fileName, Bindings _bindings) : fileName(_fileName), bindings(_bindings) {}
 	string getFileName() const { return fileName; }
+	const Bindings& getBindings() const { return bindings; }
 };
 
 class Storage: public HandlerIf
@@ -30,9 +52,12 @@ private:
 	// Time when the last attempt was done to read the value file.
 	std::time_t lastFileReadTry;
 
+	// Time span between successive attempts to read the item values from the file.
+	const int rereadInterval = 60;
+
 public:
 	Storage(string _id, StorageConfig _config, Logger _logger);
-	virtual bool supports(EventType eventType) const override { return eventType != EventType::READ_REQ; }
+	virtual void validate(Items& items) const override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override { return -1; }
 	virtual Events receive(const Items& items) override;

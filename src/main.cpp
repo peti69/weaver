@@ -75,23 +75,22 @@ int main(int argc, char* argv[])
 		items = configFile.getItems();
 		links = configFile.getLinks(items, log);
 
-		std::time_t now = std::time(0);
+		// let links verify and adapt item properties
+		for (auto& linkPair : links)
+			linkPair.second.validate(items);
+
+		// verify consistency of item properties
 		for (auto& itemPair : items)
 		{
-			auto& item = itemPair.second;
-			auto linkPair = links.find(item.getOwnerId());
-			assert(linkPair != links.end());
-			auto& link = linkPair->second;
+			Item& item = itemPair.second;
 
-			// manipulate item properties depending on link properties
-			if (!link.supports(EventType::READ_REQ))
-				item.setReadable(false);
-			if (!link.supports(EventType::WRITE_REQ))
-				item.setWritable(false);
+			if (item.getOwnerId() != controlLinkId && !links.exists(item.getOwnerId()))
+				throw std::runtime_error("Item " + item.getId() + " is associated with unknown link " + itemPair.second.getOwnerId());
 
-			// prepare polling
-			if (item.isPollingEnabled())
-				item.initPolling(now);
+//			if (!item.isWritable() && item.isResponsive())
+//				throw std::runtime_error("Item " + item.getId() + " is not writable but responsive");
+//			if (!item.isReadable() && item.isPollingEnabled())
+//				throw std::runtime_error("Item " + item.getId() + " is not readable but polling is enabled");
 		}
 	}
 	catch (const std::exception& error)
@@ -100,6 +99,13 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	// prepare polling
+	std::time_t start = std::time(0);
+	for (auto& itemPair : items)
+		if (itemPair.second.isPollingEnabled())
+			itemPair.second.initPolling(start);
+
+	Events events;
 	for (;;)
 	{
 		// wait for event
@@ -141,10 +147,7 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		std::time_t now = std::time(0);
-
 		// receive events
-		Events events;
 		for (auto& linkPair : links)
 			if (linkPair.second.isEnabled())
 				try
@@ -156,23 +159,28 @@ int main(int argc, char* argv[])
 					logger.error() << "Error on link " << linkPair.first << " when receiving events: " << error.what() << endOfMsg();
 				}
 
+		// only collect received events during the start phase but do not process them
+		std::time_t now = std::time(0);
+		if (now <= start + 3)
+			continue;
+
 		// analyze received events
 		Events suppressedEvents;
 		Events generatedEvents;
 		for (auto eventPos = events.begin(); eventPos != events.end();)
 		{
 			// provide event
-			auto& event = *eventPos;
+			Event& event = *eventPos;
 
 			// provide item
 			auto itemPos = items.find(event.getItemId());
 			assert(itemPos != items.end());
-			auto& item = itemPos->second;
+			Item& item = itemPos->second;
 
 			// provide link
-			auto linkPos = links.find(item.getOwnerId());
-			assert(linkPos != links.end());
-			auto& link = linkPos->second;
+//			auto linkPos = links.find(item.getOwnerId());
+//			assert(linkPos != links.end());
+//			Link& link = linkPos->second;
 
 			// remove STATE_IND
 			if (  event.getType() == EventType::STATE_IND
@@ -188,18 +196,18 @@ int main(int argc, char* argv[])
 			if (  event.getType() == EventType::READ_REQ
 			   && (  !item.isReadable() // if item can not be read
 			      || item.isPollingEnabled()
+			      || item.isSendOnChangeEnabled()
 			      )
 			   )
 			{
 				suppressedEvents.add(event);
 				const Value& value = item.getLastSendValue();
 				if (!value.isNull())
-				{
-					generatedEvents.add(Event("main", item.getId(), EventType::STATE_IND, value));
-					eventPos++;
-				}
+					generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, value));
 				else
-					eventPos = events.erase(eventPos);
+					logger.warn() << "STATE_IND for READ_REQ on item " << event.getItemId()
+					              << " can not be generated since its value is unknown" << endOfMsg();
+				eventPos = events.erase(eventPos);
 				continue;
 			}
 
@@ -208,7 +216,7 @@ int main(int argc, char* argv[])
 			   && item.isReadable() // if item can be read
 			   && !item.isResponsive() // if item does not react actively
 			   )
-				generatedEvents.add(Event("main", item.getId(), EventType::READ_REQ, Value::newVoid()));
+				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::READ_REQ, Value::newVoid()));
 
 			// store STATE_IND
 			if (event.getType() == EventType::STATE_IND)
@@ -224,28 +232,29 @@ int main(int argc, char* argv[])
 		for (auto& itemPair : items)
 		{
 			// provide item
-			auto& item = itemPair.second;
+			Item& item = itemPair.second;
 
 			// provide link
-			auto linkPos = links.find(item.getOwnerId());
-			assert(linkPos != links.end());
-			auto& link = linkPos->second;
-
-			if (link.isEnabled())
+			if (item.getOwnerId() != controlLinkId)
 			{
-				// generate STATE_IND depending on send timer
-				if (item.isSendRequired(now))
-				{
-					generatedEvents.add(Event("main", item.getId(), EventType::STATE_IND, item.getLastSendValue()));
-					item.setLastSendTime(now);
-				}
+				auto linkPos = links.find(item.getOwnerId());
+				assert(linkPos != links.end());
+				if (!linkPos->second.isEnabled())
+					continue;
+			}
 
-				// generate READ_REQ depending on polling timer
-				if (item.isPollingEnabled() && item.isPollingRequired(now))
-				{
-					generatedEvents.add(Event("main", item.getId(), EventType::READ_REQ, Value()));
-					item.pollingDone(now);
-				}
+			// generate STATE_IND depending on send timer
+			if (item.isSendRequired(now))
+			{
+				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, item.getLastSendValue()));
+				item.setLastSendTime(now);
+			}
+
+			// generate READ_REQ depending on polling timer
+			if (item.isPollingEnabled() && item.isPollingRequired(now))
+			{
+				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::READ_REQ, Value()));
+				item.pollingDone(now);
 			}
 		}
 
@@ -276,6 +285,8 @@ int main(int argc, char* argv[])
 				{
 					logger.error() << "Error on link " << linkPair.first << " when sending events: " << error.what() << endOfMsg();
 				}
+
+		events.clear();
 	}
 
 	// shutdown all links

@@ -16,9 +16,30 @@ Value Modifier::importValue(const Value& value) const
 		return value;
 }
 
-bool Link::supports(EventType eventType) const
+void Link::validate(Items& items) const
 {
-	return handler->supports(eventType);
+	// check and manipulate properties of control items
+	if (errorCounter != "")
+	{
+		Item& item = items.validate(errorCounter);
+		item.validateOwnerId(controlLinkId);
+		item.setReadable(false);
+		item.setWritable(false);
+//		item.validateReadable(false);
+//		item.validateWritable(false);
+		item.validateType(ValueType::NUMBER);
+	}
+
+	// check modifiers
+	for (auto& modifierPair : modifiers)
+	{
+		const Modifier& modifier = modifierPair.second;
+
+		// provide item
+		Item& item = items.validate(modifier.getItemId());
+	}
+
+	handler->validate(items);
 }
 
 long Link::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
@@ -45,7 +66,7 @@ Events Link::receive(Items& items)
 			HandlerState state = handler->getState();
 			if (state.errorCounter != oldHandlerState.errorCounter)
 			{
-				events.add(Event(id, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
+				events.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
 				oldHandlerState = state;
 			}
 		}
@@ -82,7 +103,7 @@ Events Link::receive(Items& items)
 		}
 
 		// remove STATE_IND in case the link is not the owner of the item
-		if (event.getType() == EventType::STATE_IND && item.getOwnerId() != id)
+		if (event.getType() == EventType::STATE_IND && item.getOwnerId() != id && item.getOwnerId() != controlLinkId)
 		{
 			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
 			              << " which is not owned by the link" << endOfMsg();
@@ -102,14 +123,14 @@ Events Link::receive(Items& items)
 		}
 
 		// remove READ_REQ in case the item is not readable
-		if (event.getType() == EventType::READ_REQ && !item.isReadable())
-		{
-			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
-			              << " which is not readable" << endOfMsg();
-
-			eventPos = events.erase(eventPos);
-			continue;
-		}
+//		if (event.getType() == EventType::READ_REQ && !item.isReadable())
+//		{
+//			logger.warn() << event.getType().toStr() << " event received for item " << event.getItemId()
+//			              << " which is not readable" << endOfMsg();
+//
+//			eventPos = events.erase(eventPos);
+//			continue;
+//		}
 
 		if (event.getType() != EventType::READ_REQ)
 		{
@@ -247,7 +268,7 @@ void Link::send(Items& items, const Events& events)
 		HandlerState state = handler->getState();
 		if (state.errorCounter != oldHandlerState.errorCounter)
 		{
-			pendingEvents.add(Event(id, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
+			pendingEvents.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
 			oldHandlerState = state;
 		}
 	}

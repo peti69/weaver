@@ -1,7 +1,15 @@
 #include <cstring>
+#include <cctype>
 #include <iomanip>
+#include <algorithm>
 
 #include "basic.h"
+
+string toUpper(string s)
+{
+	std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
+	return s;
+}
 
 string cnvToHexStr(Byte b)
 {
@@ -66,6 +74,36 @@ bool ValueType::fromStr(string typeStr, ValueType& type)
 	else
 		return false;
 	return true;
+}
+
+Value ValueType::convert(string valueStr) const
+{
+	switch (code)
+	{
+		case VOID:
+			return Value::newVoid();
+		case NUMBER:
+			try
+			{
+				return Value(std::stod(valueStr));
+			}
+			catch (const std::exception& ex)
+			{
+			}
+			return Value();
+		case STRING:
+			return Value(valueStr);
+		case BOOLEAN:
+			valueStr = toUpper(valueStr);
+			if (valueStr == "TRUE" || valueStr == "YES" || valueStr == "ON" || valueStr == "1")
+				return true;
+			else if (valueStr == "FALSE" || valueStr == "NO" || valueStr == "OFF" || valueStr == "0")
+				return false;
+			else
+				return Value();
+		default:
+			return Value();
+	}
 }
 
 string Value::toStr() const
@@ -146,6 +184,64 @@ bool Item::isSendRequired(const Value& value) const
 	}
 
 	return true;
+}
+
+void Item::validateReadable(bool _readable)
+{
+	if (readable && !_readable)
+		throw std::runtime_error("Item " + id + " must not be readable");
+	if (!readable && _readable)
+		throw std::runtime_error("Item " + id + " must be readable");
+}
+
+void Item::validateWritable(bool _writable)
+{
+	if (writable && !_writable)
+		throw std::runtime_error("Item " + id + " must not be writable");
+	if (!writable && _writable)
+		throw std::runtime_error("Item " + id + " must be writable");
+}
+
+void Item::validateResponsive(bool _responsive)
+{
+	if (responsive && !_responsive)
+		throw std::runtime_error("Item " + id + " must not be responsive");
+	if (!responsive && _responsive)
+		throw std::runtime_error("Item " + id + " must be responsive");
+}
+
+void Item::validatePollingEnabled(bool _enabled)
+{
+	if (pollingInterval > 0 && !_enabled)
+		throw std::runtime_error("Item " + id + " must not be polled");
+	if (pollingInterval <= 0 && _enabled)
+		throw std::runtime_error("Item " + id + " must be polled");
+}
+
+void Item::validateType(ValueType _type)
+{
+	if (type != _type)
+		throw std::runtime_error("Item " + id + " must be of type " + _type.toStr());
+}
+
+void Item::validateTypeNot(ValueType _type)
+{
+	if (type == _type)
+		throw std::runtime_error("Item " + id + " must not be of type " + _type.toStr());
+}
+
+void Item::validateOwnerId(string _ownerId)
+{
+	if (ownerId != _ownerId)
+		throw std::runtime_error("Item " + id + " must be owned by link " + _ownerId);
+}
+
+Item& Items::validate(string itemId)
+{
+	auto pos = find(itemId);
+	if (pos == end())
+		throw std::runtime_error("Item " + itemId + " referenced but not defined");
+	return pos->second;
 }
 
 string Items::getOwnerId(string itemId) const 
