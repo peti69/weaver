@@ -11,7 +11,7 @@ void Generator::validate(Items& items) const
 
 	for (auto& itemPair : items)
 		if (itemPair.second.getOwnerId() == id && bindings.find(itemPair.first) == bindings.end())
-			throw std::runtime_error("Item " + itemPair.first + " has no binding for link " + itemPair.first);
+			throw std::runtime_error("Item " + itemPair.first + " has no binding for link " + id);
 
 	for (auto& bindingPair : bindings)
 	{
