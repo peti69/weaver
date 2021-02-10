@@ -195,6 +195,14 @@ ByteString DatapointType::exportValue(const Value& value) const
 			bytes[4] = u.i & 0xFF;
 			return ByteString(bytes, sizeof(bytes));
 		}
+		else if (mainNo == 17)
+		{
+			if (d >= 0 && d <= 63)
+			{
+				uint8_t i = d;
+				return ByteString({0x00, i});
+			}
+		}
 	}
 	return ByteString();
 }
@@ -230,6 +238,8 @@ Value DatapointType::importValue(ByteString bytes) const
 		u.i = bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4];
 		return Value(u.f);
 	}
+	else if (mainNo == 17 && bytes.length() == 2)
+		return Value(1.0 * bytes[1]);
 	return Value();
 }
 
@@ -482,7 +492,7 @@ Events KnxHandler::receiveX(const Items& items)
 				logger.warn() << "Received TUNNEL REQUEST has invalid sequence number 0x" << cnvToHexStr(seqNo)
 				              << " (expected: 0x" << cnvToHexStr(expectedSeqNo) << ")" << endOfMsg();
 
-				lastReceivedSeqNo = seqNo;
+//				lastReceivedSeqNo = seqNo;
 				continue;
 			}
 			lastReceivedSeqNo = seqNo;
@@ -541,12 +551,11 @@ Events KnxHandler::receiveX(const Items& items)
 		}
 		else if (state == CONNECTED && serviceType == ServiceType::DISC_REQ)
 		{
-			sendControlMsg(createDiscResp());
+			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
 
+			sendControlMsg(createDiscResp());
 			handlerState.errorCounter++;
 			close();
-
-			logger.error() << "Received DISCONNECT REQUEST" << endOfMsg();
 		}
 		else
 			logger.warn() << "Received unexpected message with service type " << serviceType.toStr() << endOfMsg();
