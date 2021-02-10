@@ -8,6 +8,8 @@ RUN set -x && \
 		libstdc++ \
 		mosquitto-libs \
 		libcurl \
+		gdb \
+		bash \
 		tzdata && \
 	apk --no-cache add --virtual build-deps \
 		build-base \
