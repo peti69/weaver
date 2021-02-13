@@ -1,4 +1,4 @@
-FROM alpine:3.10
+FROM alpine:3.13
 
 LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, HTTP(S), plain TCP, MQTT and serial devices"
 
@@ -27,7 +27,7 @@ RUN set -x && \
 	make && \
 	mkdir -p /weaver/conf /weaver/log && \
 	install -d /usr/bin && \
-	install -s -m755 /build/weaver/src/weaver /usr/bin/weaver && \
+	install -m755 /build/weaver/src/weaver /usr/bin/weaver && \
 	install -m644 /build/weaver/conf/weaver.conf /weaver/conf && \
 	install -m644 /build/weaver/conf/roomba.cert /weaver/conf && \
 	apk del build-deps && \
