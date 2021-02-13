@@ -269,7 +269,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 			}
 		}
 
-		Logger logger = log.newLogger(id);
+		Logger logger = log.newLogger(enabled ? id : "(" + id + ")");
 		std::shared_ptr<HandlerIf> handler;
 		if (hasMember(linkValue, "knx"))
 			handler.reset(new KnxHandler(id, *getKnxConfig(getObject(linkValue, "knx"), id, items), logger));
