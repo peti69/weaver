@@ -282,11 +282,6 @@ bool GroupAddr::fromStr(string gaStr, GroupAddr& ga)
 	}
 }
 
-bool GroupAddr::operator==(const GroupAddr& x) 
-{
-	return (null && x.null) || (!null && !x.null && value == x.value);
-}
-
 string PhysicalAddr::toStr() const
 {
 	return cnvToStr(value >> 12) + "." + cnvToStr(value >> 8 & 0x0F) + "." + cnvToStr(value & 0xFF);

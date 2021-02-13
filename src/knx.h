@@ -82,7 +82,7 @@ struct DatapointType
 	
 	string toStr() const;
 	static bool fromStr(string dptStr, DatapointType& dpt);
-	
+
 	ByteString exportValue(const Value& value) const;
 	Value importValue(ByteString bytes) const;
 };
@@ -103,12 +103,11 @@ struct GroupAddr
 	Byte high() const { assert(!null); return value >> 8 & 0xFF; }
 	Byte low() const { assert(!null); return value & 0xFF; }
 
-	operator Value() const { assert(!null); return value; }
 	string toStr() const;
 	static bool fromStr(string gaStr, GroupAddr& ga);
 
-	bool operator==(const GroupAddr& x);
-	bool operator!=(const GroupAddr& x) { return !operator==(x); }
+	bool operator==(const GroupAddr& x) const { return (null && x.null) || (!null && !x.null && value == x.value); }
+	bool operator!=(const GroupAddr& x) const { return !operator==(x); }
 };
 
 struct PhysicalAddr
@@ -124,11 +123,11 @@ struct PhysicalAddr
 	Byte high() const { return value >> 8 & 0xFF; }
 	Byte low() const { return value & 0xFF; }
 	
-	operator Value() const { return value; }
 	string toStr() const;
 	static bool fromStr(string paStr, PhysicalAddr& pa);
 	
-	bool operator==(const PhysicalAddr& x) { return value == x.value; }
+	bool operator==(const PhysicalAddr& x) const { return value == x.value; }
+	bool operator!=(const PhysicalAddr& x) const { return !operator==(x); }
 };
 
 class KnxConfig
