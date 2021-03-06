@@ -121,36 +121,74 @@ int main(int argc, char* argv[])
 		// wait for event
 		try
 		{
+			int maxFd = 0;
 			fd_set readFds, writeFds, excpFds;
 			FD_ZERO(&readFds);
 			FD_ZERO(&writeFds);
 			FD_ZERO(&excpFds);
-			int maxFd = 0;
 			long timeoutMs = 100;
 			for (auto& linkPair : links)
 				if (linkPair.second.isEnabled())
 				{
-					long ms = linkPair.second.collectFds(&readFds, &writeFds, &excpFds, &maxFd);
-					if (ms != -1)
-						timeoutMs = std::min(timeoutMs, ms);
+					int linkMaxFd = 0;
+					fd_set linkReadFds, linkWriteFds, linkExcpFds;
+					FD_ZERO(&linkReadFds);
+					FD_ZERO(&linkWriteFds);
+					FD_ZERO(&linkExcpFds);
+					long linkTimeoutMs = linkPair.second.collectFds(&linkReadFds, &linkWriteFds, &linkExcpFds, &linkMaxFd);
+
+					if ((linkMaxFd > 0 || linkTimeoutMs == 0) && config.getLogPSelectCalls())
+					{
+						LogMsg logMsg = logger.debug();
+						bool first = true;
+						logMsg << "pselect() - Link " << linkPair.first << " requires timeout " << linkTimeoutMs << " and file descriptor set {";
+						for (int fd = 0; fd <= linkMaxFd; fd++)
+							if (FD_ISSET(fd, &linkReadFds) || FD_ISSET(fd, &linkWriteFds) || FD_ISSET(fd, &linkExcpFds))
+							{
+								if (!first)
+									logMsg << ",";
+								else
+									first = false;
+								logMsg << fd;
+								if (FD_ISSET(fd, &linkReadFds))
+									logMsg << "r";
+								if (FD_ISSET(fd, &linkWriteFds))
+									logMsg << "w";
+								if (FD_ISSET(fd, &linkExcpFds))
+									logMsg << "e";
+							}
+						logMsg << "}" << endOfMsg();
+					}
+
+					if (linkTimeoutMs != -1)
+						timeoutMs = std::min(timeoutMs, linkTimeoutMs);
+					for (int fd = 0; fd <= linkMaxFd; fd++)
+					{
+						if (FD_ISSET(fd, &linkReadFds))
+							FD_SET(fd, &readFds);
+						if (FD_ISSET(fd, &linkWriteFds))
+							FD_SET(fd, &writeFds);
+						if (FD_ISSET(fd, &linkExcpFds))
+							FD_SET(fd, &excpFds);
+					}
 				}
 
-			if (config.getLogPSelectCalls())
-			{
-				LogMsg logMsg = logger.debug();
-				bool first = true;
-				logMsg << "pselect() will be called with timeout " << timeoutMs << " and file descriptor set {";
-				for (int fd = 0; fd < maxFd; fd++)
-					if (FD_ISSET(fd, &readFds) || FD_ISSET(fd, &writeFds) || FD_ISSET(fd, &excpFds))
-					{
-						if (!first)
-							logMsg << ",";
-						else
-							first = false;
-						logMsg << fd;
-					}
-				logMsg << "}" << endOfMsg();
-			}
+//			if (config.getLogPSelectCalls())
+//			{
+//				LogMsg logMsg = logger.debug();
+//				bool first = true;
+//				logMsg << "pselect() will be called with timeout " << timeoutMs << " and file descriptor set {";
+//				for (int fd = 0; fd <= maxFd; fd++)
+//					if (FD_ISSET(fd, &readFds) || FD_ISSET(fd, &writeFds) || FD_ISSET(fd, &excpFds))
+//					{
+//						if (!first)
+//							logMsg << ",";
+//						else
+//							first = false;
+//						logMsg << fd;
+//					}
+//				logMsg << "}" << endOfMsg();
+//			}
 
 			struct timespec timeout;
 			timeout.tv_sec = timeoutMs / 1000;
@@ -166,8 +204,8 @@ int main(int argc, char* argv[])
 			{
 				LogMsg logMsg = logger.debug();
 				bool first = true;
-				logMsg << "pselect() has been called with count " << rc << " and file descriptor set {";
-				for (int fd = 0; fd < maxFd; fd++)
+				logMsg << "pselect() - Returns file descriptor set {";
+				for (int fd = 0; fd <= maxFd; fd++)
 					if (FD_ISSET(fd, &readFds) || FD_ISSET(fd, &writeFds) || FD_ISSET(fd, &excpFds))
 					{
 						if (!first)
@@ -175,6 +213,12 @@ int main(int argc, char* argv[])
 						else
 							first = false;
 						logMsg << fd;
+						if (FD_ISSET(fd, &readFds))
+							logMsg << "r";
+						if (FD_ISSET(fd, &readFds))
+							logMsg << "w";
+						if (FD_ISSET(fd, &excpFds))
+							logMsg << "e";
 					}
 				logMsg << "}" << endOfMsg();
 			}
@@ -192,8 +236,9 @@ int main(int argc, char* argv[])
 				{
 					Stopwatch stopwatch;
 					events.splice(events.begin(), linkPair.second.receive(items));
-					if (config.getLogPSelectCalls())
-						logger.debug() << "receive() for link " << linkPair.first << " took " << stopwatch.getRuntime() << " ms" << endOfMsg();
+					long runtime = stopwatch.getRuntime();
+					if (runtime > 0 && config.getLogPSelectCalls())
+						logger.debug() << "receive() for link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{
@@ -322,8 +367,9 @@ int main(int argc, char* argv[])
 				{
 					Stopwatch stopwatch;
 					linkPair.second.send(items, events);
-					if (config.getLogPSelectCalls())
-						logger.debug() << "send() for link " << linkPair.first << " took " << stopwatch.getRuntime() << " ms" << endOfMsg();
+					long runtime = stopwatch.getRuntime();
+					if (runtime > 0 && config.getLogPSelectCalls())
+						logger.debug() << "send() for link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{
