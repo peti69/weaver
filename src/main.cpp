@@ -173,23 +173,6 @@ int main(int argc, char* argv[])
 					}
 				}
 
-//			if (config.getLogPSelectCalls())
-//			{
-//				LogMsg logMsg = logger.debug();
-//				bool first = true;
-//				logMsg << "pselect() will be called with timeout " << timeoutMs << " and file descriptor set {";
-//				for (int fd = 0; fd <= maxFd; fd++)
-//					if (FD_ISSET(fd, &readFds) || FD_ISSET(fd, &writeFds) || FD_ISSET(fd, &excpFds))
-//					{
-//						if (!first)
-//							logMsg << ",";
-//						else
-//							first = false;
-//						logMsg << fd;
-//					}
-//				logMsg << "}" << endOfMsg();
-//			}
-
 			struct timespec timeout;
 			timeout.tv_sec = timeoutMs / 1000;
 			timeout.tv_nsec = (timeoutMs % 1000) * 1000000;
@@ -237,8 +220,8 @@ int main(int argc, char* argv[])
 					Stopwatch stopwatch;
 					events.splice(events.begin(), linkPair.second.receive(items));
 					long runtime = stopwatch.getRuntime();
-					if (runtime > 0 && config.getLogPSelectCalls())
-						logger.debug() << "receive() for link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
+					if (runtime > 10)
+						logger.warn() << "Event receiving on link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{
@@ -368,8 +351,8 @@ int main(int argc, char* argv[])
 					Stopwatch stopwatch;
 					linkPair.second.send(items, events);
 					long runtime = stopwatch.getRuntime();
-					if (runtime > 0 && config.getLogPSelectCalls())
-						logger.debug() << "send() for link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
+					if (runtime > 10)
+						logger.warn() << "Event sending on link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{

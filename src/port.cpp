@@ -304,6 +304,9 @@ Events PortHandler::receiveX()
 		}
 	}
 
+	if (msgData.length() > 1000)
+		logger.warn() << "Data does not match to pattern" << endOfMsg();
+
 	return events;
 }
 
