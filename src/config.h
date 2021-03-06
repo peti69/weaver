@@ -22,15 +22,21 @@ class TcpConfig;
 class GlobalConfig
 {
 private:
+	bool logPSelectCalls;
 	bool logEvents;
 	bool logSuppressedEvents;
 	bool logGeneratedEvents;
 
 public:
-	GlobalConfig() : logEvents(false), logSuppressedEvents(false), logGeneratedEvents(false) {}
-	GlobalConfig(bool _logEvents, bool _logSuppressedEvents, bool _logGeneratedEvents) :
-		logEvents(_logEvents), logSuppressedEvents(_logSuppressedEvents), logGeneratedEvents(_logGeneratedEvents)
+	GlobalConfig() :
+		logPSelectCalls(false), logEvents(false),
+		logSuppressedEvents(false), logGeneratedEvents(false)
 	{}
+	GlobalConfig(bool _logPSelectCalls, bool _logEvents, bool _logSuppressedEvents, bool _logGeneratedEvents) :
+		logPSelectCalls(_logPSelectCalls), logEvents(_logEvents),
+		logSuppressedEvents(_logSuppressedEvents), logGeneratedEvents(_logGeneratedEvents)
+	{}
+	bool getLogPSelectCalls() const { return logPSelectCalls; }
 	bool getLogEvents() const { return logEvents; }
 	bool getLogSuppressedEvents() const { return logSuppressedEvents; }
 	bool getLogGeneratedEvents() const { return logGeneratedEvents; }

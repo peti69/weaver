@@ -125,10 +125,22 @@ int main(int argc, char* argv[])
 						timeoutMs = std::min(timeoutMs, ms);
 				}
 
-//			cout << "maxFd: " << maxFd << endl;
-//			for (int fd = 0; fd < 1000; fd++)
-//				if (FD_ISSET(fd, &readFds))
-//					cout << "Fd: " << fd << endl;
+			if (config.getLogPSelectCalls())
+			{
+				LogMsg logMsg = logger.debug();
+				bool first = true;
+				logMsg << "pselect() call with timeout " << timeoutMs << " and file descriptor set {";
+				for (int fd = 0; fd < maxFd; fd++)
+					if (FD_ISSET(fd, &readFds))
+					{
+						if (!first)
+							logMsg << ",";
+						else
+							first = false;
+						logMsg << fd;
+					}
+				logMsg << "}" << endOfMsg();
+			}
 
 			struct timespec timeout;
 			timeout.tv_sec = timeoutMs / 1000;

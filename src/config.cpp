@@ -154,11 +154,12 @@ void Config::read(string fileName)
 
 GlobalConfig Config::getGlobalConfig() const
 {
+	bool logPSelectCalls = getBool(document, "logPSelectCalls", false);
 	bool logEvents = getBool(document, "logEvents", false);
 	bool logSuppressedEvents = getBool(document, "logSuppressedEvents", true);
 	bool logGeneratedEvents = getBool(document, "logGeneratedEvents", true);
 
-	return GlobalConfig(logEvents, logSuppressedEvents, logGeneratedEvents);
+	return GlobalConfig(logPSelectCalls, logEvents, logSuppressedEvents, logGeneratedEvents);
 }
 
 LogConfig Config::getLogConfig() const
