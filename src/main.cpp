@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
 			{
 				LogMsg logMsg = logger.debug();
 				bool first = true;
-				logMsg << "pselect() call with timeout " << timeoutMs << " and file descriptor set {";
+				logMsg << "pselect() will be called with timeout " << timeoutMs << " and file descriptor set {";
 				for (int fd = 0; fd < maxFd; fd++)
 					if (FD_ISSET(fd, &readFds))
 					{
@@ -151,7 +151,23 @@ int main(int argc, char* argv[])
 					break;
 				else
 					logger.errorX() << unixError("pselect") << endOfMsg();
-			//logger.info() << "pselect() done" << endOfMsg();
+
+			if (config.getLogPSelectCalls())
+			{
+				LogMsg logMsg = logger.debug();
+				bool first = true;
+				logMsg << "pselect() has been called with count " << rc << " and file descriptor set {";
+				for (int fd = 0; fd < maxFd; fd++)
+					if (FD_ISSET(fd, &readFds))
+					{
+						if (!first)
+							logMsg << ",";
+						else
+							first = false;
+						logMsg << fd;
+					}
+				logMsg << "}" << endOfMsg();
+			}
 		}
 		catch (const std::exception& error)
 		{
