@@ -1,12 +1,22 @@
 #include <sys/select.h>
 #include <signal.h>
- 
+#include <chrono>
+
 #include "config.h"
 #include "logger.h"
+
+using namespace std::chrono;
 
 void sighandler(int signo) 
 {
 }
+
+struct Stopwatch
+{
+	steady_clock::time_point start;
+	Stopwatch() : start(steady_clock::now()) {}
+	int getRuntime() { return duration_cast<milliseconds>(steady_clock::now() - start).count(); }
+};
 
 void logEvent(const Logger& logger, const Event& event, string postfix = "")
 {
@@ -131,7 +141,7 @@ int main(int argc, char* argv[])
 				bool first = true;
 				logMsg << "pselect() will be called with timeout " << timeoutMs << " and file descriptor set {";
 				for (int fd = 0; fd < maxFd; fd++)
-					if (FD_ISSET(fd, &readFds))
+					if (FD_ISSET(fd, &readFds) || FD_ISSET(fd, &writeFds) || FD_ISSET(fd, &excpFds))
 					{
 						if (!first)
 							logMsg << ",";
@@ -158,7 +168,7 @@ int main(int argc, char* argv[])
 				bool first = true;
 				logMsg << "pselect() has been called with count " << rc << " and file descriptor set {";
 				for (int fd = 0; fd < maxFd; fd++)
-					if (FD_ISSET(fd, &readFds))
+					if (FD_ISSET(fd, &readFds) || FD_ISSET(fd, &writeFds) || FD_ISSET(fd, &excpFds))
 					{
 						if (!first)
 							logMsg << ",";
@@ -180,7 +190,10 @@ int main(int argc, char* argv[])
 			if (linkPair.second.isEnabled())
 				try
 				{
+					Stopwatch stopwatch;
 					events.splice(events.begin(), linkPair.second.receive(items));
+					if (config.getLogPSelectCalls())
+						logger.debug() << "receive() for link " << linkPair.first << " took " << stopwatch.getRuntime() << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{
@@ -307,7 +320,10 @@ int main(int argc, char* argv[])
 			if (linkPair.second.isEnabled())
 				try
 				{
+					Stopwatch stopwatch;
 					linkPair.second.send(items, events);
+					if (config.getLogPSelectCalls())
+						logger.debug() << "send() for link " << linkPair.first << " took " << stopwatch.getRuntime() << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{
