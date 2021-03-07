@@ -204,6 +204,7 @@ void PortHandler::close()
 	fd = -1;
 	lastOpenTry = 0;
 	lastDataReceipt = 0;
+	msgData.clear();
 
 	logger.info() << "Serial port " << config.getName() << " closed" << endOfMsg();
 }
@@ -306,7 +307,7 @@ Events PortHandler::receiveX()
 
 	// detect wrong data
 	if (msgData.length() > 2 * config.getMaxMsgSize())
-		logger.errorX() << "Data does not match pattern" << endOfMsg();
+		logger.errorX() << "Data " << msgData << " does not match pattern" << endOfMsg();
 
 	return events;
 }
