@@ -78,6 +78,14 @@ private:
 	// Id of item on which the number of errors on the link will be reported.
 	string errorCounter;
 
+	// A warning message is generated in case event receiving over the link requires
+	// more time than defined here in milliseconds.
+	int maxReceiveDuration;
+
+	// A warning message is generated in case event sending over the link requires
+	// more time than defined here in milliseconds.
+	int maxSendDuration;
+
 	// Indicates that values for number items are transmitted over the link as strings
 	// and that an automatic conversion is required.
 	bool numberAsString;
@@ -124,13 +132,17 @@ private:
 	Events pendingEvents;
 
 public:
-	Link(string id, bool enabled, string errorCounter, bool numberAsString,
-		bool booleanAsString, string falseValue, string trueValue,
+	Link(string id, bool enabled, string errorCounter,
+		int maxReceiveDuration, int maxSendDuration,
+		bool numberAsString, bool booleanAsString,
+		string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
-		id(id), enabled(enabled), errorCounter(errorCounter), numberAsString(numberAsString),
-		booleanAsString(booleanAsString), falseValue(falseValue), trueValue(trueValue),
+		id(id), enabled(enabled), errorCounter(errorCounter),
+		maxReceiveDuration(maxReceiveDuration), maxSendDuration(maxSendDuration),
+		numberAsString(numberAsString), booleanAsString(booleanAsString),
+		falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
 		modifiers(modifiers), handler(handler), logger(logger) {}

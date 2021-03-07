@@ -1,22 +1,12 @@
 #include <sys/select.h>
 #include <signal.h>
-#include <chrono>
 
 #include "config.h"
 #include "logger.h"
 
-using namespace std::chrono;
-
 void sighandler(int signo) 
 {
 }
-
-struct Stopwatch
-{
-	steady_clock::time_point start;
-	Stopwatch() : start(steady_clock::now()) {}
-	int getRuntime() { return duration_cast<milliseconds>(steady_clock::now() - start).count(); }
-};
 
 void logEvent(const Logger& logger, const Event& event, string postfix = "")
 {
@@ -217,11 +207,7 @@ int main(int argc, char* argv[])
 			if (linkPair.second.isEnabled())
 				try
 				{
-					Stopwatch stopwatch;
 					events.splice(events.begin(), linkPair.second.receive(items));
-					long runtime = stopwatch.getRuntime();
-					if (runtime > 10)
-						logger.warn() << "Event receiving on link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{
@@ -348,11 +334,7 @@ int main(int argc, char* argv[])
 			if (linkPair.second.isEnabled())
 				try
 				{
-					Stopwatch stopwatch;
 					linkPair.second.send(items, events);
-					long runtime = stopwatch.getRuntime();
-					if (runtime > 10)
-						logger.warn() << "Event sending on link " << linkPair.first << " took " << runtime << " ms" << endOfMsg();
 				}
 				catch (const std::exception& error)
 				{

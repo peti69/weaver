@@ -1,4 +1,15 @@
+#include <chrono>
+
 #include "link.h"
+
+using namespace std::chrono;
+
+struct Stopwatch
+{
+	steady_clock::time_point start;
+	Stopwatch() : start(steady_clock::now()) {}
+	int getRuntime() { return duration_cast<milliseconds>(steady_clock::now() - start).count(); }
+};
 
 Value Modifier::exportValue(const Value& value) const
 {
@@ -58,7 +69,11 @@ Events Link::receive(Items& items)
 	}
 	else
 	{
+		Stopwatch stopwatch;
 		events = handler->receive(items);
+		long runtime = stopwatch.getRuntime();
+		if (runtime > maxReceiveDuration)
+			logger.warn() << "Event receiving took " << runtime << " ms" << endOfMsg();
 
 		if (errorCounter != "")
 		{
@@ -260,7 +275,11 @@ void Link::send(Items& items, const Events& events)
 		eventPos++;
 	}
 
+	Stopwatch stopwatch;
 	pendingEvents = handler->send(items, modifiedEvents);
+	long runtime = stopwatch.getRuntime();
+	if (runtime > maxReceiveDuration)
+		logger.warn() << "Event sending took " << runtime << " ms" << endOfMsg();
 
 	if (errorCounter != "")
 	{

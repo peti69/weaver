@@ -231,6 +231,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 		bool enabled = getBool(linkValue, "enabled", true);
 
 		string errorCounter = getString(linkValue, "errorCounter", "");
+		int maxReceiveDuration = getInt(linkValue, "maxReceiveDuration", 20);
+		int maxSendDuration = getInt(linkValue, "maxSendDuration", 20);
 
 		bool numberAsString = hasMember(linkValue, "numberAsString");
 
@@ -291,9 +293,10 @@ Links Config::getLinks(const Items& items, Log& log) const
 		else
 			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
-		links.add(Link(id, enabled, errorCounter, numberAsString, booleanAsString, falseValue, trueValue,
-				unwritableFalseValue, unwritableTrueValue, voidAsString, voidValue, unwritableVoidValue,
-				modifiers, handler, logger));
+		links.add(Link(id, enabled, errorCounter, maxReceiveDuration, maxSendDuration, numberAsString,
+			booleanAsString, falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
+			voidAsString, voidValue, unwritableVoidValue,
+			modifiers, handler, logger));
 	}
 
 	return links;
@@ -452,11 +455,6 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, string lin
 { 
 	string name = getString(value, "name");
 
-	std::regex msgPattern = convertPattern("msgPattern", getString(value, "msgPattern"));
-
-	bool logRawData = getBool(value, "logRawData", false);
-	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
-
 	int baudRate = getInt(value, "baudRate");
 	if (!PortConfig::isValidBaudRate(baudRate))
 		throw std::runtime_error("Invalid value for field baudRate in configuration");
@@ -475,8 +473,13 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, string lin
 		throw std::runtime_error("Invalid value " + parityStr + " for field parity in configuration");
 
 	int timeoutInterval = getInt(value, "timeoutInterval", 60);
-
 	int reopenInterval = getInt(value, "reopenInterval", 60);
+
+	std::regex msgPattern = convertPattern("msgPattern", getString(value, "msgPattern"));
+	int maxMsgSize = getInt(value, "maxMsgSize", 1024);
+
+	bool logRawData = getBool(value, "logRawData", false);
+	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
 
 	const Value& bindingsValue = getArray(value, "bindings");
 	PortConfig::Bindings bindings;
@@ -489,7 +492,7 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, string lin
 		bindings.add(PortConfig::Binding(itemId, pattern));
 	}
 
-	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, timeoutInterval, reopenInterval, msgPattern, logRawData, logRawDataInHex, bindings);
+	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, timeoutInterval, reopenInterval, msgPattern, maxMsgSize, logRawData, logRawDataInHex, bindings);
 }
 
 std::shared_ptr<GeneratorConfig> Config::getGeneratorConfig(const Value& value, string linkId, const Items& items) const

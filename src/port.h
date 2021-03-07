@@ -36,16 +36,17 @@ private:
 	int timeoutInterval;
 	int reopenInterval;
 	std::regex msgPattern;
+	int maxMsgSize;
 	bool logRawData;
 	bool logRawDataInHex;
 	Bindings bindings;
 
 public:
 	PortConfig(string _name, int _baudRate, int _dataBits, int _stopBits, Parity _parity, int _timeoutInterval,
-		int _reopenInterval, std::regex _msgPattern, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
+		int _reopenInterval, std::regex _msgPattern, int _maxMsgSize, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
 		name(_name), baudRate(_baudRate), dataBits(_dataBits), stopBits(_stopBits), parity(_parity), 
 		timeoutInterval(_timeoutInterval), reopenInterval(_reopenInterval), msgPattern(_msgPattern),
-		logRawData(_logRawData), logRawDataInHex(_logRawDataInHex), bindings(_bindings)
+		maxMsgSize(_maxMsgSize), logRawData(_logRawData), logRawDataInHex(_logRawDataInHex), bindings(_bindings)
 	{}
 	string getName() const { return name; }
 	int getBaudRate() const { return baudRate; }
@@ -55,6 +56,7 @@ public:
 	int getTimeoutInterval() const { return timeoutInterval; }
 	int getReopenInterval() const { return reopenInterval; }
 	const std::regex& getMsgPattern() const { return msgPattern; }
+	int getMaxMsgSize() const { return maxMsgSize; }
 	bool getLogRawData() const { return logRawData; }
 	bool getLogRawDataInHex() const { return logRawDataInHex; }
 	const Bindings& getBindings() const { return bindings; }
