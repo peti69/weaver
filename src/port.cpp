@@ -307,7 +307,7 @@ Events PortHandler::receiveX()
 
 	// detect wrong data
 	if (msgData.length() > 2 * config.getMaxMsgSize())
-		logger.errorX() << "Data " << msgData << " does not match pattern" << endOfMsg();
+		logger.errorX() << "Data " << msgData << " does not match message pattern" << endOfMsg();
 
 	return events;
 }
