@@ -297,11 +297,8 @@ Events PortHandler::receiveX()
 		{
 			auto& binding = bindingPair.second;
 
-			if (std::regex_search(msg, match, binding.pattern))
-				if (match.size() == 2)
-					events.add(Event(id, binding.itemId, EventType::STATE_IND, string(match[1])));
-				else
-					events.add(Event(id, binding.itemId, EventType::STATE_IND, Value::newVoid()));
+			if (std::regex_search(msg, match, binding.pattern) && match.size() == 2)
+				events.add(Event(id, binding.itemId, EventType::STATE_IND, string(match[1])));
 		}
 	}
 
