@@ -149,14 +149,11 @@ Events HttpHandler::receiveX()
 				// examine transfer result
 				CURLcode code = msg->data.result;
 				if (code != CURLE_OK)
-					// failure
 					logger.error() << "Transfer for item " << itemId << " failed with error code "
 					               << code << " (" << curl_easy_strerror(code) << ") and error details '"
 					               << transferPos->second.errorBuffer << "'" << endOfMsg();
 				else
 				{
-					// success
-
 					if (config.getLogTransfers())
 						logger.debug() << "Transfer for item " << itemId << " completed with response "
 						               << response << endOfMsg();
@@ -169,6 +166,8 @@ Events HttpHandler::receiveX()
 						// compare returned response with response pattern
 						std::smatch match;
 						if (std::regex_search(response, match, binding.responsePattern))
+						{
+							// match
 							if (match.size() > 1)
 							{
 								int i = 1;
@@ -176,8 +175,11 @@ Events HttpHandler::receiveX()
 								if (i < match.size()) // this should always be true
 									events.add(Event(id, itemId, EventType::STATE_IND, string(match[i])));
 							}
-							else
-								events.add(Event(id, itemId, EventType::STATE_IND, Value::newVoid()));
+						}
+						else
+							// no match
+							logger.error() << "Response '" << response << "' for item "
+							               << itemId << " not expected" << endOfMsg();
 					}
 				}
 
