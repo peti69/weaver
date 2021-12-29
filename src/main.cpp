@@ -271,7 +271,7 @@ int main(int argc, char* argv[])
 			   && item.isReadable() // if item can be read
 			   && !item.isResponsive() // if item does not react actively
 			   )
-				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::READ_REQ, Value::newVoid()));
+				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::READ_REQ, Value()));
 
 			// store STATE_IND
 			if (event.getType() == EventType::STATE_IND)
