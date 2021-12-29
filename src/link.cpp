@@ -137,6 +137,16 @@ Events Link::receive(Items& items)
 			continue;
 		}
 
+		// remove STATE_IND in case the value is a void
+		if (event.getType() == EventType::STATE_IND && event.getValue().getType() == ValueType::VOID)
+		{
+			logger.warn() << event.getType().toStr() << " event received which has "
+			              << event.getValue().getType().toStr() <<  " value" << endOfMsg();
+
+			eventPos = events.erase(eventPos);
+			continue;
+		}
+
 		// remove READ_REQ in case the item is not readable
 //		if (event.getType() == EventType::READ_REQ && !item.isReadable())
 //		{
@@ -146,6 +156,13 @@ Events Link::receive(Items& items)
 //			eventPos = events.erase(eventPos);
 //			continue;
 //		}
+
+		// remove READ_REQ depending on configuration
+		if (ignoreReadEvents && event.getType() == EventType::READ_REQ)
+		{
+			eventPos = events.erase(eventPos);
+			continue;
+		}
 
 		if (event.getType() != EventType::READ_REQ)
 		{
@@ -245,6 +262,13 @@ void Link::send(Items& items, const Events& events)
 
 		// remove STATE_IND in case the link is the owner of the item
 		if (event.getType() == EventType::STATE_IND && item.getOwnerId() == id)
+		{
+			eventPos = modifiedEvents.erase(eventPos);
+			continue;
+		}
+
+		// remove READ_REQ depending on configuration
+		if (ignoreReadEvents && event.getType() == EventType::READ_REQ)
 		{
 			eventPos = modifiedEvents.erase(eventPos);
 			continue;

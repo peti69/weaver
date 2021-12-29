@@ -237,14 +237,14 @@ Events Handler::receiveX(const Items& items)
 			return events;
 		lastConnectTry = now;
 
+		int value = MQTT_PROTOCOL_V311;
+		int ec = mosquitto_opts_set(client, MOSQ_OPT_PROTOCOL_VERSION, &value);
+		handleError("mosquitto_opts_set#1", ec);
+
 		// TODO: Enable TCP_NO_DELAY when being on new Mosquitto library.
-
-		//int ec = mosquitto_int_option(client, MQTT_PROTOCOL_V311, true);
-		//handleError("mosquitto_int_option", ec);
-
-		int version = MQTT_PROTOCOL_V311;
-		int ec = mosquitto_opts_set(client, MOSQ_OPT_PROTOCOL_VERSION, &version);
-		handleError("mosquitto_opts_set", ec);
+		//value = 1;
+		//ec = mosquitto_opts_set(client, MOSQ_OPT_TCP_NODELAY, &value);
+		//handleError("mosquitto_opts_set#2", ec);
 
 		string username = config.getUsername();
 		string password = config.getPassword();
@@ -315,9 +315,13 @@ Events Handler::receiveX(const Items& items)
 			int ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
 			handleError("mosquitto_subscribe", ec);
 		};
-		//subscribe(config.getStateTopicPattern());
-		subscribe(config.getWriteTopicPattern());
-		subscribe(config.getReadTopicPattern());
+		if (!config.getExportItems())
+			subscribe(config.getStateTopicPattern());
+		else
+		{
+			subscribe(config.getWriteTopicPattern());
+			subscribe(config.getReadTopicPattern());
+		}
 
 		for (auto topic : config.getSubTopics())
 		{
@@ -339,51 +343,81 @@ Events Handler::receiveX(const Items& items)
 	auto& bindings = config.getBindings();
 	for (auto& msg : receivedMsgs)
 	{
-		for (auto& bindingPair : bindings)
+		auto getItemId = [&] (TopicPattern topicPattern, string& itemId)
 		{
-			auto& binding = bindingPair.second;
+			if (topicPattern.isNull())
+				return false;
+			itemId = topicPattern.getItemId(msg.topic);
+			return itemId.length() > 0;
+		};
 
-			auto analyzePayload = [&] (EventType type)
+		// determine item id and event type
+		EventType eventType;
+		string itemId;
+		if (!config.getExportItems())
+		{
+			if (getItemId(config.getStateTopicPattern(), itemId))
+				eventType = EventType::STATE_IND;
+		}
+		else
+		{
+			if (getItemId(config.getWriteTopicPattern(), itemId))
+				eventType = EventType::WRITE_REQ;
+			else if (getItemId(config.getReadTopicPattern(), itemId))
+				eventType = EventType::READ_REQ;
+		}
+		if (itemId == "")
+			for (auto& [key, binding] : bindings)
 			{
+				if (binding.readTopic == msg.topic)
+				{
+					itemId = binding.itemId;
+					eventType = EventType::READ_REQ;
+				}
+				else if (binding.writeTopic == msg.topic)
+				{
+					itemId = binding.itemId;
+					eventType = EventType::WRITE_REQ;
+				}
+				else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
+				{
+					itemId = binding.itemId;
+					eventType = EventType::STATE_IND;
+				}
+			}
+
+		// ignore unknown item ids
+		if (!items.exists(itemId))
+			continue;
+
+		// determine event value
+		Value eventValue;
+		if (eventType != EventType::READ_REQ)
+			if (auto bindingPos = bindings.find(itemId); bindingPos != bindings.end())
+			{
+				auto& binding = bindingPos->second;
+
 				std::smatch match;
 				if (std::regex_search(msg.payload, match, binding.inPattern))
-				{
 					if (match.size() > 1)
 					{
 						int i = 1;
 						while (i < match.size() && !match[i].matched) i++;
 						if (i < match.size()) // this should always be true
-							events.add(Event(id, binding.itemId, type, binding.mappings.toInternal(string(match[i]))));
+							eventValue = Value(binding.mappings.toInternal(string(match[i])));
 					}
 					else
-						events.add(Event(id, binding.itemId, type, Value::newVoid()));
-				}
-			};
+						eventValue = Value::newVoid();
+				else
+					continue;
+			}
+			else
+				eventValue = Value(msg.payload);
+		else
+			eventValue = Value();
 
-			if (binding.readTopic == msg.topic)
-				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
-			else if (binding.writeTopic == msg.topic)
-				analyzePayload(EventType::WRITE_REQ);
-			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
-				analyzePayload(EventType::STATE_IND);
-		}
-
-		string itemId;
-		auto getItemId = [&] (TopicPattern topicPattern)
-		{
-			if (topicPattern.isNull())
-				return false;
-			itemId = topicPattern.getItemId(msg.topic);
-			return itemId.length() > 0 && items.exists(itemId);
-//			return itemId.length() > 0;
-		};
-
-		if (getItemId(config.getWriteTopicPattern()))
-			events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
-		else if (getItemId(config.getReadTopicPattern()))
-			events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
-		//else if (getItemId(config.getStateTopicPattern()))
-		//	events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
+		// generate event
+		events.add(Event(id, itemId, eventType, eventValue));
 	}
 	receivedMsgs.clear();
 
@@ -425,72 +459,96 @@ void Handler::sendX(const Items& items, const Events& events)
 	for (auto& event : events)
 	{
 		string itemId = event.getItemId();
-		const Value& value = event.getValue();
 
+		// skip STATE_IND events depending on configuration
+		if (  event.getType() == EventType::STATE_IND
+		   && !config.getStateTopicPattern().isNull() && !config.getExportItems()
+		   )
+			continue;
+
+		// determine default topics
+		std::unordered_set<string> topics;
+		if (event.getType() == EventType::STATE_IND)
+		{
+			if (!config.getStateTopicPattern().isNull())
+				topics = {config.getStateTopicPattern().createPubTopic(itemId)};
+		}
+		else if (event.getType() == EventType::WRITE_REQ)
+		{
+			if (!config.getWriteTopicPattern().isNull())
+				topics = {config.getWriteTopicPattern().createPubTopic(itemId)};
+		}
+		else if (event.getType() == EventType::READ_REQ)
+		{
+			if (!config.getReadTopicPattern().isNull())
+				topics = {config.getReadTopicPattern().createPubTopic(itemId)};
+		}
+
+		// override topics
 		auto bindingPos = bindings.find(itemId);
 		if (bindingPos != bindings.end())
 		{
 			auto& binding = bindingPos->second;
 
-			auto sendMsgWithPayload = [&] (string topic, bool retainFlag)
-			{
-				if (!value.isString())
-					logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
-				else
-				{
-					string valueStr = binding.mappings.toExternal(value.getString());
-
-					string pattern = binding.outPattern;
-					string::size_type pos = pattern.find("%time");
-					if (pos != string::npos)
-						pattern.replace(pos, 5, cnvToStr(std::time(0)));
-
-					string str;
-					str.resize(100);
-					int n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
-					if (n >= str.capacity())
-					{
-						str.resize(n + 1);
-						n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
-					}
-					str.resize(n);
-
-					sendMsg(topic, str, config.getRetainFlag());
-				}
-			};
-
 			if (event.getType() == EventType::STATE_IND)
-				for (string stateTopic : binding.stateTopics)
-					sendMsgWithPayload(stateTopic, config.getRetainFlag());
+			{
+				if (binding.stateTopics.size())
+					topics = binding.stateTopics;
+			}
 			else if (event.getType() == EventType::WRITE_REQ)
 			{
 				if (binding.writeTopic != "")
-					sendMsgWithPayload(binding.writeTopic, false);
+					topics = {binding.writeTopic};
 			}
 			else if (event.getType() == EventType::READ_REQ)
 			{
 				if (binding.readTopic != "")
-					sendMsg(binding.readTopic, "", false);
+					topics = {binding.readTopic};
 			}
 		}
-		else
+
+		// skip events for those no topic could be found
+		if (!topics.size())
+			continue;
+
+		// determine default value
+		string valueStr;
+		if (event.getType() != EventType::READ_REQ)
 		{
-			if (event.getType() == EventType::STATE_IND)
+			const Value& value = event.getValue();
+			if (!value.isString())
 			{
-				if (!config.getStateTopicPattern().isNull() && value.isString())
-					sendMsg(config.getStateTopicPattern().createPubTopic(itemId), value.getString(), config.getRetainFlag());
+				logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
+				return;
 			}
-//			else if (event.getType() == EventType::WRITE_REQ)
-//			{
-//				if (!config.getWriteTopicPattern().isNull())
-//					sendMsg(config.getWriteTopicPattern().createPubTopic(itemId), payload, false);
-//			}
-//			else if (event.getType() == EventType::READ_REQ)
-//			{
-//				if (!config.getReadTopicPattern().isNull())
-//					sendMsg(config.getReadTopicPattern().createPubTopic(itemId), "", false);
-//			}
+			valueStr = value.getString();
 		}
+
+		// override value
+		if (bindingPos != bindings.end() && event.getType() != EventType::READ_REQ)
+		{
+			auto& binding = bindingPos->second;
+
+			string valueStr = binding.mappings.toExternal(valueStr);
+			string pattern = binding.outPattern;
+			string::size_type pos = pattern.find("%time");
+			if (pos != string::npos)
+				pattern.replace(pos, 5, cnvToStr(std::time(0)));
+			string str;
+			str.resize(100);
+			int n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
+			if (n >= str.capacity())
+			{
+				str.resize(n + 1);
+				n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
+			}
+			str.resize(n);
+			valueStr = str;
+		}
+
+		// send message
+		for (string topic : topics)
+			sendMsg(topic, valueStr, event.getType() == EventType::STATE_IND ? config.getRetainFlag() : false);
 	}
 
 	if (state == CONNECTED)

@@ -2,7 +2,7 @@
 #define MQTT_H
 
 #include <ctime>
-#include <set>
+#include <unordered_set>
 #include <regex>
 
 #include <mosquitto.h>
@@ -65,7 +65,7 @@ public:
 class Config
 {
 public:
-	typedef std::set<string> Topics;
+	typedef std::unordered_set<string> Topics;
 
 	struct Binding
 	{
@@ -83,7 +83,7 @@ public:
 			inPattern(inPattern), outPattern(outPattern), mappings(mappings)
 		{}
 	};
-	class Bindings: public std::map<string, Binding>
+	class Bindings: public std::unordered_map<string, Binding>
 	{
 	public:
 		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
@@ -106,6 +106,7 @@ private:
 	TopicPattern stateTopicPattern;
 	TopicPattern writeTopicPattern;
 	TopicPattern readTopicPattern;
+	bool exportItems;
 	Topics subTopics;
 	bool logMsgs;
 	bool logLibEvents;
@@ -115,12 +116,13 @@ public:
 	Config(string clientId, string hostname, int port, bool tlsFlag, string caFile, string caPath, string ciphers,
 		int reconnectInterval, int idleTimeout, string username, string password, bool retainFlag,
 		TopicPattern stateTopicPattern, TopicPattern writeTopicPattern, TopicPattern readTopicPattern,
-		Topics subTopics, bool logMsgs, bool logLibEvents, Bindings bindings) :
+		bool exportItems, Topics subTopics, bool logMsgs, bool logLibEvents, Bindings bindings) :
 		clientId(clientId), hostname(hostname), port(port),
 		tlsFlag(tlsFlag), caFile(caFile), caPath(caPath), ciphers(ciphers),
 		reconnectInterval(reconnectInterval), idleTimeout(idleTimeout),
 		username(username), password(password), retainFlag(retainFlag),
-		stateTopicPattern(stateTopicPattern), writeTopicPattern(writeTopicPattern), readTopicPattern(readTopicPattern),
+		stateTopicPattern(stateTopicPattern), writeTopicPattern(writeTopicPattern),
+		readTopicPattern(readTopicPattern), exportItems(exportItems),
 		subTopics(subTopics), logMsgs(logMsgs), logLibEvents(logLibEvents), bindings(bindings)
 	{}
 	string getClientId() const { return clientId; }
@@ -138,6 +140,7 @@ public:
 	TopicPattern getStateTopicPattern() const { return stateTopicPattern; }
 	TopicPattern getWriteTopicPattern() const { return writeTopicPattern; }
 	TopicPattern getReadTopicPattern() const { return readTopicPattern; }
+	bool getExportItems() const { return exportItems; }
 	const Topics& getSubTopics() const {return subTopics; }
 	bool getLogMsgs() const {return logMsgs; }
 	bool getLogLibEvents() const { return logLibEvents; }

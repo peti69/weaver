@@ -229,6 +229,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 	{
 		string id = getString(linkValue, "id");
 		bool enabled = getBool(linkValue, "enabled", true);
+		bool ignoreReadEvents = getBool(linkValue, "ignoreReadEvents", false);
 
 		string errorCounter = getString(linkValue, "errorCounter", "");
 		int maxReceiveDuration = getInt(linkValue, "maxReceiveDuration", 20);
@@ -293,8 +294,9 @@ Links Config::getLinks(const Items& items, Log& log) const
 		else
 			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
-		links.add(Link(id, enabled, errorCounter, maxReceiveDuration, maxSendDuration, numberAsString,
-			booleanAsString, falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
+		links.add(Link(id, enabled, ignoreReadEvents, errorCounter,
+			maxReceiveDuration, maxSendDuration, numberAsString, booleanAsString,
+			falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
 			voidAsString, voidValue, unwritableVoidValue,
 			modifiers, handler, logger));
 	}
@@ -323,7 +325,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 
 	string username = getString(value, "username", "");
 	string password = getString(value, "password", "");
-	bool retainFlag = getBool(value, "retainFlag", false);
+	bool retainFlag = getBool(value, "retainFlag", true);
 
 	auto getTopicPattern = [this, &value] (string fieldName)
 	{
@@ -338,6 +340,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 	Mqtt::TopicPattern stateTopicPattern = getTopicPattern("stateTopicPattern");
 	Mqtt::TopicPattern writeTopicPattern = getTopicPattern("writeTopicPattern");
 	Mqtt::TopicPattern readTopicPattern = getTopicPattern("readTopicPattern");
+	bool exportItems = getBool(value, "exportItems", false);
 
 	Mqtt::Config::Topics subTopics;
 	if (hasMember(value, "subTopics"))
@@ -389,7 +392,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 
 	return std::make_shared<Mqtt::Config>(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
 			reconnectInterval, idleTimeout, username, password, retainFlag, stateTopicPattern,
-			writeTopicPattern, readTopicPattern, subTopics, logMsgs, logLibEvents, bindings);
+			writeTopicPattern, readTopicPattern, exportItems, subTopics, logMsgs, logLibEvents, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, string linkId, const Items& items) const

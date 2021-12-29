@@ -75,6 +75,9 @@ private:
 	// Only in case the link is enabled events are transmitted over the link.
 	bool enabled;
 
+	// Discard READ_REQ events to be sent or received ones?
+	bool ignoreReadEvents;
+
 	// Id of item on which the number of errors on the link will be reported.
 	string errorCounter;
 
@@ -132,14 +135,14 @@ private:
 	Events pendingEvents;
 
 public:
-	Link(string id, bool enabled, string errorCounter,
+	Link(string id, bool enabled, bool ignoreReadEvents, string errorCounter,
 		int maxReceiveDuration, int maxSendDuration,
 		bool numberAsString, bool booleanAsString,
 		string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
-		id(id), enabled(enabled), errorCounter(errorCounter),
+		id(id), enabled(enabled), ignoreReadEvents(ignoreReadEvents), errorCounter(errorCounter),
 		maxReceiveDuration(maxReceiveDuration), maxSendDuration(maxSendDuration),
 		numberAsString(numberAsString), booleanAsString(booleanAsString),
 		falseValue(falseValue), trueValue(trueValue),
