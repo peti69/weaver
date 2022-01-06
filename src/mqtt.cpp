@@ -368,23 +368,24 @@ Events Handler::receiveX(const Items& items)
 		}
 		if (itemId == "")
 			for (auto& [key, binding] : bindings)
-			{
 				if (binding.readTopic == msg.topic)
 				{
 					itemId = binding.itemId;
 					eventType = EventType::READ_REQ;
+					break;
 				}
 				else if (binding.writeTopic == msg.topic)
 				{
 					itemId = binding.itemId;
 					eventType = EventType::WRITE_REQ;
+					break;
 				}
 				else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
 				{
 					itemId = binding.itemId;
 					eventType = EventType::STATE_IND;
+					break;
 				}
-			}
 
 		// ignore unknown item ids
 		if (!items.exists(itemId))
