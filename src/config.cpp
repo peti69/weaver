@@ -491,8 +491,9 @@ std::shared_ptr<PortConfig> Config::getPortConfig(const Value& value, string lin
 		string itemId = getString(bindingValue, "itemId");
 
 		std::regex pattern = convertPattern("pattern", getString(bindingValue, "pattern"));
+		bool binMatching = getBool(bindingValue, "binMatching", false);
 
-		bindings.add(PortConfig::Binding(itemId, pattern));
+		bindings.add(PortConfig::Binding(itemId, pattern, binMatching));
 	}
 
 	return std::make_shared<PortConfig>(name, baudRate, dataBits, stopBits, parity, timeoutInterval, reopenInterval, msgPattern, maxMsgSize, logRawData, logRawDataInHex, bindings);

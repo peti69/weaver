@@ -5,7 +5,6 @@
 #include <ctime>
 
 #include <termios.h>
-//#include <regex.h>
 
 #include "link.h"
 #include "logger.h"
@@ -18,8 +17,9 @@ public:
 	{
 		string itemId;
 		std::regex pattern;
-		Binding(string _itemId, std::regex _pattern) :
-			itemId(_itemId), pattern(_pattern) {};
+		bool binMatching;
+		Binding(string itemId, std::regex pattern, bool binMatching) :
+			itemId(itemId), pattern(pattern), binMatching(binMatching) {};
 	};
 	class Bindings: public std::map<string, Binding>
 	{

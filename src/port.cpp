@@ -223,11 +223,6 @@ void PortHandler::receiveData()
 		logger.errorX() << "Data transmission stopped" << endOfMsg();
 	string receivedData = string(buffer, rc);
 
-	// remove 0x00 bytes from received data
-//	string::size_type pos;
-//	while ((pos = receivedData.find('\x00')) != string::npos)
-//		receivedData.erase(pos);
-
 	// trace received data
 	if (config.getLogRawData())
 		if (config.getLogRawDataInHex())
@@ -287,17 +282,23 @@ Events PortHandler::receiveX()
 	// read all available data
 	receiveData();
 
+	// analyze available data
 	std::smatch match;
 	while (std::regex_search(msgData, match, config.getMsgPattern()))
 	{
+		// complete message available
 		string msg = match[0];
+		string binMsg = cnvToBinStr(msg);
 		msgData = match.suffix();
 
+		// analyze message
 		for (auto& bindingPair : config.getBindings())
 		{
 			auto& binding = bindingPair.second;
 
-			if (std::regex_search(msg, match, binding.pattern) && match.size() == 2)
+			if (  (binding.binMatching && std::regex_search(binMsg, match, binding.pattern) && match.size() == 2)
+			   || (!binding.binMatching && std::regex_search(msg, match, binding.pattern) && match.size() == 2)
+			   )
 				events.add(Event(id, binding.itemId, EventType::STATE_IND, string(match[1])));
 		}
 	}

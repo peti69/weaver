@@ -2,6 +2,7 @@
 #include <cctype>
 #include <iomanip>
 #include <algorithm>
+#include <bitset>
 
 #include "basic.h"
 
@@ -30,8 +31,17 @@ string cnvToHexStr(string s)
 {
 	std::ostringstream stream;
 	for (int i = 0; i < s.length(); i++) 
-		stream << std::setw(2) << std::setfill('0') << std::hex << int(Byte(s[i])) << " ";
+		stream << (i > 0 ? " " : "") << std::setw(2) << std::setfill('0') << std::hex << int(Byte(s[i]));
 	return stream.str();
+}
+
+string cnvToBinStr(string s)
+{
+	string r;
+	r.reserve(s.length() * 8);
+	for (int i = 0; i < s.length(); i++)
+		r += std::bitset<8>(Byte(s[i])).to_string();
+	return r;
 }
 
 string cnvToAsciiStr(ByteString s)
