@@ -23,18 +23,17 @@ void Storage::validate(Items& items) const
 {
 	auto& bindings = config.getBindings();
 
-	for (auto& itemPair : items)
-		if (itemPair.second.getOwnerId() == id && bindings.find(itemPair.first) == bindings.end())
-			throw std::runtime_error("Item " + itemPair.first + " has no binding for link " + id);
+	for (auto& [itemId, item] : items)
+		if (item.getOwnerId() == id && !bindings.count(itemId))
+			throw std::runtime_error("Item " + itemId + " has no binding for link " + id);
 
-	for (auto& bindingPair : config.getBindings())
+	for (auto& [itemId, binding] : bindings)
 	{
-		Item& item = items.validate(bindingPair.first);
+		auto& item = items.validate(itemId);
 		item.validateOwnerId(id);
 		item.setReadable(false);
-//		item.validateReadable(false);
-		item.validateWritable(true);
-		item.validateResponsive(true);
+		item.setWritable(true);
+		item.setResponsive(true);
 		item.validateTypeNot(ValueType::VOID);
 	}
 }

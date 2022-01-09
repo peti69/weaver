@@ -117,8 +117,25 @@ void Handler::validate(Items& items) const
 {
 	auto& bindings = config.getBindings();
 
-	for (auto& bindingPair : bindings)
-		items.validate(bindingPair.first);
+	for (auto& [itemId, item] : items)
+		if (item.getOwnerId() == id)
+		{
+			auto bindingPos = bindings.find(itemId);
+			if (bindingPos != bindings.end())
+			{
+				auto& binding = bindingPos->second;
+				item.setReadable(!binding.readTopic.empty());
+				item.setWritable(!binding.writeTopic.empty());
+			}
+			else
+			{
+				item.setReadable(!config.getReadTopicPattern().isNull());
+				item.setWritable(!config.getWriteTopicPattern().isNull());
+			}
+		}
+
+	for (auto& [itemId, binding] : bindings)
+		items.validate(itemId);
 }
 
 void Handler::disconnect()
