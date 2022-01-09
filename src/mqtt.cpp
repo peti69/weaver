@@ -343,82 +343,61 @@ Events Handler::receiveX(const Items& items)
 	auto& bindings = config.getBindings();
 	for (auto& msg : receivedMsgs)
 	{
-		auto getItemId = [&] (TopicPattern topicPattern, string& itemId)
+		// try explicit matching
+		bool matched = false;
+		for (auto& [key, binding] : bindings)
 		{
-			if (topicPattern.isNull())
-				return false;
-			itemId = topicPattern.getItemId(msg.topic);
-			return itemId.length() > 0;
-		};
-
-		// determine item id and event type
-		EventType eventType;
-		string itemId;
-		if (!config.getExportItems())
-		{
-			if (getItemId(config.getStateTopicPattern(), itemId))
-				eventType = EventType::STATE_IND;
-		}
-		else
-		{
-			if (getItemId(config.getWriteTopicPattern(), itemId))
-				eventType = EventType::WRITE_REQ;
-			else if (getItemId(config.getReadTopicPattern(), itemId))
-				eventType = EventType::READ_REQ;
-		}
-		if (itemId == "")
-			for (auto& [key, binding] : bindings)
-				if (binding.readTopic == msg.topic)
-				{
-					itemId = binding.itemId;
-					eventType = EventType::READ_REQ;
-					break;
-				}
-				else if (binding.writeTopic == msg.topic)
-				{
-					itemId = binding.itemId;
-					eventType = EventType::WRITE_REQ;
-					break;
-				}
-				else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
-				{
-					itemId = binding.itemId;
-					eventType = EventType::STATE_IND;
-					break;
-				}
-
-		// ignore unknown item ids
-		if (!items.exists(itemId))
-			continue;
-
-		// determine event value
-		Value eventValue;
-		if (eventType != EventType::READ_REQ)
-			if (auto bindingPos = bindings.find(itemId); bindingPos != bindings.end())
+			auto analyzePayload = [&] (EventType type)
 			{
-				auto& binding = bindingPos->second;
-
 				std::smatch match;
 				if (std::regex_search(msg.payload, match, binding.inPattern))
+				{
 					if (match.size() > 1)
 					{
 						int i = 1;
 						while (i < match.size() && !match[i].matched) i++;
 						if (i < match.size()) // this should always be true
-							eventValue = Value(binding.mappings.toInternal(string(match[i])));
+							events.add(Event(id, binding.itemId, type, binding.mappings.toInternal(string(match[i]))));
 					}
 					else
-						eventValue = Value::newVoid();
-				else
-					continue;
-			}
-			else
-				eventValue = Value(msg.payload);
-		else
-			eventValue = Value();
+						events.add(Event(id, binding.itemId, type, Value::newVoid()));
+					matched = true;
+				}
+			};
+			if (binding.readTopic == msg.topic)
+				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+			else if (binding.writeTopic == msg.topic)
+				analyzePayload(EventType::WRITE_REQ);
+			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
+				analyzePayload(EventType::STATE_IND);
+		}
+		if (matched)
+			// explicit matching performed
+			continue;
 
-		// generate event
-		events.add(Event(id, itemId, eventType, eventValue));
+		// try implicit matching
+		string itemId;
+		auto getItemId = [&] (TopicPattern topicPattern)
+		{
+			if (topicPattern.isNull())
+				return false;
+			itemId = topicPattern.getItemId(msg.topic);
+			if (!items.exists(itemId))
+				return false; // ignore unknown item ids
+			return true;
+		};
+		if (!config.getExportItems())
+		{
+			if (getItemId(config.getStateTopicPattern()))
+				events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
+		}
+		else
+		{
+			if (getItemId(config.getWriteTopicPattern()))
+				events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
+			else if (getItemId(config.getReadTopicPattern()))
+				events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
+		}
 	}
 	receivedMsgs.clear();
 
