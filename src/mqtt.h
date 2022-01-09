@@ -103,10 +103,12 @@ private:
 	string username;
 	string password;
 	bool retainFlag;
-	TopicPattern stateTopicPattern;
-	TopicPattern writeTopicPattern;
-	TopicPattern readTopicPattern;
-	bool exportItems;
+	TopicPattern inStateTopicPattern;
+	TopicPattern inWriteTopicPattern;
+	TopicPattern inReadTopicPattern;
+	TopicPattern outStateTopicPattern;
+	TopicPattern outWriteTopicPattern;
+	TopicPattern outReadTopicPattern;
 	Topics subTopics;
 	bool logMsgs;
 	bool logLibEvents;
@@ -115,14 +117,15 @@ private:
 public:
 	Config(string clientId, string hostname, int port, bool tlsFlag, string caFile, string caPath, string ciphers,
 		int reconnectInterval, int idleTimeout, string username, string password, bool retainFlag,
-		TopicPattern stateTopicPattern, TopicPattern writeTopicPattern, TopicPattern readTopicPattern,
-		bool exportItems, Topics subTopics, bool logMsgs, bool logLibEvents, Bindings bindings) :
+		TopicPattern inStateTopicPattern, TopicPattern inWriteTopicPattern, TopicPattern inReadTopicPattern,
+		TopicPattern outStateTopicPattern, TopicPattern outWriteTopicPattern, TopicPattern outReadTopicPattern,
+		Topics subTopics, bool logMsgs, bool logLibEvents, Bindings bindings) :
 		clientId(clientId), hostname(hostname), port(port),
 		tlsFlag(tlsFlag), caFile(caFile), caPath(caPath), ciphers(ciphers),
 		reconnectInterval(reconnectInterval), idleTimeout(idleTimeout),
 		username(username), password(password), retainFlag(retainFlag),
-		stateTopicPattern(stateTopicPattern), writeTopicPattern(writeTopicPattern),
-		readTopicPattern(readTopicPattern), exportItems(exportItems),
+		inStateTopicPattern(inStateTopicPattern), inWriteTopicPattern(inWriteTopicPattern), inReadTopicPattern(inReadTopicPattern),
+		outStateTopicPattern(outStateTopicPattern), outWriteTopicPattern(outWriteTopicPattern), outReadTopicPattern(outReadTopicPattern),
 		subTopics(subTopics), logMsgs(logMsgs), logLibEvents(logLibEvents), bindings(bindings)
 	{}
 	string getClientId() const { return clientId; }
@@ -137,10 +140,12 @@ public:
 	string getUsername() const { return username; }
 	string getPassword() const { return password; }
 	bool getRetainFlag() const { return retainFlag; }
-	TopicPattern getStateTopicPattern() const { return stateTopicPattern; }
-	TopicPattern getWriteTopicPattern() const { return writeTopicPattern; }
-	TopicPattern getReadTopicPattern() const { return readTopicPattern; }
-	bool getExportItems() const { return exportItems; }
+	TopicPattern getInStateTopicPattern() const { return inStateTopicPattern; }
+	TopicPattern getInWriteTopicPattern() const { return inWriteTopicPattern; }
+	TopicPattern getInReadTopicPattern() const { return inReadTopicPattern; }
+	TopicPattern getOutStateTopicPattern() const { return outStateTopicPattern; }
+	TopicPattern getOutWriteTopicPattern() const { return outWriteTopicPattern; }
+	TopicPattern getOutReadTopicPattern() const { return outReadTopicPattern; }
 	const Topics& getSubTopics() const {return subTopics; }
 	bool getLogMsgs() const {return logMsgs; }
 	bool getLogLibEvents() const { return logLibEvents; }

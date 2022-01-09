@@ -129,8 +129,8 @@ void Handler::validate(Items& items) const
 			}
 			else
 			{
-				item.setReadable(!config.getReadTopicPattern().isNull());
-				item.setWritable(!config.getWriteTopicPattern().isNull());
+				item.setReadable(!config.getOutReadTopicPattern().isNull());
+				item.setWritable(!config.getOutWriteTopicPattern().isNull());
 			}
 		}
 
@@ -332,13 +332,9 @@ Events Handler::receiveX(const Items& items)
 			int ec = mosquitto_subscribe(client, 0, topicPattern.createSubTopicPattern().c_str(), 0);
 			handleError("mosquitto_subscribe", ec);
 		};
-		if (!config.getExportItems())
-			subscribe(config.getStateTopicPattern());
-		else
-		{
-			subscribe(config.getWriteTopicPattern());
-			subscribe(config.getReadTopicPattern());
-		}
+		subscribe(config.getInStateTopicPattern());
+		subscribe(config.getInWriteTopicPattern());
+		subscribe(config.getInReadTopicPattern());
 
 		for (auto topic : config.getSubTopics())
 		{
@@ -403,18 +399,12 @@ Events Handler::receiveX(const Items& items)
 				return false; // ignore unknown item ids
 			return true;
 		};
-		if (!config.getExportItems())
-		{
-			if (getItemId(config.getStateTopicPattern()))
-				events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
-		}
-		else
-		{
-			if (getItemId(config.getWriteTopicPattern()))
-				events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
-			else if (getItemId(config.getReadTopicPattern()))
-				events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
-		}
+		if (getItemId(config.getInStateTopicPattern()))
+			events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
+		else if (getItemId(config.getInWriteTopicPattern()))
+			events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
+		else if (getItemId(config.getInReadTopicPattern()))
+			events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
 	}
 	receivedMsgs.clear();
 
@@ -457,28 +447,22 @@ void Handler::sendX(const Items& items, const Events& events)
 	{
 		string itemId = event.getItemId();
 
-		// skip STATE_IND events depending on configuration
-		if (  event.getType() == EventType::STATE_IND
-		   && !config.getStateTopicPattern().isNull() && !config.getExportItems()
-		   )
-			continue;
-
 		// determine default topics
 		std::unordered_set<string> topics;
 		if (event.getType() == EventType::STATE_IND)
 		{
-			if (!config.getStateTopicPattern().isNull())
-				topics = {config.getStateTopicPattern().createPubTopic(itemId)};
+			if (!config.getOutStateTopicPattern().isNull())
+				topics = {config.getOutStateTopicPattern().createPubTopic(itemId)};
 		}
 		else if (event.getType() == EventType::WRITE_REQ)
 		{
-			if (!config.getWriteTopicPattern().isNull())
-				topics = {config.getWriteTopicPattern().createPubTopic(itemId)};
+			if (!config.getOutWriteTopicPattern().isNull())
+				topics = {config.getOutWriteTopicPattern().createPubTopic(itemId)};
 		}
 		else if (event.getType() == EventType::READ_REQ)
 		{
-			if (!config.getReadTopicPattern().isNull())
-				topics = {config.getReadTopicPattern().createPubTopic(itemId)};
+			if (!config.getOutReadTopicPattern().isNull())
+				topics = {config.getOutReadTopicPattern().createPubTopic(itemId)};
 		}
 
 		// override topics

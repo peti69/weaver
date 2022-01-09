@@ -337,10 +337,12 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 			throw std::runtime_error("Invalid value " + topicPatternStr + " for field " + fieldName + " in configuration");
 		return topicPattern;
 	};
-	Mqtt::TopicPattern stateTopicPattern = getTopicPattern("stateTopicPattern");
-	Mqtt::TopicPattern writeTopicPattern = getTopicPattern("writeTopicPattern");
-	Mqtt::TopicPattern readTopicPattern = getTopicPattern("readTopicPattern");
-	bool exportItems = getBool(value, "exportItems", false);
+	Mqtt::TopicPattern inStateTopicPattern = getTopicPattern("inStateTopicPattern");
+	Mqtt::TopicPattern inWriteTopicPattern = getTopicPattern("inWriteTopicPattern");
+	Mqtt::TopicPattern inReadTopicPattern = getTopicPattern("inReadTopicPattern");
+	Mqtt::TopicPattern outStateTopicPattern = getTopicPattern("outStateTopicPattern");
+	Mqtt::TopicPattern outWriteTopicPattern = getTopicPattern("outWriteTopicPattern");
+	Mqtt::TopicPattern outReadTopicPattern = getTopicPattern("outReadTopicPattern");
 
 	Mqtt::Config::Topics subTopics;
 	if (hasMember(value, "subTopics"))
@@ -391,8 +393,9 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 	}
 
 	return std::make_shared<Mqtt::Config>(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
-			reconnectInterval, idleTimeout, username, password, retainFlag, stateTopicPattern,
-			writeTopicPattern, readTopicPattern, exportItems, subTopics, logMsgs, logLibEvents, bindings);
+			reconnectInterval, idleTimeout, username, password, retainFlag, inStateTopicPattern,
+			inWriteTopicPattern, inReadTopicPattern, outStateTopicPattern, outWriteTopicPattern,
+			outReadTopicPattern, subTopics, logMsgs, logLibEvents, bindings);
 }
 
 std::shared_ptr<KnxConfig> Config::getKnxConfig(const Value& value, string linkId, const Items& items) const
