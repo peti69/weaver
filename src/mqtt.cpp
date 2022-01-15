@@ -92,7 +92,9 @@ Handler::Handler(string _id, Config _config, Logger _logger) :
 	handlerState.errorCounter = 0;
 
 	mosquitto_lib_init();
-	client = mosquitto_new(config.getClientId().c_str(), true, this);
+
+	string clientId = config.getClientId();
+	client = mosquitto_new(clientId == "" ? nullptr : clientId.c_str(), true, this);
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
 
@@ -510,7 +512,7 @@ void Handler::sendX(const Items& items, const Events& events)
 		{
 			auto& binding = bindingPos->second;
 
-			string valueStr = binding.mappings.toExternal(valueStr);
+			valueStr = binding.mappings.toExternal(valueStr);
 			string pattern = binding.outPattern;
 			string::size_type pos = pattern.find("%time");
 			if (pos != string::npos)

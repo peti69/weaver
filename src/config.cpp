@@ -306,8 +306,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 
 std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string linkId, const Items& items) const
 {
-	string clientId = getString(value, "clientId", "weaver");
-	string hostname = getString(value, "hostname");
+	string clientId = getString(value, "clientId", "");
+	string hostname = getString(value, "hostname", "127.0.0.1");
 	int port = getInt(value, "port", 1883);
 
 	bool tlsFlag = hasMember(value, "tls");
