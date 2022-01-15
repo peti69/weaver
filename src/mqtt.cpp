@@ -360,27 +360,44 @@ Events Handler::receiveX(const Items& items)
 	{
 		// try explicit matching
 		bool matched = false;
-		for (auto& [key, binding] : bindings)
+		for (auto& [itemId, binding] : bindings)
 		{
+			const Item& item = items.get(itemId);
 			auto analyzePayload = [&] (EventType type)
 			{
 				std::smatch match;
 				if (std::regex_search(msg.payload, match, binding.inPattern))
 				{
+					// match
 					if (match.size() > 1)
 					{
+						// ... and content found
 						int i = 1;
 						while (i < match.size() && !match[i].matched) i++;
 						if (i < match.size()) // this should always be true
-							events.add(Event(id, binding.itemId, type, binding.mappings.toInternal(string(match[i]))));
+							events.add(Event(id, itemId, type, binding.mappings.toInternal(string(match[i]))));
 					}
 					else
-						events.add(Event(id, binding.itemId, type, Value::newVoid()));
+						// ... but no content found
+						if (item.getType() == ValueType::BOOLEAN)
+							events.add(Event(id, itemId, type, Value(true)));
+						else
+							events.add(Event(id, itemId, type, Value::newVoid()));
 					matched = true;
+				}
+				else
+				{
+					// no match
+					if (item.getType() == ValueType::BOOLEAN)
+					{
+						// special handling for boolean items
+						events.add(Event(id, itemId, type, Value(false)));
+						matched = true;
+					}
 				}
 			};
 			if (binding.readTopic == msg.topic)
-				events.add(Event(id, binding.itemId, EventType::READ_REQ, Value()));
+				events.add(Event(id, itemId, EventType::READ_REQ, Value()));
 			else if (binding.writeTopic == msg.topic)
 				analyzePayload(EventType::WRITE_REQ);
 			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())

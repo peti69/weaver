@@ -221,6 +221,7 @@ class Items: public std::map<string, Item>
 public:
 	void add(Item item) { insert(value_type(item.getId(), item)); }
 	bool exists(string itemId) const { return find(itemId) != end(); }
+	const Item& get(string itemId) const { auto pos = find(itemId); assert(pos != end()); return pos->second; }
 	string getOwnerId(string itemId) const;
 
 	Item& validate(string itemId);
