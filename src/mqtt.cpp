@@ -375,7 +375,7 @@ Events Handler::receiveX(const Items& items)
 						int i = 1;
 						while (i < match.size() && !match[i].matched) i++;
 						if (i < match.size()) // this should always be true
-							events.add(Event(id, itemId, type, binding.mappings.toInternal(string(match[i]))));
+							events.add(Event(id, itemId, type, binding.inMappings.toInternal(string(match[i]))));
 					}
 					else
 						// ... but no content found
@@ -529,7 +529,7 @@ void Handler::sendX(const Items& items, const Events& events)
 		{
 			auto& binding = bindingPos->second;
 
-			valueStr = binding.mappings.toExternal(valueStr);
+			valueStr = binding.outMappings.toExternal(valueStr);
 			string pattern = binding.outPattern;
 			string::size_type pos = pattern.find("%time");
 			if (pos != string::npos)

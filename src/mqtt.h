@@ -74,13 +74,13 @@ public:
 		string writeTopic;
 		string readTopic;
 		std::regex inPattern;
-		string inValue;
+		Mappings inMappings;
 		string outPattern;
-		Mappings mappings;
+		Mappings outMappings;
 		Binding(string itemId, Topics stateTopics, string writeTopic, string readTopic,
-				std::regex inPattern, string outPattern, Mappings mappings) :
+				std::regex inPattern, Mappings inMappings, string outPattern, Mappings outMappings) :
 			itemId(itemId), stateTopics(stateTopics), writeTopic(writeTopic), readTopic(readTopic),
-			inPattern(inPattern), outPattern(outPattern), mappings(mappings)
+			inPattern(inPattern), inMappings(inMappings), outPattern(outPattern), outMappings(outMappings)
 		{}
 	};
 	class Bindings: public std::unordered_map<string, Binding>

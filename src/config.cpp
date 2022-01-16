@@ -377,18 +377,26 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 			string readTopic = getString(bindingValue, "readTopic", "");
 
 			std::regex inPattern = convertPattern("inPattern", getString(bindingValue, "inPattern", "^(.*)$"));
-			string outPattern = getString(bindingValue, "outPattern", "%s");
-
-			Mqtt::Mappings mappings;
-			if (hasMember(bindingValue, "mappings"))
-				for (auto& mappingValue : getArray(bindingValue, "mappings").GetArray())
+			Mqtt::Mappings inMappings;
+			if (hasMember(bindingValue, "inMappings"))
+				for (auto& mappingValue : getArray(bindingValue, "inMappings").GetArray())
 				{
 					string internal = getString(mappingValue, "internal");
 					string external = getString(mappingValue, "external");
-					mappings.add(Mqtt::Mapping(internal, external));
+					inMappings.add(Mqtt::Mapping(internal, external));
 				}
 
-			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, inPattern, outPattern, mappings));
+			string outPattern = getString(bindingValue, "outPattern", "%s");
+			Mqtt::Mappings outMappings;
+			if (hasMember(bindingValue, "outMappings"))
+				for (auto& mappingValue : getArray(bindingValue, "outMappings").GetArray())
+				{
+					string internal = getString(mappingValue, "internal");
+					string external = getString(mappingValue, "external");
+					outMappings.add(Mqtt::Mapping(internal, external));
+				}
+
+			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, inPattern, inMappings, outPattern, outMappings));
 		}
 	}
 
