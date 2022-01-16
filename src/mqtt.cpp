@@ -301,30 +301,21 @@ Events Handler::receiveX(const Items& items)
 
 		logger.info() << "Connected to MQTT broker " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 
-		for (auto& bindingPair : config.getBindings())
-		{
-			auto& binding = bindingPair.second;
-			bool owner = items.getOwnerId(binding.itemId) == id;
-
-			if (owner)
-				for (string stateTopic : binding.stateTopics)
-				{
-					int ec = mosquitto_subscribe(client, 0, stateTopic.c_str(), 0);
-					handleError("mosquitto_subscribe", ec);
-				}
+		std::unordered_set<string> topics;
+		for (auto& [itemId, binding] : config.getBindings())
+			if (items.getOwnerId(itemId) == id)
+				topics.insert(binding.stateTopics.begin(), binding.stateTopics.end());
 			else
 			{
 				if (binding.writeTopic != "")
-				{
-					int ec = mosquitto_subscribe(client, 0, binding.writeTopic.c_str(), 0);
-					handleError("mosquitto_subscribe", ec);
-				}
+					topics.insert(binding.writeTopic);
 				if (binding.readTopic != "")
-				{
-					int ec = mosquitto_subscribe(client, 0, binding.readTopic.c_str(), 0);
-					handleError("mosquitto_subscribe", ec);
-				}
+					topics.insert(binding.readTopic);
 			}
+		for (string topic : topics)
+		{
+			int ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
+			handleError("mosquitto_subscribe", ec);
 		}
 
 		auto subscribe = [&] (TopicPattern topicPattern)
