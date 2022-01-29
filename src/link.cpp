@@ -1,5 +1,9 @@
 #include <chrono>
 
+#include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
+#include <rapidjson/pointer.h>
+
 #include "link.h"
 
 using namespace std::chrono;
@@ -11,18 +15,36 @@ struct Stopwatch
 	int getRuntime() { return duration_cast<milliseconds>(steady_clock::now() - start).count(); }
 };
 
-Value Modifier::exportValue(const Value& value) const
+string Modifier::mapToOutbound(string value) const
 {
-	if (value.isNumber())
-		return Value(value.getNumber() / factor);
+	auto pos = outMappings.find(value);
+	if (pos != outMappings.end())
+		return pos->second;
 	else
 		return value;
 }
 
-Value Modifier::importValue(const Value& value) const
+string Modifier::mapFromInbound(string value) const
+{
+	auto pos = inMappings.find(value);
+	if (pos != inMappings.end())
+		return pos->second;
+	else
+		return value;
+}
+
+Value Modifier::convertToOutbound(const Value& value) const
 {
 	if (value.isNumber())
-		return Value(value.getNumber() * factor);
+		return Value::newNumber(value.getNumber() / factor);
+	else
+		return value;
+}
+
+Value Modifier::convertFromInbound(const Value& value) const
+{
+	if (value.isNumber())
+		return Value::newNumber(value.getNumber() * factor);
 	else
 		return value;
 }
@@ -47,7 +69,7 @@ void Link::validate(Items& items) const
 		const Modifier& modifier = modifierPair.second;
 
 		// provide item
-		Item& item = items.validate(modifier.getItemId());
+		Item& item = items.validate(modifier.itemId);
 	}
 
 	handler->validate(items);
@@ -81,7 +103,7 @@ Events Link::receive(Items& items)
 			HandlerState state = handler->getState();
 			if (state.errorCounter != oldHandlerState.errorCounter)
 			{
-				events.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
+				events.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
 				oldHandlerState = state;
 			}
 		}
@@ -105,7 +127,7 @@ Events Link::receive(Items& items)
 
 		// provide modifier
 		auto modifierPos = modifiers.find(event.getItemId());
-		auto modifier = modifierPos != modifiers.end() ? &modifierPos->second : 0;
+		auto modifier = modifierPos != modifiers.end() ? &modifierPos->second : nullptr;
 
 		// remove READ_REQ and WRITE_REQ in case the link is the owner of the item
 		if (event.getType() != EventType::STATE_IND && item.getOwnerId() == id)
@@ -137,7 +159,7 @@ Events Link::receive(Items& items)
 			continue;
 		}
 
-		// remove STATE_IND in case the value is a void
+		// remove STATE_IND with void values
 		if (event.getType() == EventType::STATE_IND && event.getValue().getType() == ValueType::VOID)
 		{
 			logger.warn() << event.getType().toStr() << " event received which has "
@@ -166,64 +188,152 @@ Events Link::receive(Items& items)
 
 		if (event.getType() != EventType::READ_REQ)
 		{
-			// convert event value type
-			auto& value = event.getValue();
-			bool convertError = false;
-			if (value.isString() && numberAsString && item.getType() == ValueType::NUMBER)
+			Value value = event.getValue();
+
+			// convert event value (JSON Pointer extraction)
+			if (value.isString() && modifier && modifier->inJsonPointer != "")
 			{
-				try
+				rapidjson::Document document;
+				rapidjson::ParseResult result = document.Parse(value.getString().c_str());
+				if (result.IsError())
 				{
-					event.setValue(Value(std::stod(value.getString())));
+					logger.error() << "JSON parse error '" << rapidjson::GetParseError_En(result.Code())
+					               << "' when converting event STRING value '" << value.getString()
+					               << "' of item " << item.getId() << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
 				}
-				catch (const std::exception& ex)
-				{
-					convertError = true;
-				}
-			}
-			else if (value.isString() && booleanAsString && item.getType() == ValueType::BOOLEAN)
-				if (item.isWritable())
-					if (value.getString() == falseValue)
-						event.setValue(Value(false));
-					else if (value.getString() == trueValue)
-						event.setValue(Value(true));
-					else
-						convertError = true;
 				else
-					if (value.getString() == unwritableFalseValue)
-						event.setValue(Value(false));
-					else if (value.getString() == unwritableTrueValue)
-						event.setValue(Value(true));
+				{
+					if (rapidjson::Value* jsonValue = rapidjson::Pointer(modifier->inJsonPointer.c_str()).Get(document))
+					{
+						if (jsonValue->IsBool())
+							value = Value::newBoolean(jsonValue->GetBool());
+						else if (jsonValue->IsString())
+							value = Value::newString(jsonValue->GetString());
+						else if (jsonValue->IsNumber())
+							value = Value::newNumber(jsonValue->GetDouble());
+						else if (jsonValue->IsNull())
+							value = Value::newUndefined();
+					}
 					else
-						convertError = true;
-			else if (item.getType() == ValueType::VOID)
-				event.setValue(Value::newVoid());
-			if (convertError)
+					{
+						logger.error() << "JSON pointer " << modifier->inJsonPointer << " can't be resolved "
+						               << "when converting event STRING value '" << value.getString()
+						               << "' of item " << item.getId() << endOfMsg();
+
+						eventPos = events.erase(eventPos);
+						continue;
+					}
+				}
+			}
+
+			// convert event value (Regular expression matching)
+			if (value.isString() && modifier)
 			{
-				logger.error() << "Event STRING value '" << event.getValue().getString()
-				               << "' can not be converted to type " << item.getType().toStr()
+				std::smatch match;
+				if (std::regex_search(value.getString(), match, modifier->inPattern))
+				{
+					// match
+					if (match.size() > 1)
+					{
+						// ... and content found
+						int i = 1;
+						while (i < match.size() && !match[i].matched) i++;
+						if (i < match.size()) // this should always be true
+							value = Value::newString(match[i]);
+					}
+//					else
+//						// ... but no content found
+//						if (item.hasType(ValueType::BOOLEAN))
+//							value = Value::newBoolean(true);
+//						else
+//							value = Value::newVoid();
+				}
+//				else
+//				{
+//					// no match
+//					if (item.hasType(ValueType::BOOLEAN))
+//						// special handling for boolean items
+//						value = Value::newBoolean(false);
+//				}
+			}
+
+			// convert event value (mapping)
+			if (value.isString() && modifier)
+				value = Value::newString(modifier->mapFromInbound(value.getString()));
+
+			// convert event value (type)
+			if (value.isString() && !item.hasType(ValueType::STRING))
+			{
+				if (value.isString() && numberAsString && item.hasType(ValueType::NUMBER))
+				{
+					try
+					{
+						value = Value::newNumber(std::stod(value.getString()));
+					}
+					catch (const std::exception& ex)
+					{
+					}
+				}
+				if (value.isString() && booleanAsString && item.hasType(ValueType::BOOLEAN))
+				{
+					if (item.isWritable())
+					{
+						if (value.getString() == falseValue)
+							value = Value::newBoolean(false);
+						else if (value.getString() == trueValue)
+							value = Value::newBoolean(true);
+					}
+					else
+					{
+						if (value.getString() == unwritableFalseValue)
+							value = Value::newBoolean(false);
+						else if (value.getString() == unwritableTrueValue)
+							value = Value::newBoolean(true);
+					}
+				}
+				if (value.isString() && voidAsString && item.hasType(ValueType::VOID))
+				{
+					if (value.getString() == voidValue || value.getString() == unwritableVoidValue)
+						value = Value::newVoid();
+				}
+				if (value.isString() && undefinedAsString && item.hasType(ValueType::UNDEFINED))
+				{
+					if (value.getString() == undefinedValue)
+						value = Value::newUndefined();
+				}
+				if (value.isString())
+				{
+					logger.error() << "Event STRING value '" << value.getString()
+					               << "' not convertible to type " << item.getTypes().toStr()
+					               << " of item " << item.getId() << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+			}
+
+			// compare item types with event value type
+			if (!item.hasType(value.getType()))
+			{
+				logger.error() << "Event value type " << value.getType().toStr()
+				               << " not compatible with type " << item.getTypes().toStr()
 				               << " of item " << item.getId() << endOfMsg();
 
 				eventPos = events.erase(eventPos);
 				continue;
 			}
 
-			// compare item type with event value type
-			if (event.getValue().getType() != item.getType())
-			{
-				logger.error() << "Event value type " << event.getValue().getType().toStr()
-				               << " differs from type " << item.getType().toStr()
-				               << " of item " << item.getId() << endOfMsg();
-
-				eventPos = events.erase(eventPos);
-				continue;
-			}
-
-			// convert event value from external to internal representation
+			// convert event value (type preserving manipulations)
 			if (modifier)
-				event.setValue(modifier->importValue(event.getValue()));
+				value = modifier->convertFromInbound(value);
+
+			event.setValue(value);
 		}
 		else
-			event.setValue(Value());
+			event.setValue(Value::newVoid());
 
 		eventPos++;
 	}
@@ -251,7 +361,7 @@ void Link::send(Items& items, const Events& events)
 
 		// provide modifier
 		auto modifierPos = modifiers.find(event.getItemId());
-		auto modifier = modifierPos != modifiers.end() ? &modifierPos->second : 0;
+		auto modifier = modifierPos != modifiers.end() ? &modifierPos->second : nullptr;
 
 		// remove READ_REQ and WRITE_REQ in case the link is not the owner of the item
 		if (event.getType() != EventType::STATE_IND && item.getOwnerId() != id)
@@ -276,24 +386,53 @@ void Link::send(Items& items, const Events& events)
 
 		if (event.getType() != EventType::READ_REQ)
 		{
-			// convert event value from internal to external representation
-			if (modifier)
-				event.setValue(modifier->exportValue(event.getValue()));
+			Value value = event.getValue();
 
-			// convert event value type
-			auto& value = event.getValue();
+			// convert event value (type preserving manipulations)
+			if (modifier)
+				value = modifier->convertToOutbound(value);
+
+			// convert event value (type)
 			if (value.getType() == ValueType::NUMBER && numberAsString)
-				event.setValue(Value(cnvToStr(value.getNumber())));
+				value = Value::newString(cnvToStr(value.getNumber()));
 			else if (value.getType() == ValueType::BOOLEAN && booleanAsString)
 				if (item.isWritable())
-					event.setValue(Value(value.getBoolean() ? trueValue : falseValue));
+					value = Value::newString(value.getBoolean() ? trueValue : falseValue);
 				else
-					event.setValue(Value(value.getBoolean() ? unwritableTrueValue : unwritableFalseValue));
+					value = Value::newString(value.getBoolean() ? unwritableTrueValue : unwritableFalseValue);
 			else if (value.getType() == ValueType::VOID && voidAsString)
 				if (item.isWritable())
-					event.setValue(Value(voidValue));
+					value = Value::newString(voidValue);
 				else
-					event.setValue(Value(unwritableVoidValue));
+					value = Value::newString(unwritableVoidValue);
+			else if (value.getType() == ValueType::UNDEFINED && undefinedAsString)
+				value = Value::newString(undefinedValue);
+
+			// convert event value (mapping)
+			if (value.isString() && modifier)
+				value = Value::newString(modifier->mapToOutbound(value.getString()));
+
+			// convert event value (printf() formatting)
+			if (value.isString() && modifier)
+			{
+				string pattern = modifier->outPattern;
+				string::size_type pos = pattern.find("%time");
+				if (pos != string::npos)
+					pattern.replace(pos, 5, cnvToStr(std::time(0)));
+
+				string str;
+				str.resize(100);
+				int n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
+				if (n >= str.capacity())
+				{
+					str.resize(n + 1);
+					n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
+				}
+				str.resize(n);
+				value = Value::newString(str);
+			}
+
+			event.setValue(value);
 		}
 
 		eventPos++;
@@ -311,7 +450,7 @@ void Link::send(Items& items, const Events& events)
 		HandlerState state = handler->getState();
 		if (state.errorCounter != oldHandlerState.errorCounter)
 		{
-			pendingEvents.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, double(state.errorCounter)));
+			pendingEvents.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
 			oldHandlerState = state;
 		}
 	}

@@ -42,26 +42,6 @@ public:
 	static TopicPattern fromStr(string topicPatternStr);
 };
 
-class Mapping
-{
-	friend class Mappings;
-
-private:
-	string internal;
-	string external;
-
-public:
-	Mapping(string internal, string external) : internal(internal), external(external) {}
-};
-
-class Mappings: std::list<Mapping>
-{
-public:
-	void add(Mapping mapping) { push_back(mapping); }
-	string toInternal(string value) const;
-	string toExternal(string value) const;
-};
-
 class Config
 {
 public:
@@ -73,14 +53,9 @@ public:
 		Topics stateTopics;
 		string writeTopic;
 		string readTopic;
-		std::regex inPattern;
-		Mappings inMappings;
-		string outPattern;
-		Mappings outMappings;
-		Binding(string itemId, Topics stateTopics, string writeTopic, string readTopic,
-				std::regex inPattern, Mappings inMappings, string outPattern, Mappings outMappings) :
-			itemId(itemId), stateTopics(stateTopics), writeTopic(writeTopic), readTopic(readTopic),
-			inPattern(inPattern), inMappings(inMappings), outPattern(outPattern), outMappings(outMappings)
+		std::regex msgPattern;
+		Binding(string itemId, Topics stateTopics, string writeTopic, string readTopic, std::regex msgPattern) :
+			itemId(itemId), stateTopics(stateTopics), writeTopic(writeTopic), readTopic(readTopic), msgPattern(msgPattern)
 		{}
 	};
 	class Bindings: public std::unordered_map<string, Binding>

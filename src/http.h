@@ -56,12 +56,11 @@ private:
 	// Information stored per ongoing transfer
 	struct Transfer
 	{
-		string itemId;
+		Event event;
 		curl_slist* headers;
 		std::shared_ptr<string> response;
 		char errorBuffer[CURL_ERROR_SIZE];
-		Transfer() : response(new string()), headers(0) {}
-		Transfer(string _itemId) : itemId(_itemId), headers(0), response(new string()) {}
+		Transfer(Event event) : event(event), headers(0), response(new string()) {}
 	};
 
 	// Mapping from easy handle to transfer information

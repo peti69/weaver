@@ -210,37 +210,38 @@ ByteString DatapointType::exportValue(const Value& value) const
 Value DatapointType::importValue(ByteString bytes) const
 {
 	if (mainNo == 1 && bytes.length() == 1)
-		return Value((bytes[0] & 0x01) == 0x01);
+		return Value::newBoolean((bytes[0] & 0x01) == 0x01);
 	else if (mainNo == 5 && subNo == 1 && bytes.length() == 2)
-		return Value(bytes[1] * 100.0 / 255.0);
+		return Value::newNumber(bytes[1] * 100.0 / 255.0);
 	else if (mainNo == 5 && bytes.length() == 2)
-		return Value(1.0 * bytes[1]);
+		return Value::newNumber(1.0 * bytes[1]);
 	else if (mainNo == 7 && bytes.length() == 3)
-		return Value(1.0 * (bytes[1] << 8 | bytes[2]));
+		return Value::newNumber(1.0 * (bytes[1] << 8 | bytes[2]));
 	else if (mainNo == 9)
 	{
 		int32_t E = (bytes[1] >> 3) & 0x0F;
 		int32_t M = (bytes[1] & 0x07) << 8 | bytes[2];
 		if (bytes[1] & 0x80)
-			return Value(((2048 - M) << E) / -100.0);
+			return Value::newNumber(((2048 - M) << E) / -100.0);
 		else
-			return Value((M << E) / 100.0);
+			return Value::newNumber((M << E) / 100.0);
 	}
 	else if (mainNo == 12 && bytes.length() == 5)
-		return Value(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
+		return Value::newNumber(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
 	else if (mainNo == 13 && bytes.length() == 5)
-		return Value(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
+		return Value::newNumber(1.0 * (bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4]));
 	else if (mainNo == 14 && bytes.length() == 5)
 	{
 		// assumption: float is encoded in IEEE 754 floating point format
 		assert(sizeof(uint32_t) == sizeof(float));
 		union { float f; uint32_t i; } u; 
 		u.i = bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4];
-		return Value(u.f);
+		return Value::newNumber(u.f);
 	}
 	else if (mainNo == 17 && bytes.length() == 2)
-		return Value(1.0 * bytes[1]);
-	return Value();
+		return Value::newNumber(1.0 * bytes[1]);
+	else
+		return Value();
 }
 
 string GroupAddr::toStr() const
@@ -690,7 +691,7 @@ void KnxHandler::processReceivedLDataInd(ByteString msg, const Items& items, Eve
 			else
 			{
 				Value value = binding.dpt.importValue(data);
-				if (value.isNull())
+				if (value.isUninitialized())
 					logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data)
 					               << "' to value for item " << binding.itemId << endOfMsg();
 				else

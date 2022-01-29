@@ -14,8 +14,8 @@
 
 using namespace std::rel_ops;
 
-Storage::Storage(string _id, StorageConfig _config, Logger _logger) :
-	id(_id), config(_config), logger(_logger), fileRead(false), lastFileReadTry(0)
+Storage::Storage(string id, StorageConfig config, Logger logger) :
+	id(id), config(config), logger(logger), fileRead(false), lastFileReadTry(0)
 {
 }
 
@@ -87,11 +87,13 @@ Events Storage::receiveX(const Items& items)
 			// determine item value
 			Value value;
 			if (iter->value.IsString())
-				value = Value(iter->value.GetString());
+				value = Value::newString(iter->value.GetString());
 			else if (iter->value.IsBool())
-				value = Value(iter->value.GetBool());
+				value = Value::newBoolean(iter->value.GetBool());
 			else if (iter->value.IsNumber())
-				value = Value(iter->value.GetDouble());
+				value = Value::newNumber(iter->value.GetDouble());
+			else if (iter->value.IsNull())
+				value = Value::newUndefined();
 			else
 				logger.errorX() << "Value for item " << itemId << " is not supported" << endOfMsg();
 
@@ -149,21 +151,23 @@ Events Storage::send(const Items& items, const Events& events)
 		rapidjson::Document document;
 		auto& allocator = document.GetAllocator();
 		document.SetObject();
-		for (auto& itemPair : items)
+		for (auto& [itemId, item] : items)
 		{
-			const Item& item = itemPair.second;
-			auto newValuePos = newValues.find(item.getId());
+			auto newValuePos = newValues.find(itemId);
 			const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getLastSendValue();
 			if (item.getOwnerId() == id)
 			{
-				rapidjson::Value name(item.getId().c_str(), allocator);
-				if (!value.isNull())
-					if (value.getType() == ValueType::STRING)
-						document.AddMember(name, rapidjson::Value(value.getString(), allocator), allocator);
-					else if (value.getType() == ValueType::BOOLEAN)
-						document.AddMember(name, value.getBoolean(), allocator);
-					else if (value.getType() == ValueType::NUMBER)
-						document.AddMember(name, value.getNumber(), allocator);
+				rapidjson::Value jsonValue;
+				if (value.getType() == ValueType::STRING)
+					jsonValue.SetString(value.getString(), allocator);
+				else if (value.getType() == ValueType::BOOLEAN)
+					jsonValue.SetBool(value.getBoolean());
+				else if (value.getType() == ValueType::NUMBER)
+					jsonValue.SetDouble(value.getNumber());
+				else if (value.getType() == ValueType::UNDEFINED)
+					jsonValue.SetNull();
+				rapidjson::Value memberName(itemId, allocator);
+				document.AddMember(memberName, jsonValue, allocator);
 			}
 		}
 

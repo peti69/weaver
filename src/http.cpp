@@ -143,7 +143,7 @@ Events HttpHandler::receiveX()
 			auto transferPos = transfers.find(msg->easy_handle);
 			if (transferPos != transfers.end())
 			{
-				string itemId = transferPos->second.itemId;
+				string itemId = transferPos->second.event.getItemId();
 				string response = *transferPos->second.response;
 
 				// examine transfer result
@@ -164,17 +164,10 @@ Events HttpHandler::receiveX()
 						auto& binding = bindingPos->second;
 
 						// compare returned response with response pattern
-						std::smatch match;
-						if (std::regex_search(response, match, binding.responsePattern))
+						if (std::regex_search(response, binding.responsePattern))
 						{
-							// match
-							if (match.size() > 1)
-							{
-								int i = 1;
-								while (i < match.size() && !match[i].matched) i++;
-								if (i < match.size()) // this should always be true
-									events.add(Event(id, itemId, EventType::STATE_IND, string(match[i])));
-							}
+							if (transferPos->second.event.getType() == EventType::READ_REQ)
+								events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(response)));
 						}
 						else
 							// no match
@@ -213,7 +206,7 @@ Events HttpHandler::sendX(const Events& events)
 			auto& binding = bindingPos->second;
 
 			// new transfer is required
-			Transfer transfer(itemId);
+			Transfer transfer(event);
 
 			// allocate easy handle
 			CURL* easyHandle = curl_easy_init();
@@ -283,7 +276,7 @@ Events HttpHandler::sendX(const Events& events)
 				logger.debug() << "Transfer for item " << itemId << " started" << endOfMsg();
 
 			// add new transfer to the list of ongoing transfers
-			transfers[easyHandle] = transfer;
+			transfers.insert({easyHandle, transfer});
 		}
 	}
 

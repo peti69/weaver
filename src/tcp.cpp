@@ -170,7 +170,7 @@ Events TcpHandler::receiveX()
 			auto& binding = bindingPair.second;
 
 			if (std::regex_search(msg, match, binding.pattern) && match.size() == 2)
-				events.add(Event(id, binding.itemId, EventType::STATE_IND, string(match[1])));
+				events.add(Event(id, binding.itemId, EventType::STATE_IND, Value::newString(match[1])));
 		}
 	}
 

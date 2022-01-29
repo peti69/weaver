@@ -239,7 +239,7 @@ int main(int argc, char* argv[])
 
 			// remove STATE_IND
 			if (  event.getType() == EventType::STATE_IND
-			   && !item.isSendRequired(event.getValue()) // if item value did not change (that much)
+			   && !item.isSendOnChangeRequired(event.getValue()) // if item value did not change (that much)
 			   )
 				{
 					suppressedEvents.add(event);
@@ -257,7 +257,7 @@ int main(int argc, char* argv[])
 			{
 				suppressedEvents.add(event);
 				const Value& value = item.getLastSendValue();
-				if (!value.isNull())
+				if (!value.isUninitialized())
 					generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, value));
 				else
 					logger.warn() << "STATE_IND for READ_REQ on item " << event.getItemId()
@@ -299,7 +299,7 @@ int main(int argc, char* argv[])
 			}
 
 			// generate STATE_IND depending on send timer
-			if (item.isSendRequired(now))
+			if (item.isSendOnTimerRequired(now))
 			{
 				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, item.getLastSendValue()));
 				item.setLastSendTime(now);

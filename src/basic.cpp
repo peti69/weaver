@@ -58,6 +58,10 @@ string ValueType::toStr() const
 {
 	switch (code)
 	{
+		case UNINITIALIZED:
+			return "uninitialized";
+		case UNDEFINED:
+			return "undefined";
 		case VOID:
 			return "void";
 		case NUMBER:
@@ -73,7 +77,11 @@ string ValueType::toStr() const
 
 bool ValueType::fromStr(string typeStr, ValueType& type)
 {
-	if (typeStr == "void")
+	if (typeStr == "uninitialized")
+		type = UNINITIALIZED;
+	else if (typeStr == "undefined")
+		type = UNDEFINED;
+	else if (typeStr == "void")
 		type = VOID;
 	else if (typeStr == "number")
 		type = NUMBER;
@@ -86,94 +94,58 @@ bool ValueType::fromStr(string typeStr, ValueType& type)
 	return true;
 }
 
-Value ValueType::convert(string valueStr) const
+string ValueTypes::toStr() const
 {
-	switch (code)
-	{
-		case VOID:
-			return Value::newVoid();
-		case NUMBER:
-			try
-			{
-				return Value(std::stod(valueStr));
-			}
-			catch (const std::exception& ex)
-			{
-			}
-			return Value();
-		case STRING:
-			return Value(valueStr);
-		case BOOLEAN:
-			valueStr = toUpper(valueStr);
-			if (valueStr == "TRUE" || valueStr == "YES" || valueStr == "ON" || valueStr == "1")
-				return true;
-			else if (valueStr == "FALSE" || valueStr == "NO" || valueStr == "OFF" || valueStr == "0")
-				return false;
-			else
-				return Value();
-		default:
-			return Value();
-	}
+	string s;
+	for (auto type : *this)
+		s += type.toStr() + "|";
+	return s.substr(0, s.length() - 1);
 }
 
 string Value::toStr() const
 {
-	if (null)
-		return "null";
-	else
-		switch (type)
+	switch (type)
+	{
+		case ValueType::BOOLEAN:
+			return boolean ? "true" : "false";
+		case ValueType::STRING:
+			return str;
+		case ValueType::NUMBER:
 		{
-			case ValueType::BOOLEAN:
-				return boo ? "true" : "false";
-			case ValueType::STRING:
-				return str;
-			case ValueType::NUMBER:
-				return cnvToStr(num);
-			case ValueType::VOID:
-				return "-";
-			default:
-				return "?";
+			std::ostringstream stream;
+			stream << std::setprecision(std::numeric_limits<double>::digits10 + 1) << number;
+			return stream.str();
 		}
+		case ValueType::VOID:
+			return "void";
+		case ValueType::UNINITIALIZED:
+			return "uninitialized";
+		case ValueType::UNDEFINED:
+			return "undefined";
+		default:
+			return "?";
+	}
 }
 
 bool Value::operator==(const Value& x) const
 {
-	return (  (null && x.null)
-           || (  !null && !x.null
-              && x.type == type 
-	          && (  (type == ValueType::STRING && x.str == str)
-	             || (type == ValueType::BOOLEAN && x.boo == boo)
-	             || (type == ValueType::NUMBER && x.num == num)
-	             || type == ValueType::VOID
-	             )
+	return (  x.type == type
+	       && (  (type == ValueType::STRING && x.str == str)
+	          || (type == ValueType::BOOLEAN && x.boolean == boolean)
+	          || (type == ValueType::NUMBER && x.number == number)
+	          || type == ValueType::VOID
+	          || type == ValueType::UNINITIALIZED
+	          || type == ValueType::UNDEFINED
 	          )
 	       );
 }
 
-bool Item::isPollingRequired(std::time_t now) const
+bool Item::isSendOnTimerRequired(std::time_t now) const
 {
-	assert(pollingInterval);
-	return lastPollingTime + pollingInterval <= now;
+	return sendOnTimer && !lastSendValue.isUninitialized() && lastSendTime + duration <= now;
 }
 
-void Item::initPolling(std::time_t now)
-{
-	assert(pollingInterval);
-	lastPollingTime = now - std::rand() % pollingInterval;
-}
-
-void Item::pollingDone(std::time_t now)
-{
-	assert(pollingInterval);
-	lastPollingTime = now;
-}
-
-bool Item::isSendRequired(std::time_t now) const
-{
-	return sendOnTimer && !lastSendValue.isNull() && lastSendTime + duration <= now;
-}
-
-bool Item::isSendRequired(const Value& value) const
+bool Item::isSendOnChangeRequired(const Value& value) const
 {
 	if (!sendOnChange)
 		return true;
@@ -194,6 +166,24 @@ bool Item::isSendRequired(const Value& value) const
 	}
 
 	return true;
+}
+
+bool Item::isPollingRequired(std::time_t now) const
+{
+	assert(pollingInterval);
+	return lastPollingTime + pollingInterval <= now;
+}
+
+void Item::initPolling(std::time_t now)
+{
+	assert(pollingInterval);
+	lastPollingTime = now - std::rand() % pollingInterval;
+}
+
+void Item::pollingDone(std::time_t now)
+{
+	assert(pollingInterval);
+	lastPollingTime = now;
 }
 
 void Item::validateReadable(bool _readable)
@@ -230,13 +220,13 @@ void Item::validatePollingEnabled(bool _enabled)
 
 void Item::validateType(ValueType _type)
 {
-	if (type != _type)
+	if (!hasType(_type))
 		throw std::runtime_error("Item " + id + " must be of type " + _type.toStr());
 }
 
 void Item::validateTypeNot(ValueType _type)
 {
-	if (type == _type)
+	if (hasType(_type))
 		throw std::runtime_error("Item " + id + " must not be of type " + _type.toStr());
 }
 

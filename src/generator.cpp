@@ -39,13 +39,13 @@ Events Generator::receive(const Items& items)
 		if (lastGeneration[itemId] + binding.interval <= now)
 		{
 			lastGeneration[itemId] = now;
-			
+
 			if (binding.eventType == EventType::READ_REQ && !owner)
-				events.add(Event(id, itemId, EventType::READ_REQ, Value()));
+				events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
 			else if (binding.eventType == EventType::WRITE_REQ && !owner)
-				events.add(Event(id, itemId, EventType::WRITE_REQ, Value(binding.value)));
+				events.add(Event(id, itemId, EventType::WRITE_REQ, Value::newString(binding.value)));
 			else if (binding.eventType == EventType::STATE_IND && owner)
-				events.add(Event(id, itemId, EventType::STATE_IND, Value(binding.value)));
+				events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(binding.value)));
 		}
 	}
 

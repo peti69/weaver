@@ -54,22 +54,6 @@ TopicPattern TopicPattern::fromStr(string topicPatternStr)
 	return TopicPattern(topicPatternStr);
 }
 
-string Mappings::toInternal(string value) const
-{
-	for (auto& mapping : *this)
-		if (value == mapping.external)
-			return mapping.internal;
-	return value;
-}
-
-string Mappings::toExternal(string value) const
-{
-	for (auto& mapping : *this)
-		if (value == mapping.internal)
-			return mapping.external;
-	return value;
-}
-
 void onConnect(struct mosquitto* client, void* handler, int rc)
 {
 	static_cast<Handler*>(handler)->onConnect(rc);
@@ -353,38 +337,12 @@ Events Handler::receiveX(const Items& items)
 		bool matched = false;
 		for (auto& [itemId, binding] : bindings)
 		{
-			const Item& item = items.get(itemId);
 			auto analyzePayload = [&] (EventType type)
 			{
-				std::smatch match;
-				if (std::regex_search(msg.payload, match, binding.inPattern))
+				if (std::regex_search(msg.payload, binding.msgPattern))
 				{
-					// match
-					if (match.size() > 1)
-					{
-						// ... and content found
-						int i = 1;
-						while (i < match.size() && !match[i].matched) i++;
-						if (i < match.size()) // this should always be true
-							events.add(Event(id, itemId, type, binding.inMappings.toInternal(string(match[i]))));
-					}
-					else
-						// ... but no content found
-						if (item.getType() == ValueType::BOOLEAN)
-							events.add(Event(id, itemId, type, Value(true)));
-						else
-							events.add(Event(id, itemId, type, Value::newVoid()));
+					events.add(Event(id, itemId, type, Value::newString(msg.payload)));
 					matched = true;
-				}
-				else
-				{
-					// no match
-					if (item.getType() == ValueType::BOOLEAN)
-					{
-						// special handling for boolean items
-						events.add(Event(id, itemId, type, Value(false)));
-						matched = true;
-					}
 				}
 			};
 			if (binding.readTopic == msg.topic)
@@ -395,7 +353,6 @@ Events Handler::receiveX(const Items& items)
 				analyzePayload(EventType::STATE_IND);
 		}
 		if (matched)
-			// explicit matching performed
 			continue;
 
 		// try implicit matching
@@ -410,9 +367,9 @@ Events Handler::receiveX(const Items& items)
 			return true;
 		};
 		if (getItemId(config.getInStateTopicPattern()))
-			events.add(Event(id, itemId, EventType::STATE_IND, msg.payload));
+			events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(msg.payload)));
 		else if (getItemId(config.getInWriteTopicPattern()))
-			events.add(Event(id, itemId, EventType::WRITE_REQ, msg.payload));
+			events.add(Event(id, itemId, EventType::WRITE_REQ, Value::newString(msg.payload)));
 		else if (getItemId(config.getInReadTopicPattern()))
 			events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
 	}
@@ -502,44 +459,21 @@ void Handler::sendX(const Items& items, const Events& events)
 		if (!topics.size())
 			continue;
 
-		// determine default value
-		string valueStr;
+		// determine payload
+		string payload;
 		if (event.getType() != EventType::READ_REQ)
 		{
-			const Value& value = event.getValue();
-			if (!value.isString())
+			if (!event.getValue().isString())
 			{
 				logger.error() << "Event value type is not STRING for item " << itemId << endOfMsg();
-				return;
+				continue;
 			}
-			valueStr = value.getString();
-		}
-
-		// override value
-		if (bindingPos != bindings.end() && event.getType() != EventType::READ_REQ)
-		{
-			auto& binding = bindingPos->second;
-
-			valueStr = binding.outMappings.toExternal(valueStr);
-			string pattern = binding.outPattern;
-			string::size_type pos = pattern.find("%time");
-			if (pos != string::npos)
-				pattern.replace(pos, 5, cnvToStr(std::time(0)));
-			string str;
-			str.resize(100);
-			int n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
-			if (n >= str.capacity())
-			{
-				str.resize(n + 1);
-				n = snprintf(&str[0], str.capacity(), pattern.c_str(), valueStr.c_str());
-			}
-			str.resize(n);
-			valueStr = str;
+			payload = event.getValue().getString();
 		}
 
 		// send message
 		for (string topic : topics)
-			sendMsg(topic, valueStr, event.getType() == EventType::STATE_IND ? config.getRetainFlag() : false);
+			sendMsg(topic, payload, event.getType() == EventType::STATE_IND ? config.getRetainFlag() : false);
 	}
 
 	if (state == CONNECTED)

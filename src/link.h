@@ -2,13 +2,13 @@
 #define LINK_H
 
 #include <sys/select.h>
+#include <regex>
 
 #include "basic.h"
 #include "logger.h"
 
-class Modifier
+struct Modifier
 {
-private:
 	// Modifier only applies to events for this item.
 	string itemId;
 
@@ -16,19 +16,37 @@ private:
 	// the handler.
 	float factor;
 
-public:
-	Modifier(string _itemId) : itemId(_itemId), factor(1.0) {}
-	string getItemId() const { return itemId; }
-	void setFactor(float _factor) { factor = _factor; }
+	// JSON Pointer which is applied on inbound values to extract normalized values.
+	string inJsonPointer;
 
-	Value exportValue(const Value& value) const;
-	Value importValue(const Value& value) const;
+	// Regular expression which is applied on inbound values to extract normalized values.
+	std::regex inPattern;
+
+	// Maps inbound values to normalized values.
+	std::map<string, string> inMappings;
+
+	// printf() format to convert normalized values to outbound values.
+	string outPattern;
+
+	// Maps normalized values to outbound values.
+	std::map<string, string> outMappings;
+
+	Modifier() : factor(1.0) {}
+
+	void addInMapping(string from, string to) { inMappings[from] = to; }
+	void addOutMapping(string from, string to) { outMappings[from] = to; }
+
+	string mapFromInbound(string value) const;
+	string mapToOutbound(string value) const;
+
+	Value convertToOutbound(const Value& value) const;
+	Value convertFromInbound(const Value& value) const;
 };
 
 class Modifiers: public std::map<string, Modifier> 
 {
 public:
-	void add(Modifier modifier) { insert(value_type(modifier.getItemId(), modifier)); }
+	void add(Modifier modifier) { insert(value_type(modifier.itemId, modifier)); }
 	bool exists(string itemId) const { return find(itemId) != end(); }
 };
 
@@ -89,11 +107,11 @@ private:
 	// more time than defined here in milliseconds.
 	int maxSendDuration;
 
-	// Indicates that values for number items are transmitted over the link as strings
+	// Indicates that number values are transmitted over the link as strings
 	// and that an automatic conversion is required.
 	bool numberAsString;
 
-	// Indicates that values for boolean items are transmitted over the link as strings
+	// Indicates that boolean values are transmitted over the link as strings
 	// and that an automatic conversion is required.
 	bool booleanAsString;
 
@@ -109,15 +127,22 @@ private:
 	// In case booleanAsString = true: String to be used for true and an unwritable item.
 	string unwritableTrueValue;
 
-	// Indicates that void items are transmitted over the link as strings
+	// Indicates that void values are transmitted over the link as strings
 	// and that an automatic conversion is required.
 	bool voidAsString;
 
 	// In case voidAsString = true: String to be used for a writable item.
 	string voidValue;
 
-	// In case voidAsString = true: String to be used for an  unwritable item.
+	// In case voidAsString = true: String to be used for an unwritable item.
 	string unwritableVoidValue;
+
+	// Indicates that undefined values are transmitted over the link as strings
+	// and that an automatic conversion is required.
+	bool undefinedAsString;
+
+	// In case undefinedAsString = true: String to be used.
+	string undefinedValue;
 
 	// Alteration rules for events and their values which are transmitted over the link.
 	Modifiers modifiers;
@@ -141,6 +166,7 @@ public:
 		string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
+		bool undefinedAsString, string undefinedValue,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
 		id(id), enabled(enabled), ignoreReadEvents(ignoreReadEvents), errorCounter(errorCounter),
 		maxReceiveDuration(maxReceiveDuration), maxSendDuration(maxSendDuration),
@@ -148,6 +174,7 @@ public:
 		falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
+		undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
 		modifiers(modifiers), handler(handler), logger(logger) {}
 	string getId() const { return id; }
 	bool isEnabled() const { return enabled; }

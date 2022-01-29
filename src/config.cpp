@@ -182,14 +182,30 @@ Items Config::getItems() const
 		if (items.find(itemId) != items.end())
 			throw std::runtime_error("Item " + itemId + " defined twice in configuration");
 
-		string typeStr = getString(itemValue, "type");
-		ValueType type;
-		if (!ValueType::fromStr(typeStr, type))
-			throw std::runtime_error("Invalid value " + typeStr + " for field type in configuration");
+		ValueTypes types;
+		if (hasMember(itemValue, "types"))
+			for (auto& typeValue : getArray(itemValue, "types").GetArray())
+			{
+				if (!typeValue.IsString())
+					throw std::runtime_error("Field types is not a string array");
+				string typeStr = typeValue.GetString();
+				ValueType type;
+				if (!ValueType::fromStr(typeStr, type))
+					throw std::runtime_error("Invalid value " + typeStr + " for item of field types in configuration");
+				types.insert(type);
+			}
+		else
+		{
+			string typeStr = getString(itemValue, "type");
+			ValueType type;
+			if (!ValueType::fromStr(typeStr, type))
+				throw std::runtime_error("Invalid value " + typeStr + " for field type in configuration");
+			types.insert(type);
+		}
 
 		string ownerId = getString(itemValue, "ownerId");
 
-		Item item(itemId, type, ownerId);
+		Item item(itemId, types, ownerId);
 
 		item.setReadable(getBool(itemValue, "readable", true));
 		item.setWritable(getBool(itemValue, "writable", true));
@@ -245,8 +261,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 		if (booleanAsString)
 		{
 			auto& booleanAsStringValue = getObject(linkValue, "booleanAsString");
-			falseValue = getString(booleanAsStringValue, "falseValue", "false");
-			trueValue = getString(booleanAsStringValue, "trueValue", "true");
+			falseValue = getString(booleanAsStringValue, "falseValue");
+			trueValue = getString(booleanAsStringValue, "trueValue");
 			unwritableFalseValue = getString(booleanAsStringValue, "unwritableFalseValue", falseValue);
 			unwritableTrueValue = getString(booleanAsStringValue, "unwritableTrueValue", trueValue);
 		}
@@ -257,9 +273,14 @@ Links Config::getLinks(const Items& items, Log& log) const
 		if (voidAsString)
 		{
 			auto& voidAsStringValue = getObject(linkValue, "voidAsString");
-			voidValue = getString(voidAsStringValue, "value", "");
-			unwritableVoidValue = getString(voidAsStringValue, "unwritableValue", "");
+			voidValue = getString(voidAsStringValue, "value");
+			unwritableVoidValue = getString(voidAsStringValue, "unwritableValue", voidValue);
 		}
+
+		bool undefinedAsString = hasMember(linkValue, "undefinedAsString");
+		string undefinedValue;
+		if (undefinedAsString)
+			undefinedValue = getString(getObject(linkValue, "undefinedAsString"), "value");
 
 		Modifiers modifiers;
 		if (hasMember(linkValue, "modifiers"))
@@ -267,9 +288,37 @@ Links Config::getLinks(const Items& items, Log& log) const
 			auto& modifiersValue = getArray(linkValue, "modifiers");
 			for (auto& modifierValue : modifiersValue.GetArray())
 			{
-				Modifier modifier(getString(modifierValue, "itemId"));
-				modifier.setFactor(getFloat(modifierValue, "factor", 1.0));
-				modifiers.add(modifier);
+				Modifier modifier;
+
+				std::set<string> itemIds;
+				if (hasMember(modifierValue, "itemIds"))
+					for (auto& itemIdValue : getArray(modifierValue, "itemIds").GetArray())
+					{
+						if (!itemIdValue.IsString())
+							throw std::runtime_error("Field itemIds is not a string array");
+						itemIds.insert(itemIdValue.GetString());
+					}
+				else
+					itemIds.insert(getString(modifierValue, "itemId"));
+
+				modifier.factor = getFloat(modifierValue, "factor", 1.0);
+
+				modifier.inJsonPointer = getString(modifierValue, "inJsonPointer", "");
+				modifier.inPattern = convertPattern("inPattern", getString(modifierValue, "inPattern", "^(.*)$"));
+				if (hasMember(modifierValue, "inMappings"))
+					for (auto& mappingValue : getArray(modifierValue, "inMappings").GetArray())
+						modifier.addInMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
+
+				modifier.outPattern = getString(modifierValue, "outPattern", "%s");
+				if (hasMember(modifierValue, "outMappings"))
+					for (auto& mappingValue : getArray(modifierValue, "outMappings").GetArray())
+						modifier.addOutMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
+
+				for (string itemId : itemIds)
+				{
+					modifier.itemId = itemId;
+					modifiers.add(modifier);
+				}
 			}
 		}
 
@@ -298,6 +347,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 			maxReceiveDuration, maxSendDuration, numberAsString, booleanAsString,
 			falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
 			voidAsString, voidValue, unwritableVoidValue,
+			undefinedAsString, undefinedValue,
 			modifiers, handler, logger));
 	}
 
@@ -361,7 +411,16 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 		const Value& bindingsValue = getArray(value, "bindings");
 		for (auto& bindingValue : bindingsValue.GetArray())
 		{
-			string itemId = getString(bindingValue, "itemId");
+			std::set<string> itemIds;
+			if (hasMember(bindingValue, "itemIds"))
+				for (auto& itemIdValue : getArray(bindingValue, "itemIds").GetArray())
+				{
+					if (!itemIdValue.IsString())
+						throw std::runtime_error("Field itemIds is not a string array");
+					itemIds.insert(itemIdValue.GetString());
+				}
+			else
+				itemIds.insert(getString(bindingValue, "itemId"));
 
 			Mqtt::Config::Topics stateTopics;
 			if (hasMember(bindingValue, "stateTopic"))
@@ -376,27 +435,10 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 			string writeTopic = getString(bindingValue, "writeTopic", "");
 			string readTopic = getString(bindingValue, "readTopic", "");
 
-			std::regex inPattern = convertPattern("inPattern", getString(bindingValue, "inPattern", "^(.*)$"));
-			Mqtt::Mappings inMappings;
-			if (hasMember(bindingValue, "inMappings"))
-				for (auto& mappingValue : getArray(bindingValue, "inMappings").GetArray())
-				{
-					string internal = getString(mappingValue, "internal");
-					string external = getString(mappingValue, "external");
-					inMappings.add(Mqtt::Mapping(internal, external));
-				}
+			std::regex msgPattern = convertPattern("msgPattern", getString(bindingValue, "msgPattern", "^(.*)$"));
 
-			string outPattern = getString(bindingValue, "outPattern", "%s");
-			Mqtt::Mappings outMappings;
-			if (hasMember(bindingValue, "outMappings"))
-				for (auto& mappingValue : getArray(bindingValue, "outMappings").GetArray())
-				{
-					string internal = getString(mappingValue, "internal");
-					string external = getString(mappingValue, "external");
-					outMappings.add(Mqtt::Mapping(internal, external));
-				}
-
-			bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, inPattern, inMappings, outPattern, outMappings));
+			for (string itemId : itemIds)
+				bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, msgPattern));
 		}
 	}
 
@@ -557,7 +599,16 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, string lin
 	HttpConfig::Bindings bindings;
 	for (auto& bindingValue : bindingsValue.GetArray())
 	{
-		string itemId = getString(bindingValue, "itemId");
+		std::set<string> itemIds;
+		if (hasMember(bindingValue, "itemIds"))
+			for (auto& itemIdValue : getArray(bindingValue, "itemIds").GetArray())
+			{
+				if (!itemIdValue.IsString())
+					throw std::runtime_error("Field itemIds is not a string array");
+				itemIds.insert(itemIdValue.GetString());
+			}
+		else
+			itemIds.insert(getString(bindingValue, "itemId"));
 
 		string url = getString(bindingValue, "url");
 
@@ -572,9 +623,10 @@ std::shared_ptr<HttpConfig> Config::getHttpConfig(const Value& value, string lin
 
 		string request = getString(bindingValue, "request", "");
 
-		std::regex responsePattern = convertPattern("responsePattern", getString(bindingValue, "responsePattern"));
+		std::regex responsePattern = convertPattern("responsePattern", getString(bindingValue, "responsePattern", "(.*)"));
 
-		bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
+		for (string itemId : itemIds)
+			bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
 	}
 
 	return std::make_shared<HttpConfig>(user, password, logTransfers, verboseMode, bindings);
@@ -621,12 +673,12 @@ std::shared_ptr<StorageConfig> Config::getStorageConfig(const Value& value, stri
 		const Item& item = itemPos->second;
 
 		::Value initialValue;
-		if (item.getType() == ValueType::BOOLEAN)
-			initialValue = ::Value(getBool(bindingValue, "initialBoolean"));
-		else if (item.getType() == ValueType::NUMBER)
-			initialValue = ::Value(getFloat(bindingValue, "initialNumber"));
-		else if (item.getType() == ValueType::STRING)
-			initialValue = ::Value(getString(bindingValue, "initialString"));
+		if (item.hasType(ValueType::BOOLEAN))
+			initialValue = ::Value::newBoolean(getBool(bindingValue, "initialBoolean"));
+		else if (item.hasType(ValueType::NUMBER))
+			initialValue = ::Value::newNumber(getFloat(bindingValue, "initialNumber"));
+		else if (item.hasType(ValueType::STRING))
+			initialValue = ::Value::newString(getString(bindingValue, "initialString"));
 		else
 			throw std::runtime_error("Item " + itemId + " can not be owned by storage links because of its type");
 
