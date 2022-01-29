@@ -377,11 +377,13 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 	string password = getString(value, "password", "");
 	bool retainFlag = getBool(value, "retainFlag", true);
 
-	auto getTopicPattern = [this, &value] (string fieldName)
+	string topicPrefix = getString(value, "topicPrefix", "");
+
+	auto getTopicPattern = [&] (string fieldName)
 	{
 		if (!hasMember(value, fieldName))
 			return Mqtt::TopicPattern();
-		string topicPatternStr = getString(value, fieldName);
+		string topicPatternStr = topicPrefix + getString(value, fieldName);
 		auto topicPattern = Mqtt::TopicPattern::fromStr(topicPatternStr);
 		if (topicPattern.isNull())
 			throw std::runtime_error("Invalid value " + topicPatternStr + " for field " + fieldName + " in configuration");
@@ -400,7 +402,7 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 		{
 			if (!topicValue.IsString())
 				throw std::runtime_error("Field subTopics is not a string array");
-			subTopics.insert(topicValue.GetString());
+			subTopics.insert(topicPrefix + topicValue.GetString());
 		}
 	bool logMsgs = getBool(value, "logMessages", false);
 	bool logLibEvents = getBool(value, "logLibEvents", false);
@@ -424,16 +426,16 @@ std::shared_ptr<Mqtt::Config> Config::getMqttConfig(const Value& value, string l
 
 			Mqtt::Config::Topics stateTopics;
 			if (hasMember(bindingValue, "stateTopic"))
-				stateTopics.insert(getString(bindingValue, "stateTopic"));
+				stateTopics.insert(topicPrefix + getString(bindingValue, "stateTopic"));
 			if (hasMember(bindingValue, "stateTopics"))
 				for (auto& topicValue : getArray(bindingValue, "stateTopics").GetArray())
 				{
 					if (!topicValue.IsString())
 						throw std::runtime_error("Field stateTopics is not a string array");
-					stateTopics.insert(topicValue.GetString());
+					stateTopics.insert(topicPrefix + topicValue.GetString());
 				}
-			string writeTopic = getString(bindingValue, "writeTopic", "");
-			string readTopic = getString(bindingValue, "readTopic", "");
+			string writeTopic = topicPrefix + getString(bindingValue, "writeTopic", "");
+			string readTopic = topicPrefix + getString(bindingValue, "readTopic", "");
 
 			std::regex msgPattern = convertPattern("msgPattern", getString(bindingValue, "msgPattern", "^(.*)$"));
 
