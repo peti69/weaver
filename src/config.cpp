@@ -154,9 +154,9 @@ bool getBool(const rapidjson::Value& value, string name, bool dfltValue)
 	return getBool(value, name);
 }
 
-std::regex getRegEx(const rapidjson::Value& value, string name, string dfltPattern = "")
+std::regex getRegEx(const rapidjson::Value& value, string name, string dfltValue = "")
 {
-	string pattern = dfltPattern != "" ? getString(value, name, dfltPattern) : getString(value, name);
+	string pattern = dfltValue != "" ? getString(value, name, dfltValue) : getString(value, name);
 	try
 	{
 		return std::regex(pattern, std::regex_constants::extended);
