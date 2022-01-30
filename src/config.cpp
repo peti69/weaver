@@ -69,9 +69,10 @@ string getString(
 
 template<class T>
 std::unordered_set<T> getArrayItems(
-	const rapidjson::Value& value, string name, string arrayName,
+	const rapidjson::Value& value, string name,
 	std::function<T(string)> modifier)
 {
+	string arrayName = name + "s";
 	std::unordered_set<T> items;
 	if (hasMember(value, name))
 		items.insert(modifier(getString(value, name)));
@@ -86,20 +87,20 @@ std::unordered_set<T> getArrayItems(
 }
 
 std::unordered_set<string> getStrings(
-	const rapidjson::Value& value, string name, string arrayName,
+	const rapidjson::Value& value, string name,
 	std::function<string(string)> modifier = identity)
 {
-	return getArrayItems(value, name, arrayName, modifier);
+	return getArrayItems(value, name, modifier);
 }
 
 std::unordered_set<string> getStrings(
-	const rapidjson::Value& value, string name, string arrayName,
-	std::unordered_set<string> defaultValue,
+	const rapidjson::Value& value, string name,
+	std::unordered_set<string> dfltValue,
 	std::function<string(string)> modifier = identity)
 {
-	if (!hasMember(value, name) && !hasMember(value, arrayName))
-		return defaultValue;
-	return getArrayItems(value, name, arrayName, modifier);
+	if (!hasMember(value, name) && !hasMember(value, name + "s"))
+		return dfltValue;
+	return getArrayItems(value, name, modifier);
 }
 
 int getInt(const rapidjson::Value& value, string name)
@@ -112,10 +113,10 @@ int getInt(const rapidjson::Value& value, string name)
 	return iter->value.GetInt();
 }
 
-int getInt(const rapidjson::Value& value, string name, int defaultValue)
+int getInt(const rapidjson::Value& value, string name, int dfltValue)
 {
 	if (!hasMember(value, name))
-		return defaultValue;
+		return dfltValue;
 	return getInt(value, name);
 }
 
@@ -129,10 +130,10 @@ float getFloat(const rapidjson::Value& value, string name)
 	return iter->value.GetFloat();
 }
 
-float getFloat(const rapidjson::Value& value, string name, float defaultValue)
+float getFloat(const rapidjson::Value& value, string name, float dfltValue)
 {
 	if (!hasMember(value, name))
-		return defaultValue;
+		return dfltValue;
 	return getFloat(value, name);
 }
 
@@ -146,16 +147,16 @@ bool getBool(const rapidjson::Value& value, string name)
 	return iter->value.GetBool();
 }
 
-bool getBool(const rapidjson::Value& value, string name, bool defaultValue)
+bool getBool(const rapidjson::Value& value, string name, bool dfltValue)
 {
 	if (!hasMember(value, name))
-		return defaultValue;
+		return dfltValue;
 	return getBool(value, name);
 }
 
-std::regex getRegEx(const rapidjson::Value& value, string name, string defaultPattern = "")
+std::regex getRegEx(const rapidjson::Value& value, string name, string dfltPattern = "")
 {
-	string pattern = defaultPattern != "" ? getString(value, name, defaultPattern) : getString(value, name);
+	string pattern = dfltPattern != "" ? getString(value, name, dfltPattern) : getString(value, name);
 	try
 	{
 		return std::regex(pattern, std::regex_constants::extended);
@@ -220,7 +221,7 @@ Items Config::getItems() const
 				return type;
 			throw std::runtime_error("Invalid value " + str + " for item of field type(s) in configuration");
 		};
-		ValueTypes types = getArrayItems<ValueType>(itemValue, "type", "types", modifier);
+		ValueTypes types = getArrayItems<ValueType>(itemValue, "type", modifier);
 
 		string ownerId = getString(itemValue, "ownerId");
 
@@ -318,7 +319,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 					for (auto& mappingValue : getArray(modifierValue, "outMappings").GetArray())
 						modifier.addOutMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
 
-				for (string itemId : getStrings(modifierValue, "itemId", "itemIds"))
+				for (string itemId : getStrings(modifierValue, "itemId"))
 				{
 					modifier.itemId = itemId;
 					modifiers.add(modifier);
@@ -400,7 +401,7 @@ Mqtt::Config Config::getMqttConfig(const rapidjson::Value& value) const
 	Mqtt::TopicPattern outWriteTopicPattern = getTopicPattern("outWriteTopicPattern");
 	Mqtt::TopicPattern outReadTopicPattern = getTopicPattern("outReadTopicPattern");
 
-	Mqtt::Config::Topics subTopics = getStrings(value, "subTopic", "subTopics", {}, addPrefix);
+	Mqtt::Config::Topics subTopics = getStrings(value, "subTopic", {}, addPrefix);
 	bool logMsgs = getBool(value, "logMessages", false);
 	bool logLibEvents = getBool(value, "logLibEvents", false);
 
@@ -408,13 +409,13 @@ Mqtt::Config Config::getMqttConfig(const rapidjson::Value& value) const
 	if (hasMember(value, "bindings"))
 		for (auto& bindingValue : getArray(value, "bindings").GetArray())
 		{
-			Mqtt::Config::Topics stateTopics = getStrings(bindingValue, "stateTopic", "stateTopics", {}, addPrefix);
+			Mqtt::Config::Topics stateTopics = getStrings(bindingValue, "stateTopic", {}, addPrefix);
 			string writeTopic = getString(bindingValue, "writeTopic", "", addPrefix);
 			string readTopic = getString(bindingValue, "readTopic", "", addPrefix);
 
 			std::regex msgPattern = getRegEx(bindingValue, "msgPattern", "^(.*)$");
 
-			for (string itemId : getStrings(bindingValue, "itemId", "itemIds"))
+			for (string itemId : getStrings(bindingValue, "itemId"))
 				bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, msgPattern));
 		}
 
@@ -553,15 +554,19 @@ HttpConfig Config::getHttpConfig(const rapidjson::Value& value) const
 	bool logTransfers = getBool(value, "logTransfers", false);
 	bool verboseMode = getBool(value, "verboseMode", false);
 
+	string dfltUrl = getString(value, "url", "");
+	auto dfltHeaders = getStrings(value, "header", {}, identity);
+
 	HttpConfig::Bindings bindings;
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
 	{
-		string url = getString(bindingValue, "url");
-		auto headers = getStrings(bindingValue, "header", "headers", {}, identity);
+		string url = hasMember(bindingValue, "url") ? getString(bindingValue, "url") : dfltUrl;
+		auto headers = getStrings(bindingValue, "header", dfltHeaders);
+
 		string request = getString(bindingValue, "request", "");
 		std::regex responsePattern = getRegEx(bindingValue, "responsePattern", "^.*$");
 
-		for (string itemId : getStrings(bindingValue, "itemId", "itemIds"))
+		for (string itemId : getStrings(bindingValue, "itemId"))
 			bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));
 	}
 
