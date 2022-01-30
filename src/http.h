@@ -14,11 +14,11 @@ public:
 	struct Binding {
 		string itemId;
 		string url;
-		std::list<string> headers;
+		std::unordered_set<string> headers;
 		string request;
 		std::regex responsePattern;
-		Binding(string _itemId, string _url, std::list<string> _headers, string _request, std::regex _responsePattern) :
-			itemId(_itemId), url(_url), headers(_headers), request(_request), responsePattern(_responsePattern) {}
+		Binding(string itemId, string url, std::unordered_set<string> headers, string request, std::regex responsePattern) :
+			itemId(itemId), url(url), headers(headers), request(request), responsePattern(responsePattern) {}
 	};
 	class Bindings: public std::map<string, Binding>
 	{
@@ -34,8 +34,8 @@ private:
 	Bindings bindings;
 
 public:
-	HttpConfig(string _user, string _password, bool _logTransfers, bool _verboseMode, Bindings _bindings) :
-		user(_user), password(_password), logTransfers(_logTransfers), verboseMode(_verboseMode), bindings(_bindings) {}
+	HttpConfig(string user, string password, bool logTransfers, bool verboseMode, Bindings bindings) :
+		user(user), password(password), logTransfers(logTransfers), verboseMode(verboseMode), bindings(bindings) {}
 	string getUser() const { return user; }
 	string getPassword() const { return password; }
 	bool getLogTransfers() const { return logTransfers; }

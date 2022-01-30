@@ -34,7 +34,7 @@ void Storage::validate(Items& items) const
 		item.setReadable(false);
 		item.setWritable(true);
 		item.setResponsive(true);
-		item.validateTypeNot(ValueType::VOID);
+		item.validateType(binding.initialValue.getType());
 	}
 }
 

@@ -2,4 +2,6 @@ add_executable(weaver main.cpp port.cpp tcp.cpp http.cpp mqtt.cpp config.cpp bas
 
 target_link_libraries(weaver mosquitto curl)
 
+set(CMAKE_CXX_FLAGS "-fconcepts")
+
 install(TARGETS weaver EXPORT waever DESTINATION usr/bin)

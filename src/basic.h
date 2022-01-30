@@ -44,12 +44,10 @@ extern string cnvToBinStr(string s);
 extern string cnvToAsciiStr(ByteString s);
 extern ByteString cnvFromAsciiStr(string s);
 
-class Value;
-
 class ValueType
 {
 private:
-	typedef uint8_t Code;
+	typedef unsigned char Code;
 	Code code;
 
 public:
@@ -66,6 +64,24 @@ public:
 	static const Code STRING = 3;
 	static const Code BOOLEAN = 4;
 	static const Code NUMBER = 5;
+};
+
+template<>
+struct std::hash<ValueType>
+{
+	std::size_t operator()(ValueType const& vt) const noexcept
+	{
+		return std::hash<unsigned char>{}(vt);
+	}
+};
+
+class ValueTypes: public std::unordered_set<ValueType>
+{
+public:
+	ValueTypes() {}
+	ValueTypes(const std::unordered_set<ValueType>& types) : std::unordered_set<ValueType>(types) {}
+
+	string toStr() const;
 };
 
 class Value
@@ -106,12 +122,6 @@ public:
 	string toStr() const;
 
 	bool operator==(const Value& x) const;
-};
-
-class ValueTypes: public std::set<ValueType>
-{
-public:
-	string toStr() const;
 };
 
 class Item
@@ -246,7 +256,7 @@ public:
 class EventType
 {
 private:
-	typedef uint8_t Code;
+	typedef unsigned char Code;
 	Code code;
 
 public:
