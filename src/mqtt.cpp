@@ -105,9 +105,7 @@ void Handler::validate(Items& items) const
 
 	for (auto& [itemId, item] : items)
 		if (item.getOwnerId() == id)
-		{
-			auto bindingPos = bindings.find(itemId);
-			if (bindingPos != bindings.end())
+			if (auto bindingPos = bindings.find(itemId); bindingPos != bindings.end())
 			{
 				auto& binding = bindingPos->second;
 				item.setReadable(!binding.readTopic.empty());
@@ -118,7 +116,6 @@ void Handler::validate(Items& items) const
 				item.setReadable(!config.getOutReadTopicPattern().isNull());
 				item.setWritable(!config.getOutWriteTopicPattern().isNull());
 			}
-		}
 
 	for (auto& [itemId, binding] : bindings)
 		items.validate(itemId);
