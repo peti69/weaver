@@ -307,6 +307,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 				Modifier modifier;
 
 				modifier.factor = getFloat(modifierValue, "factor", 1.0);
+				modifier.summand = getFloat(modifierValue, "summand", 0.0);
 
 				modifier.inJsonPointer = getString(modifierValue, "inJsonPointer", "");
 				modifier.inPattern = getRegEx(modifierValue, "inPattern", "^(.*)$");
@@ -314,7 +315,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 					for (auto& mappingValue : getArray(modifierValue, "inMappings").GetArray())
 						modifier.addInMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
 
-				modifier.outPattern = getString(modifierValue, "outPattern", "%s");
+				modifier.outPattern = getString(modifierValue, "outPattern", "%Value%");
 				if (hasMember(modifierValue, "outMappings"))
 					for (auto& mappingValue : getArray(modifierValue, "outMappings").GetArray())
 						modifier.addOutMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));

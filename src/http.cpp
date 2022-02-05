@@ -45,9 +45,11 @@ void HttpHandler::validate(Items& items) const
 	for (auto& [itemId, binding] : bindings)
 	{
 		auto& item = items.validate(itemId);
-		item.validateOwnerId(id);
-		if (item.isReadable())
-			item.validatePollingEnabled(true);
+		if (item.getOwnerId() == id)
+		{
+			if (item.isReadable())
+				item.validatePollingEnabled(true);
+		}
 	}
 }
 
@@ -155,8 +157,8 @@ Events HttpHandler::receiveX()
 				else
 				{
 					if (config.getLogTransfers())
-						logger.debug() << "Transfer for item " << itemId << " completed with response "
-						               << response << endOfMsg();
+						logger.debug() << "Transfer for item " << itemId << " completed with response '"
+						               << response << "'" << endOfMsg();
 
 					auto bindingPos = config.getBindings().find(itemId);
 					if (bindingPos != config.getBindings().end())
@@ -213,8 +215,14 @@ Events HttpHandler::sendX(const Events& events)
 			if (!easyHandle)
 				logger.errorX() << "Function curl_easy_init() failed" << endOfMsg();
 
+			// construct URL
+			string url = binding.url;
+			static const string valueTag = "%Value%";
+			if (auto pos = url.find(valueTag); pos != string::npos)
+				url.replace(pos, valueTag.length(), event.getValue().toStr());
+
 			// pass URL to cURL
-			CURLcode code = curl_easy_setopt(easyHandle, CURLOPT_URL, binding.url.c_str());
+			CURLcode code = curl_easy_setopt(easyHandle, CURLOPT_URL, url.c_str());
 			handleError("curl_easy_setopt", code);
 
 			// tell cURL that a POST instead of a GET is required
@@ -273,7 +281,8 @@ Events HttpHandler::sendX(const Events& events)
 			handleMultiError("curl_multi_add_handle", mcode);
 
 			if (config.getLogTransfers())
-				logger.debug() << "Transfer for item " << itemId << " started" << endOfMsg();
+				logger.debug() << "Transfer for item " << itemId << " to URL " << url
+				               << " started with request '" << binding.request << "'" << endOfMsg();
 
 			// add new transfer to the list of ongoing transfers
 			transfers.insert({easyHandle, transfer});

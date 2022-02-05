@@ -36,7 +36,7 @@ string Modifier::mapFromInbound(string value) const
 Value Modifier::convertToOutbound(const Value& value) const
 {
 	if (value.isNumber())
-		return Value::newNumber(value.getNumber() / factor);
+		return Value::newNumber((value.getNumber() / factor) - summand);
 	else
 		return value;
 }
@@ -44,7 +44,7 @@ Value Modifier::convertToOutbound(const Value& value) const
 Value Modifier::convertFromInbound(const Value& value) const
 {
 	if (value.isNumber())
-		return Value::newNumber(value.getNumber() * factor);
+		return Value::newNumber((value.getNumber() + summand) * factor);
 	else
 		return value;
 }
@@ -412,23 +412,36 @@ void Link::send(Items& items, const Events& events)
 			if (value.isString() && modifier)
 				value = Value::newString(modifier->mapToOutbound(value.getString()));
 
-			// convert event value (printf() formatting)
+			// convert event value (formatting)
 			if (value.isString() && modifier)
 			{
-				string pattern = modifier->outPattern;
-				string::size_type pos = pattern.find("%time");
-				if (pos != string::npos)
-					pattern.replace(pos, 5, cnvToStr(std::time(0)));
+//				string pattern = modifier->outPattern;
+//				string::size_type pos = pattern.find("%time");
+//				if (pos != string::npos)
+//					pattern.replace(pos, 5, cnvToStr(std::time(0)));
+//
+//				string str;
+//				str.resize(100);
+//				int n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
+//				if (n >= str.capacity())
+//				{
+//					str.resize(n + 1);
+//					n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
+//				}
+//				str.resize(n);
+//
+//				value = Value::newString(str);
 
-				string str;
-				str.resize(100);
-				int n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
-				if (n >= str.capacity())
-				{
-					str.resize(n + 1);
-					n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
-				}
-				str.resize(n);
+				string str = modifier->outPattern;
+
+				static const string timeTag = "%Time%";
+				if (auto pos = str.find(timeTag); pos != string::npos)
+					str.replace(pos, timeTag.length(), cnvToStr(std::time(0)));
+
+				static const string valueTag = "%Value%";
+				if (auto pos = str.find(valueTag); pos != string::npos)
+					str.replace(pos, valueTag.length(), value.toStr());
+
 				value = Value::newString(str);
 			}
 
