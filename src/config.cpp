@@ -237,7 +237,7 @@ Items Config::getItems() const
 		{
 			auto& sendOnTimerValue = getObject(itemValue, "sendOnTimer");
 			item.setSendOnTimer(true);
-			item.setDuration(getInt(sendOnTimerValue, "duration", 300));
+			item.setInterval(getInt(sendOnTimerValue, "interval", 300));
 		}
 
 		if (hasMember(itemValue, "sendOnChange"))

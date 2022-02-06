@@ -142,7 +142,7 @@ bool Value::operator==(const Value& x) const
 
 bool Item::isSendOnTimerRequired(std::time_t now) const
 {
-	return sendOnTimer && !lastSendValue.isUninitialized() && lastSendTime + duration <= now;
+	return sendOnTimer && !lastSendValue.isUninitialized() && lastSendTime + interval <= now;
 }
 
 bool Item::isSendOnChangeRequired(const Value& value) const
