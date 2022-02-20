@@ -6,7 +6,7 @@
 #include "mqtt.h"
 #include "finally.h"
 
-namespace Mqtt
+namespace mqtt
 {
 
 const string TopicPattern::variable = "%ItemId%";
@@ -82,9 +82,9 @@ Handler::Handler(string _id, Config _config, Logger _logger) :
 	if (!client)
 		logger.errorX() << "Function mosquitto_new() returned null" << endOfMsg();
 
-	mosquitto_connect_callback_set(client, Mqtt::onConnect);
-	mosquitto_message_callback_set(client, Mqtt::onMessage);
-	mosquitto_log_callback_set(client, Mqtt::onLog);
+	mosquitto_connect_callback_set(client, mqtt::onConnect);
+	mosquitto_message_callback_set(client, mqtt::onMessage);
+	mosquitto_log_callback_set(client, mqtt::onLog);
 
 	int major, minor, revision;
 	mosquitto_lib_version(&major, &minor, &revision);
@@ -99,7 +99,7 @@ Handler::~Handler()
 	mosquitto_lib_cleanup();
 }
 
-void Handler::validate(Items& items) const
+void Handler::validate(Items& items)
 {
 	auto& bindings = config.getBindings();
 

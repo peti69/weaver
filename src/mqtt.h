@@ -10,7 +10,7 @@
 #include "link.h"
 #include "logger.h"
 
-namespace Mqtt
+namespace mqtt
 {
 
 class TopicPattern
@@ -163,7 +163,7 @@ private:
 public:
 	Handler(string _id, Config _config, Logger _logger);
 	virtual ~Handler();
-	virtual void validate(Items& items) const override;
+	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

@@ -83,7 +83,7 @@ private:
 public:
 	PortHandler(string _id, PortConfig _config, Logger _logger);
 	virtual ~PortHandler();
-	virtual void validate(Items& items) const override;
+	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

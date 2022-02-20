@@ -51,26 +51,18 @@ Value Modifier::convertFromInbound(const Value& value) const
 
 void Link::validate(Items& items) const
 {
-	// check and manipulate properties of control items
 	if (errorCounter != "")
 	{
 		Item& item = items.validate(errorCounter);
 		item.validateOwnerId(controlLinkId);
+		item.validateType(ValueType::NUMBER);
+		item.validatePollingEnabled(false);
 		item.setReadable(false);
 		item.setWritable(false);
-//		item.validateReadable(false);
-//		item.validateWritable(false);
-		item.validateType(ValueType::NUMBER);
 	}
 
-	// check modifiers
-	for (auto& modifierPair : modifiers)
-	{
-		const Modifier& modifier = modifierPair.second;
-
-		// provide item
-		Item& item = items.validate(modifier.itemId);
-	}
+	for (auto& [itemId, modifier] : modifiers)
+		items.validate(itemId);
 
 	handler->validate(items);
 }

@@ -10,7 +10,7 @@
 struct Modifier
 {
 	// Modifier only applies to events for this item.
-	string itemId;
+	ItemId itemId;
 
 	// Factor applied to values received from the handler. Acts as divisor for values
 	// which will be sent to the handler.
@@ -47,11 +47,11 @@ struct Modifier
 	Value convertFromInbound(const Value& value) const;
 };
 
-class Modifiers: public std::map<string, Modifier> 
+class Modifiers: public std::map<ItemId, Modifier>
 {
 public:
 	void add(Modifier modifier) { insert(value_type(modifier.itemId, modifier)); }
-	bool exists(string itemId) const { return find(itemId) != end(); }
+	bool exists(ItemId itemId) const { return find(itemId) != end(); }
 };
 
 // State of an interface to an external system.
@@ -68,8 +68,9 @@ class HandlerIf
 public:
 	virtual ~HandlerIf() {}
 
-	// Enables the handler to validate but also to adapt the definition of the items it owns.
-	virtual void validate(Items& items) const = 0;
+	// Enables the handler to validate but also to adapt the definition of the items it owns
+	// and itself.
+	virtual void validate(Items& items) = 0;
 
 	// Returns the current state of the handler.
 	virtual HandlerState getState() const = 0;
@@ -85,14 +86,11 @@ public:
 	virtual Events send(const Items& items, const Events& events) = 0;
 };
 
-// Link id used for events not produced or items not owned by a link handler.
-const string controlLinkId = "CONTROL";
-
 class Link
 {
 private:
 	// Id assigned to the link.
-	string id;
+	LinkId id;
 
 	// Only in case the link is enabled events are transmitted over the link.
 	bool enabled;
@@ -101,7 +99,7 @@ private:
 	bool ignoreReadEvents;
 
 	// Id of item on which the number of errors on the link will be reported.
-	string errorCounter;
+	ItemId errorCounter;
 
 	// A warning message is generated in case event receiving over the link requires
 	// more time than defined here in milliseconds.
@@ -164,7 +162,7 @@ private:
 	Events pendingEvents;
 
 public:
-	Link(string id, bool enabled, bool ignoreReadEvents, string errorCounter,
+	Link(LinkId id, bool enabled, bool ignoreReadEvents, ItemId errorCounter,
 		int maxReceiveDuration, int maxSendDuration,
 		bool numberAsString, bool booleanAsString,
 		string falseValue, string trueValue,
@@ -180,7 +178,7 @@ public:
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
 		undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
 		modifiers(modifiers), handler(handler), logger(logger) {}
-	string getId() const { return id; }
+	LinkId getId() const { return id; }
 	bool isEnabled() const { return enabled; }
 	void validate(Items& items) const;
 	long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd);
@@ -188,11 +186,12 @@ public:
 	Events receive(Items& items);
 };
 
-class Links: public std::map<string, Link>
+class Links: public std::map<LinkId, Link>
 {
 public:
-	void add(Link link) { insert(value_type(link.getId(), link)); }
-	bool exists(string id) { return find(id) != end(); }
+	void add(Link link) { insert({link.getId(), link}); }
+	bool exists(LinkId id) { return find(id) != end(); }
+	const Link& get(LinkId id) const { auto pos = find(id); assert(pos != end()); return pos->second; }
 };
 
 #endif

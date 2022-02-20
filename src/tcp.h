@@ -60,7 +60,7 @@ private:
 public:
 	TcpHandler(string _id, TcpConfig _config, Logger _logger);
 	virtual ~TcpHandler();
-	virtual void validate(Items& items) const override;
+	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

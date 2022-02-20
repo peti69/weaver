@@ -7,11 +7,7 @@
 #include "link.h"
 #include "logger.h"
 
-using std::chrono::system_clock;
-
 typedef unsigned short IpPort;
-typedef std::chrono::seconds Seconds;
-typedef std::chrono::system_clock::time_point TimePoint;
 
 struct IpAddr
 {
@@ -275,7 +271,7 @@ private:
 public:
 	KnxHandler(string _id, KnxConfig _config, Logger _logger);
 	virtual ~KnxHandler();
-	virtual void validate(Items& items) const override;
+	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

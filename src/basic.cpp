@@ -140,27 +140,58 @@ bool Value::operator==(const Value& x) const
 	       );
 }
 
-bool Item::isSendOnTimerRequired(std::time_t now) const
+void Item::addToHistory(TimePoint now, const Value& value)
 {
-	return sendOnTimer && !lastSendValue.isUninitialized() && lastSendTime + interval <= now;
+	if (!value.isNumber() || historyPeriod == Seconds::zero())
+		return;
+	history.emplace_back(now, value.getNumber());
+	while (!history.empty() && history.front().timePoint < now - historyPeriod)
+		history.pop_front();
+}
+
+Value Item::calcMinFromHistory(TimePoint start) const
+{
+	if (lastValue.isUninitialized() || !lastValue.isNumber())
+		return Value::newUndefined();
+	auto number = lastValue.getNumber();
+	for (auto pos = history.rbegin(); pos != history.rend() && pos->timePoint >= start; pos++)
+		if (pos->number < number)
+			number = pos->number;
+	return Value::newNumber(number);
+}
+
+Value Item::calcMaxFromHistory(TimePoint start) const
+{
+	if (lastValue.isUninitialized() || !lastValue.isNumber())
+		return Value::newUndefined();
+	auto number = lastValue.getNumber();
+	for (auto pos = history.rbegin(); pos != history.rend() && pos->timePoint >= start; pos++)
+		if (pos->number > number)
+			number = pos->number;
+	return Value::newNumber(number);
+}
+
+bool Item::isSendOnTimerRequired(TimePoint now) const
+{
+	return sendOnTimerParams.active && !lastValue.isUninitialized() && lastSendTime + sendOnTimerParams.interval <= now;
 }
 
 bool Item::isSendOnChangeRequired(const Value& value) const
 {
-	if (!sendOnChange)
+	if (!sendOnChangeParams.active)
 		return true;
 
-	if (lastSendValue == value)
+	if (lastValue == value)
 		return false;
 
-	if (value.isNumber() && lastSendValue.isNumber())
+	if (value.isNumber() && lastValue.isNumber())
 	{
-		double oldNum = lastSendValue.getNumber();
+		double oldNum = lastValue.getNumber();
 		double num = value.getNumber();
-		if (  num >= minimum
-		   && num <= maximum
-		   && num >= oldNum * (1.0 - relVariation / 100.0) - absVariation
-		   && num <= oldNum * (1.0 + relVariation / 100.0) + absVariation
+		if (  num >= sendOnChangeParams.minimum
+		   && num <= sendOnChangeParams.maximum
+		   && num >= oldNum * (1.0 - sendOnChangeParams.relVariation / 100.0) - sendOnChangeParams.absVariation
+		   && num <= oldNum * (1.0 + sendOnChangeParams.relVariation / 100.0) + sendOnChangeParams.absVariation
 		   )
 			return false;
 	}
@@ -168,25 +199,25 @@ bool Item::isSendOnChangeRequired(const Value& value) const
 	return true;
 }
 
-bool Item::isPollingRequired(std::time_t now) const
+bool Item::isPollingRequired(TimePoint now) const
 {
-	assert(pollingInterval);
+	assert(pollingInterval != Seconds::zero());
 	return lastPollingTime + pollingInterval <= now;
 }
 
-void Item::initPolling(std::time_t now)
+void Item::initPolling(TimePoint now)
 {
-	assert(pollingInterval);
-	lastPollingTime = now - std::rand() % pollingInterval;
+	assert(pollingInterval != Seconds::zero());
+	lastPollingTime = now - Seconds(std::rand() % pollingInterval.count());
 }
 
-void Item::pollingDone(std::time_t now)
+void Item::pollingDone(TimePoint now)
 {
-	assert(pollingInterval);
+	assert(pollingInterval != Seconds::zero());
 	lastPollingTime = now;
 }
 
-void Item::validateReadable(bool _readable)
+void Item::validateReadable(bool _readable) const
 {
 	if (readable && !_readable)
 		throw std::runtime_error("Item " + id + " must not be readable");
@@ -194,7 +225,7 @@ void Item::validateReadable(bool _readable)
 		throw std::runtime_error("Item " + id + " must be readable");
 }
 
-void Item::validateWritable(bool _writable)
+void Item::validateWritable(bool _writable) const
 {
 	if (writable && !_writable)
 		throw std::runtime_error("Item " + id + " must not be writable");
@@ -202,7 +233,7 @@ void Item::validateWritable(bool _writable)
 		throw std::runtime_error("Item " + id + " must be writable");
 }
 
-void Item::validateResponsive(bool _responsive)
+void Item::validateResponsive(bool _responsive) const
 {
 	if (responsive && !_responsive)
 		throw std::runtime_error("Item " + id + " must not be responsive");
@@ -210,45 +241,44 @@ void Item::validateResponsive(bool _responsive)
 		throw std::runtime_error("Item " + id + " must be responsive");
 }
 
-void Item::validatePollingEnabled(bool _enabled)
+void Item::validatePollingEnabled(bool _enabled) const
 {
-	if (pollingInterval > 0 && !_enabled)
+	if (pollingInterval != Seconds::zero() && !_enabled)
 		throw std::runtime_error("Item " + id + " must not be polled");
-	if (pollingInterval <= 0 && _enabled)
+	if (pollingInterval == Seconds::zero() && _enabled)
 		throw std::runtime_error("Item " + id + " must be polled");
 }
 
-void Item::validateType(ValueType _type)
+void Item::validateHistory() const
+{
+	if (historyPeriod == Seconds::zero())
+		throw std::runtime_error("Item " + id + " must be historized");
+}
+
+void Item::validateType(ValueType _type) const
 {
 	if (!hasType(_type))
 		throw std::runtime_error("Item " + id + " must be of type " + _type.toStr());
 }
 
-void Item::validateTypeNot(ValueType _type)
+void Item::validateTypeNot(ValueType _type) const
 {
 	if (hasType(_type))
 		throw std::runtime_error("Item " + id + " must not be of type " + _type.toStr());
 }
 
-void Item::validateOwnerId(string _ownerId)
+void Item::validateOwnerId(LinkId _ownerId) const
 {
 	if (ownerId != _ownerId)
 		throw std::runtime_error("Item " + id + " must be owned by link " + _ownerId);
 }
 
-Item& Items::validate(string itemId)
+Item& Items::validate(ItemId itemId)
 {
 	auto pos = find(itemId);
 	if (pos == end())
 		throw std::runtime_error("Item " + itemId + " referenced but not defined");
 	return pos->second;
-}
-
-string Items::getOwnerId(string itemId) const 
-{ 
-	auto pos = find(itemId); 
-	assert(pos != end());
-	return pos->second.getOwnerId();
 }
 
 string EventType::toStr() const

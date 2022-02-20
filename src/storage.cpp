@@ -14,31 +14,38 @@
 
 using namespace std::rel_ops;
 
-Storage::Storage(string id, StorageConfig config, Logger logger) :
-	id(id), config(config), logger(logger), fileRead(false), lastFileReadTry(0)
+namespace storage
+{
+
+Handler::Handler(LinkId id, Config config, Logger logger) :
+	id(id), config(config), logger(logger)
 {
 }
 
-void Storage::validate(Items& items) const
+void Handler::validate(Items& items)
 {
-	auto& bindings = config.getBindings();
+	bindings = config.getBindings();
 
 	for (auto& [itemId, item] : items)
-		if (item.getOwnerId() == id && !bindings.count(itemId))
-			throw std::runtime_error("Item " + itemId + " has no binding for link " + id);
+		if (item.getOwnerId() == id)
+		{
+			item.setReadable(false);
+			item.setWritable(true);
+			item.setResponsive(true);
+
+			if (!bindings.count(itemId))
+				bindings.add(Binding(itemId, Value::newUndefined(), false));
+		}
 
 	for (auto& [itemId, binding] : bindings)
 	{
 		auto& item = items.validate(itemId);
 		item.validateOwnerId(id);
-		item.setReadable(false);
-		item.setWritable(true);
-		item.setResponsive(true);
 		item.validateType(binding.initialValue.getType());
 	}
 }
 
-Events Storage::receiveX(const Items& items)
+Events Handler::receiveX(const Items& items)
 {
 	Events newEvents;
 
@@ -46,8 +53,8 @@ Events Storage::receiveX(const Items& items)
 	if (!fileRead)
 	{
 		// shell we perform another attempt to read the file?
-		std::time_t now = std::time(0);
-		if (lastFileReadTry + rereadInterval > now)
+		TimePoint now = Clock::now();
+		if (now < lastFileReadTry + rereadInterval)
 			return newEvents;
 		lastFileReadTry = now;
 
@@ -69,10 +76,10 @@ Events Storage::receiveX(const Items& items)
 			logger.errorX() << "JSON document from file " << config.getFileName() << " is not an object" << endOfMsg();
 
 		// analyze DOM tree
-		std::set<string> itemsInFile;
+		ItemIds itemsInFile;
 		for (auto iter = document.MemberBegin(); iter != document.MemberEnd(); iter++)
 		{
-			string itemId = iter->name.GetString();
+			ItemId itemId = iter->name.GetString();
 			itemsInFile.insert(itemId);
 
 			// verify item identifier
@@ -102,12 +109,9 @@ Events Storage::receiveX(const Items& items)
 		}
 
 		// generate STATE_IND for all items not found in file
-		for (auto& bindingPair : config.getBindings())
-		{
-			auto& binding = bindingPair.second;
-			if (itemsInFile.find(binding.itemId) == itemsInFile.end())
-				newEvents.add(Event(id, binding.itemId, EventType::STATE_IND, binding.initialValue));
-		}
+		for (const auto& [itemId, item] : items)
+			if (item.getOwnerId() == id && !itemsInFile.count(itemId))
+				newEvents.add(Event(id, itemId, EventType::STATE_IND, bindings.at(itemId).initialValue));
 
 		fileRead = true;
 	}
@@ -115,7 +119,7 @@ Events Storage::receiveX(const Items& items)
 	return newEvents;
 }
 
-Events Storage::receive(const Items& items)
+Events Handler::receive(const Items& items)
 {
 	try
 	{
@@ -129,20 +133,18 @@ Events Storage::receive(const Items& items)
 	return Events();
 }
 
-Events Storage::send(const Items& items, const Events& events)
+Events Handler::send(const Items& items, const Events& events)
 {
 	if (!fileRead)
 		return Events();
 
 	// analyze WRITE_REQ and determine changed values
-	std::map<string, Value> newValues;
+	std::unordered_map<ItemId, Value> newValues;
 	for (auto& event : events)
-		if (event.getType() == EventType::WRITE_REQ)
-		{
-			auto itemPos = items.find(event.getItemId());
-			if (itemPos != items.end() && itemPos->second.getLastSendValue() != event.getValue())
-				newValues[event.getItemId()] = event.getValue();
-		}
+		if (  event.getType() == EventType::WRITE_REQ
+		   && items.get(event.getItemId()).getLastValue() != event.getValue()
+		   )
+			newValues[event.getItemId()] = event.getValue();
 
 	// if a value changed persist all owned items
 	if (newValues.size())
@@ -152,11 +154,10 @@ Events Storage::send(const Items& items, const Events& events)
 		auto& allocator = document.GetAllocator();
 		document.SetObject();
 		for (auto& [itemId, item] : items)
-		{
-			auto newValuePos = newValues.find(itemId);
-			const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getLastSendValue();
-			if (item.getOwnerId() == id)
+			if (item.getOwnerId() == id && bindings.at(itemId).persistent)
 			{
+				auto newValuePos = newValues.find(itemId);
+				const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getLastValue();
 				rapidjson::Value jsonValue;
 				if (value.getType() == ValueType::STRING)
 					jsonValue.SetString(value.getString(), allocator);
@@ -169,7 +170,6 @@ Events Storage::send(const Items& items, const Events& events)
 				rapidjson::Value memberName(itemId, allocator);
 				document.AddMember(memberName, jsonValue, allocator);
 			}
-		}
 
 		// create file
 		FILE* file = fopen(config.getFileName().c_str(), "w");
@@ -189,8 +189,10 @@ Events Storage::send(const Items& items, const Events& events)
 
 	// generate for every changed value a corresponding STATE_IND
 	Events newEvents;
-	for (auto& newValuePair : newValues)
-		newEvents.add(Event(id, newValuePair.first, EventType::STATE_IND, newValuePair.second));
+	for (auto& [itemId, value] : newValues)
+		newEvents.add(Event(id, itemId, EventType::STATE_IND, value));
 
 	return newEvents;
+}
+
 }

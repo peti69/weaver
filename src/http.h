@@ -69,7 +69,7 @@ private:
 public:
 	HttpHandler(string _id, HttpConfig _config, Logger _logger);
 	virtual ~HttpHandler();
-	void validate(Items& items) const override;
+	void validate(Items& items) override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;

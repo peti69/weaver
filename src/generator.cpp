@@ -5,7 +5,7 @@ Generator::Generator(string _id, GeneratorConfig _config, Logger _logger) :
 {
 }
 
-void Generator::validate(Items& items) const
+void Generator::validate(Items& items)
 {
 	auto& bindings = config.getBindings();
 

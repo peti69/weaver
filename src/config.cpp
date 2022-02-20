@@ -8,6 +8,7 @@
 #include "mqtt.h"
 #include "port.h"
 #include "generator.h"
+#include "calculator.h"
 #include "tr064.h"
 #include "http.h"
 #include "tcp.h"
@@ -113,11 +114,12 @@ int getInt(const rapidjson::Value& value, string name)
 	return iter->value.GetInt();
 }
 
-int getInt(const rapidjson::Value& value, string name, int dfltValue)
+template<class T>
+T getInt(const rapidjson::Value& value, string name, T dfltValue)
 {
 	if (!hasMember(value, name))
 		return dfltValue;
-	return getInt(value, name);
+	return T(getInt(value, name));
 }
 
 float getFloat(const rapidjson::Value& value, string name)
@@ -215,39 +217,45 @@ Items Config::getItems() const
 		if (items.find(itemId) != items.end())
 			throw std::runtime_error("Item " + itemId + " defined twice in configuration");
 
+		Item item(itemId);
+
 		auto modifier = [](string str)
 		{
 			if (ValueType type; ValueType::fromStr(str, type))
 				return type;
-			throw std::runtime_error("Invalid value " + str + " for item of field type(s) in configuration");
+			throw std::runtime_error("Invalid value " + str + " for field type(s) in configuration");
 		};
-		ValueTypes types = getArrayItems<ValueType>(itemValue, "type", modifier);
+		item.setTypes(getArrayItems<ValueType>(itemValue, "type", modifier));
 
-		string ownerId = getString(itemValue, "ownerId");
-
-		Item item(itemId, types, ownerId);
+		item.setOwnerId(getString(itemValue, "ownerId"));
 
 		item.setReadable(getBool(itemValue, "readable", true));
 		item.setWritable(getBool(itemValue, "writable", true));
 		item.setResponsive(getBool(itemValue, "responsive", true));
 
-		item.setPollingInterval(getInt(itemValue, "pollingInterval", 0));
+		item.setPollingInterval(getInt(itemValue, "pollingInterval", Seconds::zero()));
+
+		item.setHistoryPeriod(getInt(itemValue, "historyPeriod", Seconds::zero()));
 
 		if (hasMember(itemValue, "sendOnTimer"))
 		{
 			auto& sendOnTimerValue = getObject(itemValue, "sendOnTimer");
-			item.setSendOnTimer(true);
-			item.setInterval(getInt(sendOnTimerValue, "interval", 300));
+			Item::SendOnTimerParams params;
+			params.active = true;
+			params.interval = Seconds(getInt(sendOnTimerValue, "interval"));
+			item.setSendOnTimerParams(params);
 		}
 
 		if (hasMember(itemValue, "sendOnChange"))
 		{
 			auto& sendOnChangeValue = getObject(itemValue, "sendOnChange");
-			item.setSendOnChange(true);
-			item.setAbsVariation(getFloat(sendOnChangeValue, "absVariation", 0.0));
-			item.setRelVariation(getFloat(sendOnChangeValue, "relVariation", 0.0));
-			item.setMinimum(getFloat(sendOnChangeValue, "minimum", std::numeric_limits<float>::lowest()));
-			item.setMaximum(getFloat(sendOnChangeValue, "maximum", std::numeric_limits<float>::max()));
+			Item::SendOnChangeParams params;
+			params.active = true;
+			params.absVariation = getFloat(sendOnChangeValue, "absVariation", params.absVariation);
+			params.relVariation = getFloat(sendOnChangeValue, "relVariation", params.relVariation);
+			params.minimum = getFloat(sendOnChangeValue, "minimum", params.minimum);
+			params.maximum = getFloat(sendOnChangeValue, "maximum", params.maximum);
+			item.setSendOnChangeParams(params);
 		}
 
 		items.add(item);
@@ -332,7 +340,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 		if (hasMember(linkValue, "knx"))
 			handler.reset(new KnxHandler(id, getKnxConfig(getObject(linkValue, "knx")), logger));
 		else if (hasMember(linkValue, "mqtt"))
-			handler.reset(new Mqtt::Handler(id, getMqttConfig(getObject(linkValue, "mqtt")), logger));
+			handler.reset(new mqtt::Handler(id, getMqttConfig(getObject(linkValue, "mqtt")), logger));
 		else if (hasMember(linkValue, "port"))
 			handler.reset(new PortHandler(id, getPortConfig(getObject(linkValue, "port")), logger));
 		else if (hasMember(linkValue, "http"))
@@ -341,10 +349,12 @@ Links Config::getLinks(const Items& items, Log& log) const
 			handler.reset(new TcpHandler(id, getTcpConfig(getObject(linkValue, "tcp")), logger));
 		else if (hasMember(linkValue, "generator"))
 			handler.reset(new Generator(id, getGeneratorConfig(getObject(linkValue, "generator")), logger));
+		else if (hasMember(linkValue, "calculator"))
+			handler.reset(new calculator::Handler(id, getCalculatorConfig(getObject(linkValue, "calculator")), logger));
 		else if (hasMember(linkValue, "tr064"))
 			handler.reset(new Tr064(id, getTr064Config(getObject(linkValue, "tr064")), logger));
 		else if (hasMember(linkValue, "storage"))
-			handler.reset(new Storage(id, getStorageConfig(getObject(linkValue, "storage")), logger));
+			handler.reset(new storage::Handler(id, getStorageConfig(getObject(linkValue, "storage")), logger));
 		else
 			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
@@ -359,7 +369,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 	return links;
 }
 
-Mqtt::Config Config::getMqttConfig(const rapidjson::Value& value) const
+mqtt::Config Config::getMqttConfig(const rapidjson::Value& value) const
 {
 	string clientId = getString(value, "clientId", "");
 	string hostname = getString(value, "hostname", "127.0.0.1");
@@ -388,39 +398,39 @@ Mqtt::Config Config::getMqttConfig(const rapidjson::Value& value) const
 	auto getTopicPattern = [&](string name)
 	{
 		if (!hasMember(value, name))
-			return Mqtt::TopicPattern();
+			return mqtt::TopicPattern();
 		string topicPatternStr = addPrefix(getString(value, name));
-		auto topicPattern = Mqtt::TopicPattern::fromStr(topicPatternStr);
+		auto topicPattern = mqtt::TopicPattern::fromStr(topicPatternStr);
 		if (topicPattern.isNull())
 			throw std::runtime_error("Invalid value " + topicPatternStr + " for field " + name + " in configuration");
 		return topicPattern;
 	};
-	Mqtt::TopicPattern inStateTopicPattern = getTopicPattern("inStateTopicPattern");
-	Mqtt::TopicPattern inWriteTopicPattern = getTopicPattern("inWriteTopicPattern");
-	Mqtt::TopicPattern inReadTopicPattern = getTopicPattern("inReadTopicPattern");
-	Mqtt::TopicPattern outStateTopicPattern = getTopicPattern("outStateTopicPattern");
-	Mqtt::TopicPattern outWriteTopicPattern = getTopicPattern("outWriteTopicPattern");
-	Mqtt::TopicPattern outReadTopicPattern = getTopicPattern("outReadTopicPattern");
+	mqtt::TopicPattern inStateTopicPattern = getTopicPattern("inStateTopicPattern");
+	mqtt::TopicPattern inWriteTopicPattern = getTopicPattern("inWriteTopicPattern");
+	mqtt::TopicPattern inReadTopicPattern = getTopicPattern("inReadTopicPattern");
+	mqtt::TopicPattern outStateTopicPattern = getTopicPattern("outStateTopicPattern");
+	mqtt::TopicPattern outWriteTopicPattern = getTopicPattern("outWriteTopicPattern");
+	mqtt::TopicPattern outReadTopicPattern = getTopicPattern("outReadTopicPattern");
 
-	Mqtt::Config::Topics subTopics = getStrings(value, "subTopic", {}, addPrefix);
+	mqtt::Config::Topics subTopics = getStrings(value, "subTopic", {}, addPrefix);
 	bool logMsgs = getBool(value, "logMessages", false);
 	bool logLibEvents = getBool(value, "logLibEvents", false);
 
-	Mqtt::Config::Bindings bindings;
+	mqtt::Config::Bindings bindings;
 	if (hasMember(value, "bindings"))
 		for (auto& bindingValue : getArray(value, "bindings").GetArray())
 		{
-			Mqtt::Config::Topics stateTopics = getStrings(bindingValue, "stateTopic", {}, addPrefix);
+			mqtt::Config::Topics stateTopics = getStrings(bindingValue, "stateTopic", {}, addPrefix);
 			string writeTopic = getString(bindingValue, "writeTopic", "", addPrefix);
 			string readTopic = getString(bindingValue, "readTopic", "", addPrefix);
 
 			std::regex msgPattern = getRegEx(bindingValue, "msgPattern", "^(.*)$");
 
 			for (string itemId : getStrings(bindingValue, "itemId"))
-				bindings.add(Mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, msgPattern));
+				bindings.add(mqtt::Config::Binding(itemId, stateTopics, writeTopic, readTopic, msgPattern));
 		}
 
-	return Mqtt::Config(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
+	return mqtt::Config(clientId, hostname, port, tlsFlag, caFile, caPath, ciphers,
 			reconnectInterval, idleTimeout, username, password, retainFlag, inStateTopicPattern,
 			inWriteTopicPattern, inReadTopicPattern, outStateTopicPattern, outWriteTopicPattern,
 			outReadTopicPattern, subTopics, logMsgs, logLibEvents, bindings);
@@ -534,6 +544,28 @@ GeneratorConfig Config::getGeneratorConfig(const rapidjson::Value& value) const
 	return GeneratorConfig(bindings);
 }
 
+calculator::Config Config::getCalculatorConfig(const rapidjson::Value& value) const
+{
+	calculator::Bindings bindings;
+	for (auto& bindingValue : getArray(value, "bindings").GetArray())
+	{
+		string sourceItemId = getString(bindingValue, "sourceItemId");
+		string periodItemId = getString(bindingValue, "periodItemId");
+		calculator::Function function;
+		string str = getString(bindingValue, "function");
+		if (str == "maximum")
+			function = calculator::Function::MAXIMUM;
+		else if (str == "minimum")
+			function = calculator::Function::MINIMUM;
+		else
+			throw std::runtime_error("Invalid value " + str + " for field function in configuration");
+
+		bindings.add(calculator::Binding(getString(bindingValue, "itemId"), function, sourceItemId, periodItemId));
+	}
+
+	return calculator::Config(bindings);
+}
+
 Tr064Config Config::getTr064Config(const rapidjson::Value& value) const
 {
 	Tr064Config::Bindings bindings;
@@ -597,11 +629,11 @@ TcpConfig Config::getTcpConfig(const rapidjson::Value& value) const
 	return TcpConfig(hostname, port, reconnectInterval, msgPattern, logRawData, logRawDataInHex, bindings);
 }
 
-StorageConfig Config::getStorageConfig(const rapidjson::Value& value) const
+storage::Config Config::getStorageConfig(const rapidjson::Value& value) const
 {
 	string fileName = getString(value, "fileName");
 
-	StorageConfig::Bindings bindings;
+	storage::Bindings bindings;
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
 	{
 		Value initialValue;
@@ -614,8 +646,10 @@ StorageConfig Config::getStorageConfig(const rapidjson::Value& value) const
 		else
 			initialValue = Value::newUndefined();
 
-		bindings.add(StorageConfig::Binding(getString(bindingValue, "itemId"), initialValue));
+		bool persistent = getBool(bindingValue, "persistent", true);
+
+		bindings.add(storage::Binding(getString(bindingValue, "itemId"), initialValue, persistent));
 	}
 
-	return StorageConfig(fileName, bindings);
+	return storage::Config(fileName, bindings);
 }

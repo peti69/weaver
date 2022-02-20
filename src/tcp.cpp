@@ -18,7 +18,7 @@ TcpHandler::~TcpHandler()
 	close(); 
 }
 
-void TcpHandler::validate(Items& items) const
+void TcpHandler::validate(Items& items)
 {
 	auto& bindings = config.getBindings();
 

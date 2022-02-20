@@ -8,16 +8,23 @@
 #include "link.h"
 
 class KnxConfig;
-namespace Mqtt
+namespace mqtt
 {
 class Config;
 }
 class PortConfig;
 class GeneratorConfig;
-class StorageConfig;
+namespace storage
+{
+class Config;
+}
 class Tr064Config;
 class HttpConfig;
 class TcpConfig;
+namespace calculator
+{
+class Config;
+}
 
 class GlobalConfig
 {
@@ -49,12 +56,13 @@ private:
 	rapidjson::Document document;
 
 private:
-	Mqtt::Config getMqttConfig(const rapidjson::Value& value) const;
+	mqtt::Config getMqttConfig(const rapidjson::Value& value) const;
 	KnxConfig getKnxConfig(const rapidjson::Value& value) const;
 	PortConfig getPortConfig(const rapidjson::Value& value) const;
 	GeneratorConfig getGeneratorConfig(const rapidjson::Value& value) const;
+	calculator::Config getCalculatorConfig(const rapidjson::Value& value) const;
 	Tr064Config getTr064Config(const rapidjson::Value& value) const;
-	StorageConfig getStorageConfig(const rapidjson::Value& value) const;
+	storage::Config getStorageConfig(const rapidjson::Value& value) const;
 	HttpConfig getHttpConfig(const rapidjson::Value& value) const;
 	TcpConfig getTcpConfig(const rapidjson::Value& value) const;
 

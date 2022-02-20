@@ -50,7 +50,7 @@ PortHandler::~PortHandler()
 	close(); 
 }
 
-void PortHandler::validate(Items& items) const
+void PortHandler::validate(Items& items)
 {
 	auto& bindings = config.getBindings();
 

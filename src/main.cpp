@@ -76,16 +76,14 @@ int main(int argc, char* argv[])
 		links = configFile.getLinks(items, log);
 
 		// let links verify and adapt item properties
-		for (auto& linkPair : links)
-			linkPair.second.validate(items);
+		for (auto& [linkId, link] : links)
+			link.validate(items);
 
-		// verify consistency of item properties
-		for (auto& itemPair : items)
+		// let items verify and adapt item properties
+		for (auto& [itemId, item] : items)
 		{
-			Item& item = itemPair.second;
-
 			if (item.getOwnerId() != controlLinkId && !links.exists(item.getOwnerId()))
-				throw std::runtime_error("Item " + item.getId() + " is associated with unknown link " + itemPair.second.getOwnerId());
+				throw std::runtime_error("Item " + itemId + " is associated with unknown link " + item.getOwnerId());
 
 //			if (!item.isWritable() && item.isResponsive())
 //				throw std::runtime_error("Item " + item.getId() + " is not writable but responsive");
@@ -100,7 +98,7 @@ int main(int argc, char* argv[])
 	}
 
 	// prepare polling
-	std::time_t start = std::time(0);
+	TimePoint start = Clock::now();
 	for (auto& itemPair : items)
 		if (itemPair.second.isPollingEnabled())
 			itemPair.second.initPolling(start);
@@ -215,8 +213,8 @@ int main(int argc, char* argv[])
 				}
 
 		// only collect received events during the start phase but do not process them
-		std::time_t now = std::time(0);
-		if (now <= start + 3)
+		TimePoint now = Clock::now();
+		if (now <= start + 3s)
 			continue;
 
 		// analyze received events
@@ -228,26 +226,26 @@ int main(int argc, char* argv[])
 			Event& event = *eventPos;
 
 			// provide item
-			auto itemPos = items.find(event.getItemId());
-			assert(itemPos != items.end());
-			Item& item = itemPos->second;
+			Item& item = items.get(event.getItemId());
 
-			// provide link
-//			auto linkPos = links.find(item.getOwnerId());
-//			assert(linkPos != links.end());
-//			Link& link = linkPos->second;
-
-			// remove STATE_IND
-			if (  event.getType() == EventType::STATE_IND
-			   && !item.isSendOnChangeRequired(event.getValue()) // if item value did not change (that much)
-			   )
+			// special handling for STATE_IND
+			if (event.getType() == EventType::STATE_IND)
+			{
+				// if item value did not change (that much) suppress STATE_IND
+				if (!item.isSendOnChangeRequired(event.getValue()))
 				{
 					suppressedEvents.add(event);
 					eventPos = events.erase(eventPos);
 					continue;
 				}
 
-			// remove READ_REQ and generate STATE_IND
+				// maintain item value history
+				item.setLastValue(event.getValue());
+				item.addToHistory(now, event.getValue());
+				item.setLastSendTime(now);
+			}
+
+			// special handling for READ_REQ
 			if (  event.getType() == EventType::READ_REQ
 			   && (  !item.isReadable() // if item can not be read
 			      || item.isPollingEnabled()
@@ -255,57 +253,45 @@ int main(int argc, char* argv[])
 			      )
 			   )
 			{
-				suppressedEvents.add(event);
-				const Value& value = item.getLastSendValue();
+				const Value& value = item.getLastValue();
 				if (!value.isUninitialized())
+				{
 					generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, value));
+					item.setLastSendTime(now);
+				}
 				else
 					logger.warn() << "STATE_IND for READ_REQ on item " << event.getItemId()
 					              << " can not be generated since its value is unknown" << endOfMsg();
+				suppressedEvents.add(event);
 				eventPos = events.erase(eventPos);
 				continue;
 			}
 
-			// add READ_REQ
+			// special handling for WRITE_REQ
 			if (  event.getType() == EventType::WRITE_REQ
 			   && item.isReadable() // if item can be read
 			   && !item.isResponsive() // if item does not react actively
 			   )
 				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::READ_REQ, Value()));
 
-			// store STATE_IND
-			if (event.getType() == EventType::STATE_IND)
-			{
-				item.setLastSendValue(event.getValue());
-				item.setLastSendTime(now);
-			}
-
 			eventPos++;
 		}
 
 		// analyze items
-		for (auto& itemPair : items)
+		for (auto& [itemId, item] : items)
 		{
-			// provide item
-			Item& item = itemPair.second;
-
 			// provide link
-			if (item.getOwnerId() != controlLinkId)
-			{
-				auto linkPos = links.find(item.getOwnerId());
-				assert(linkPos != links.end());
-				if (!linkPos->second.isEnabled())
-					continue;
-			}
+			if (item.getOwnerId() != controlLinkId && !links.get(item.getOwnerId()).isEnabled())
+				continue;
 
 			// generate STATE_IND depending on send timer
 			if (item.isSendOnTimerRequired(now))
 			{
-				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, item.getLastSendValue()));
+				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, item.getLastValue()));
 				item.setLastSendTime(now);
 			}
 
-			// generate READ_REQ depending on polling timer
+			// generate READ_REQ depending on poll timer
 			if (item.isPollingEnabled() && item.isPollingRequired(now))
 			{
 				generatedEvents.add(Event(controlLinkId, item.getId(), EventType::READ_REQ, Value()));
@@ -316,11 +302,11 @@ int main(int argc, char* argv[])
 		// log events
 		if (config.getLogEvents())
 		{
+			for (auto& event : events)
+				logEvent(logger, event);
 			if (config.getLogSuppressedEvents())
 				for (auto& event : suppressedEvents)
 					logEvent(logger, event, " (suppressed)");
-			for (auto& event : events)
-				logEvent(logger, event);
 			if (config.getLogGeneratedEvents())
 				for (auto& event : generatedEvents)
 					logEvent(logger, event, " (generated)");

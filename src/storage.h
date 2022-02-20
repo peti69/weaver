@@ -1,31 +1,35 @@
 #ifndef STORAGE_H
 #define STORAGE_H
 
-#include <ctime>
-
 #include "link.h"
 #include "logger.h"
 
-class StorageConfig
+namespace storage
+{
+
+struct Binding
+{
+	// Item to which the binding applies.
+	ItemId itemId;
+
+	// Before the first WRITE_REQ arrives the item has the value given here.
+	Value initialValue;
+
+	// Indicates whether item value is persisted or not.
+	bool persistent;
+
+	Binding(ItemId itemId, Value initialValue, bool persistent) :
+		itemId(itemId), initialValue(initialValue), persistent(persistent) {};
+};
+
+class Bindings: public std::map<ItemId, Binding>
 {
 public:
-	struct Binding
-	{
-		// Item to which the binding applies.
-		string itemId;
+	void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
+};
 
-		// Before the first WRITE_REQ arrives the item has the value given here.
-		Value initialValue;
-
-		Binding(string _itemId, Value _initialValue) :
-			itemId(_itemId), initialValue(_initialValue) {};
-	};
-	class Bindings: public std::map<string, Binding>
-	{
-	public:
-		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
-	};
-
+class Config
+{
 private:
 	// Name of file in which the item values are stored.
 	string fileName;
@@ -34,30 +38,31 @@ private:
 	Bindings bindings;
 
 public:
-	StorageConfig(string _fileName, Bindings _bindings) : fileName(_fileName), bindings(_bindings) {}
+	Config(string fileName, Bindings bindings) : fileName(fileName), bindings(bindings) {}
 	string getFileName() const { return fileName; }
 	const Bindings& getBindings() const { return bindings; }
 };
 
-class Storage: public HandlerIf
+class Handler: public HandlerIf
 {
 private:
-	string id;
-	StorageConfig config;
+	LinkId id;
+	Config config;
 	Logger logger;
+	Bindings bindings;
 
 	// Has the value file been read?
-	bool fileRead;
+	bool fileRead = false;
 
 	// Time when the last attempt was done to read the value file.
-	std::time_t lastFileReadTry;
+	TimePoint lastFileReadTry = TimePoint::min();
 
 	// Time span between successive attempts to read the item values from the file.
-	const int rereadInterval = 60;
+	const Seconds rereadInterval = 60s;
 
 public:
-	Storage(string _id, StorageConfig _config, Logger _logger);
-	virtual void validate(Items& items) const override;
+	Handler(LinkId id, Config config, Logger logger);
+	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override { return -1; }
 	virtual Events receive(const Items& items) override;
@@ -66,5 +71,7 @@ public:
 private:
 	Events receiveX(const Items& items);
 };
+
+}
 
 #endif

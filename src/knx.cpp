@@ -9,8 +9,6 @@
 #include "knx.h"
 #include "finally.h"
 
-using std::chrono::system_clock;
-
 string IpAddr::toStr() const
 {
 	in_addr addr;
@@ -332,7 +330,7 @@ KnxHandler::~KnxHandler()
 	disconnect();
 }
 
-void KnxHandler::validate(Items& items) const
+void KnxHandler::validate(Items& items)
 {
 	auto& bindings = config.getBindings();
 
@@ -360,7 +358,7 @@ void KnxHandler::close()
 		logger.info() << "Disconnected from KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
 	else
-		lastConnectTry = system_clock::now();
+		lastConnectTry = Clock::now();
 
 	::close(socket);
 	state = DISCONNECTED;
@@ -404,7 +402,7 @@ Events KnxHandler::receive(const Items& items)
 
 Events KnxHandler::receiveX(const Items& items)
 {
-	TimePoint now = system_clock::now();
+	TimePoint now = Clock::now();
 
 	Events events;
 
@@ -658,7 +656,7 @@ void KnxHandler::sendTunnelReq(const LDataReq& ldataReq, Byte seqNo)
 	ByteString msg = createTunnelReq(seqNo, ldataReq.ga, ldataReq.data);
 	sendDataMsg(msg);
 	logTunnelReq(msg, false);
-	lastTunnelReqSendTime = system_clock::now();
+	lastTunnelReqSendTime = Clock::now();
 }
 
 void KnxHandler::sendLDataReq(const LDataReq& ldataReq)
@@ -723,7 +721,7 @@ void KnxHandler::processReceivedTunnelAck(ByteString msg)
 {
 	if (lastTunnelReqSendTime != TimePoint::min() && lastSentSeqNo == msg[8])
 	{
-		sentLDataReqs.emplace_back(lastSentLDataReq, system_clock::now());
+		sentLDataReqs.emplace_back(lastSentLDataReq, Clock::now());
 		lastTunnelReqSendTime = TimePoint::min();
 		return;
 	}
@@ -737,7 +735,7 @@ void KnxHandler::processPendingTunnelAck()
 	if (lastTunnelReqSendTime == TimePoint::min())
 		return;
 
-	if (lastTunnelReqSendTime + config.getTunnelAckTimeout() > system_clock::now())
+	if (lastTunnelReqSendTime + config.getTunnelAckTimeout() > Clock::now())
 		return;
 
 	if (lastTunnelReqSendAttempts > 0)
@@ -756,7 +754,7 @@ void KnxHandler::processPendingTunnelAck()
 
 void KnxHandler::processPendingLDataCons()
 {
-	TimePoint now = system_clock::now();
+	TimePoint now = Clock::now();
 
 	for (auto pos = sentLDataReqs.begin(); pos != sentLDataReqs.end();)
 		if (pos->time + config.getLDataConTimeout() <= now)

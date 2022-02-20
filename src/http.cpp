@@ -34,7 +34,7 @@ HttpHandler::~HttpHandler()
 	curl_global_cleanup();
 }
 
-void HttpHandler::validate(Items& items) const
+void HttpHandler::validate(Items& items)
 {
 	auto& bindings = config.getBindings();
 
