@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
+#include <map>
 #include <list>
 #include <deque>
 #include <iostream> 
@@ -49,6 +50,80 @@ extern string cnvToBinStr(string s);
 extern string cnvToAsciiStr(ByteString s);
 extern ByteString cnvFromAsciiStr(string s);
 
+using Number = double;
+
+class UnitType
+{
+private:
+	using Code = unsigned char;
+	Code code;
+	static const std::map<UnitType, string> details;
+
+public:
+	UnitType() : code(UNKNOWN) {}
+	UnitType(Code code) : code(code) {}
+
+	operator Code() const { return code; }
+	string toStr() const;
+
+	static constexpr Code UNKNOWN = 0;
+	static constexpr Code PERIOD = 1;
+	static constexpr Code SPEED = 2;
+	static constexpr Code TEMPERATURE = 3;
+	static constexpr Code VOLUME = 4;
+	static constexpr Code ILLUMINANCE = 5;
+};
+
+class Unit
+{
+private:
+	using Code = unsigned char;
+	Code code;
+	struct Detail
+	{
+		UnitType type;
+		string str;
+		bool blank;
+	};
+	static const std::map<Unit, Detail> details;
+
+public:
+	Unit() : code(UNKNOWN) {}
+	Unit(Code code) : code(code) {}
+
+	operator Code() const { return code; }
+	string toStr() const;
+	string toStr(string valueStr) const;
+	static bool fromStr(string unitStr, Unit& unit);
+
+	UnitType getType() const;
+
+	bool canConvertTo(Unit targetUnit) const;
+	Number convertTo(Number value, Unit targetUnit) const;
+
+	static constexpr Code UNKNOWN = 0;
+	static constexpr Code PERCENT = 1;
+	static constexpr Code MINUTE = 2;
+	static constexpr Code SECOND = 3;
+	static constexpr Code METER_PER_SECOND = 4;
+	static constexpr Code CELCIUS = 5;
+	static constexpr Code LUX = 6;
+	static constexpr Code KILOLUX = 7;
+	static constexpr Code GRAM_PER_CUBIC_METER = 8;
+	static constexpr Code WATT = 9;
+	static constexpr Code KILOWATT_HOUR = 10;
+	static constexpr Code CUBICMETER = 11;
+	static constexpr Code DEGREE = 12;
+	static constexpr Code LITER_PER_MINUTE = 13;
+	static constexpr Code MILLIAMPERE = 14;
+	static constexpr Code MILLIMETER = 15;
+	static constexpr Code EURO = 16;
+	static constexpr Code FAHRENHEIT = 17;
+	static constexpr Code HOUR = 18;
+	static constexpr Code KILOMETER_PER_HOUR = 19;
+	static constexpr Code MILES_PER_HOUR = 20;
+};
+
 class ValueType
 {
 private:
@@ -92,19 +167,18 @@ public:
 
 class Value
 {
-public:
-	using Number = double;
-
 private:
 	ValueType type;
-	Number number;
-	bool boolean;
 	string str;
+	bool boolean;
+	Number number;
+	Unit unit;
 
-	Value(ValueType type) : type(type), number(0.0), boolean(false) {}
-	Value(ValueType type, bool boolean) : type(type), number(0.0), boolean(boolean) {}
-	Value(ValueType type, Number number) : type(type), number(number), boolean(false) {}
-	Value(ValueType type, string str) : type(type), number(0.0), boolean(false), str(str) {}
+	Value(ValueType type) : type(type), boolean(false), number(0.0) {}
+	Value(ValueType type, bool boolean) : type(type), boolean(boolean), number(0.0) {}
+	Value(ValueType type, Number number) : type(type), boolean(false), number(number) {}
+	Value(ValueType type, Number number, Unit unit) : type(type), boolean(false), number(number), unit(unit) {}
+	Value(ValueType type, string str) : type(type), str(str), boolean(false), number(0.0) {}
 
 public:
 	Value() : Value(ValueType::UNINITIALIZED) {}
@@ -114,6 +188,7 @@ public:
 	static Value newString(string str) { return Value(ValueType::STRING, str); }
 	static Value newBoolean(bool boolean) { return Value(ValueType::BOOLEAN, boolean); }
 	static Value newNumber(Number number) { return Value(ValueType::NUMBER, number); }
+	static Value newNumber(Number number, Unit unit) { return Value(ValueType::NUMBER, number, unit); }
 
 	ValueType getType() const { return type; }
 
@@ -124,9 +199,11 @@ public:
 	bool isBoolean() const { return type == ValueType::BOOLEAN; }
 	bool isNumber() const { return type == ValueType::NUMBER; }
 
-	Number getNumber() const { assert(isNumber()); return number; }
-	bool getBoolean() const { assert(isBoolean()); return boolean; }
 	const string& getString() const { assert(isString()); return str; }
+	bool getBoolean() const { assert(isBoolean()); return boolean; }
+	Number getNumber() const { assert(isNumber()); return number; }
+	Number getNumber(Unit targetUnit) const { assert(isNumber()); return unit.convertTo(number, targetUnit); }
+	Unit getUnit() const { assert(isNumber()); return unit; }
 
 	string toStr() const;
 
@@ -164,28 +241,31 @@ public:
 
 		// In case active = true:
 		// (current value) * (100 - (variation percentage)) <= new value <= (current value) * (100 + (variation percentage)) => ignore event
-		Value::Number relVariation = 0.0;
+		Number relVariation = 0.0;
 
 		// In case active = true:
 		// New item values are suppressed in case they are inside the interval defined by this delta value.
 		// (current value) - (variation value) <= new value <= (current value) + (variation value) => ignore event
-		Value::Number absVariation = 0.0;
+		Number absVariation = 0.0;
 
 		// In case active = true:
 		// New item values are suppressed if they are greater than or equal to this one.
-		Value::Number minimum = std::numeric_limits<Value::Number>::lowest();
+		Number minimum = std::numeric_limits<Number>::lowest();
 
 		// In case active = true:
 		// New item values are suppressed if they are lower than or equal to this one.
-		Value::Number maximum = std::numeric_limits<Value::Number>::max();
+		Number maximum = std::numeric_limits<Number>::max();
 	};
 
 private:
 	// Id of item for unique identification purpose.
 	ItemId id;
 
-	// Types of values which can be assigned to the item or which are generated by the item.
-	ValueTypes types;
+	// Types of values which can be assigned to the item.
+	ValueTypes valueTypes;
+
+	// Unit of item values in case the item holds numbers.
+	Unit unit;
 
 	// Id of link who manages the item. That is, the link over which READ_REQ and WRITE_REQ for the item
 	// are sent and on which STATE_IND for the item are received.
@@ -215,8 +295,8 @@ private:
 	struct HistoricValue
 	{
 		TimePoint timePoint;
-		Value::Number number;
-		HistoricValue(TimePoint timePoint, Value::Number number) : timePoint(timePoint), number(number) {};
+		Number number;
+		HistoricValue(TimePoint timePoint, Number number) : timePoint(timePoint), number(number) {};
 	};
 
 	// History of seen and accepted values ordered chronologically from newest to oldest.
@@ -239,9 +319,12 @@ public:
 	void setOwnerId(LinkId _ownerId) { ownerId = _ownerId; }
 	LinkId getOwnerId() const { return ownerId; }
 
-	void setTypes(ValueTypes _types) { types = _types; }
-	const ValueTypes& getTypes() const { return types; }
-	bool hasType(ValueType type) const { return types.count(type); }
+	void setValueTypes(ValueTypes _valueTypes) { valueTypes = _valueTypes; }
+	const ValueTypes& getValueTypes() const { return valueTypes; }
+	bool hasValueType(ValueType valueType) const { return valueTypes.count(valueType); }
+
+	void setUnit(Unit _unit) { unit = _unit; }
+	Unit getUnit() const { return unit; }
 
 	void setReadable(bool _readable) { readable = _readable; }
 	bool isReadable() const { return readable; }
@@ -281,8 +364,9 @@ public:
 	void validateResponsive(bool _responsive) const;
 	void validatePollingEnabled(bool _enabled) const;
 	void validateHistory() const;
-	void validateType(ValueType _type) const;
-	void validateTypeNot(ValueType _type) const;
+	void validateValueType(ValueType _valueType) const;
+	void validateValueTypeNot(ValueType _valueType) const;
+	void validateUnitType(UnitType _unitType) const;
 	void validateOwnerId(LinkId _ownerId) const;
 };
 

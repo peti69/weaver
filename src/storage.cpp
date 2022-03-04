@@ -41,7 +41,7 @@ void Handler::validate(Items& items)
 	{
 		auto& item = items.validate(itemId);
 		item.validateOwnerId(id);
-		item.validateType(binding.initialValue.getType());
+		item.validateValueType(binding.initialValue.getType());
 	}
 }
 

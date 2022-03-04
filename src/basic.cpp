@@ -54,6 +54,164 @@ ByteString cnvFromAsciiStr(string s)
 	return ByteString(reinterpret_cast<const unsigned char*>(s.data()), s.length());
 }
 
+const std::map<UnitType, string> UnitType::details{
+	{UnitType::UNKNOWN, "unknown"},
+	{UnitType::PERIOD,  "period"},
+	{UnitType::SPEED,  "speed"},
+	{UnitType::TEMPERATURE,  "temperature"},
+	{UnitType::VOLUME,  "volume"},
+	{UnitType::ILLUMINANCE,  "illuminance"}};
+
+string UnitType::toStr() const
+{
+	if (auto pos = details.find(code); pos != details.end())
+		return pos->second;
+	else
+		return "?";
+}
+
+const std::map<Unit, Unit::Detail> Unit::details{
+	{Unit::UNKNOWN, {UnitType::UNKNOWN, "unknown", true}},
+	{Unit::PERCENT, {UnitType::UNKNOWN, "%", true}},
+	{Unit::MINUTE, {UnitType::PERIOD, "min", true}},
+	{Unit::SECOND, {UnitType::PERIOD, "s", true}},
+	{Unit::METER_PER_SECOND, {UnitType::SPEED, "m/s", true}},
+	{Unit::CELCIUS, {UnitType::TEMPERATURE, "°C", true}},
+	{Unit::LUX, {UnitType::ILLUMINANCE, "lx", true}},
+	{Unit::KILOLUX, {UnitType::ILLUMINANCE, "klx", true}},
+	{Unit::GRAM_PER_CUBIC_METER, {UnitType::UNKNOWN, "g/m³", true}},
+	{Unit::WATT, {UnitType::UNKNOWN, "W", true}},
+	{Unit::KILOWATT_HOUR, {UnitType::UNKNOWN, "kWh", true}},
+	{Unit::CUBICMETER, {UnitType::VOLUME, "m³", true}},
+	{Unit::DEGREE, {UnitType::UNKNOWN, "°", false}},
+	{Unit::LITER_PER_MINUTE, {UnitType::UNKNOWN, "l/min", true}},
+	{Unit::MILLIAMPERE, {UnitType::UNKNOWN, "mA", true}},
+	{Unit::MILLIMETER, {UnitType::UNKNOWN, "mm", true}},
+	{Unit::EURO, {UnitType::UNKNOWN, "€", true}},
+	{Unit::HOUR, {UnitType::PERIOD, "h", true}},
+	{Unit::KILOMETER_PER_HOUR, {UnitType::SPEED, "km/h", true}},
+	{Unit::MILES_PER_HOUR, {UnitType::SPEED, "mi/h", true}},
+	{Unit::FAHRENHEIT, {UnitType::TEMPERATURE, "°F", true}}};
+
+string Unit::toStr() const
+{
+	if (auto pos = details.find(code); pos != details.end())
+		return pos->second.str;
+	else
+		return "?";
+}
+
+string Unit::toStr(string valueStr) const
+{
+	if (code == UNKNOWN)
+		return valueStr;
+	else if (auto pos = details.find(code); pos != details.end())
+		return valueStr + (pos->second.blank ? " " : "") + pos->second.str;
+	else
+		return "?";
+}
+
+bool Unit::fromStr(string unitStr, Unit& unit)
+{
+	for (const auto& detailPair : details)
+		if (unitStr == detailPair.second.str)
+		{
+			unit = detailPair.first;
+			return true;
+		}
+	return false;
+}
+
+UnitType Unit::getType() const
+{
+	if (auto pos = details.find(code); pos != details.end())
+		return pos->second.type;
+	else
+		return UnitType::UNKNOWN;
+}
+
+bool Unit::canConvertTo(Unit targetUnit) const
+{
+	return targetUnit == *this || getType() == targetUnit.getType();
+}
+
+Number Unit::convertTo(Number value, Unit targetUnit) const
+{
+	assert(canConvertTo(targetUnit));
+	if (targetUnit == code)
+		return value;
+	switch (code)
+	{
+		case SECOND:
+			switch (targetUnit)
+			{
+				case MINUTE: return value / 60;
+				case HOUR: return value / 3600;
+			}
+			break;
+		case MINUTE:
+			switch (targetUnit)
+			{
+				case SECOND: return value * 60;
+				case HOUR: return value / 60;
+			}
+			break;
+		case HOUR:
+			switch (targetUnit)
+			{
+				case SECOND: return value * 3600;
+				case MINUTE: return value * 60;
+			}
+			break;
+		case CELCIUS:
+			switch (targetUnit)
+			{
+				case FAHRENHEIT: return value * 9/5 + 32;
+			}
+			break;
+		case FAHRENHEIT:
+			switch (targetUnit)
+			{
+				case CELCIUS: return (value - 32) * 5/9;
+			}
+			break;
+		case METER_PER_SECOND:
+			switch (targetUnit)
+			{
+				case KILOMETER_PER_HOUR: return value * 3.6;
+				case MILES_PER_HOUR: return value * 2.236942;
+			}
+			break;
+		case KILOMETER_PER_HOUR:
+			switch (targetUnit)
+			{
+				case METER_PER_SECOND: return value / 3.6;
+				case MILES_PER_HOUR: return value * 0.62137;
+			}
+			break;
+		case MILES_PER_HOUR:
+			switch (targetUnit)
+			{
+				case METER_PER_SECOND: return value * 1/2.236942;
+				case KILOMETER_PER_HOUR: return value / 0.62137;
+			}
+			break;
+		case LUX:
+			switch (targetUnit)
+			{
+				case KILOLUX: return value / 1000;
+			}
+			break;
+		case KILOLUX:
+			switch (targetUnit)
+			{
+				case LUX: return value * 1000;
+			}
+			break;
+	}
+	return 0;
+}
+
 string ValueType::toStr() const
 {
 	switch (code)
@@ -113,7 +271,7 @@ string Value::toStr() const
 		case ValueType::NUMBER:
 		{
 			std::ostringstream stream;
-			stream << std::setprecision(std::numeric_limits<double>::digits10 + 1) << number;
+			stream << std::setprecision(std::numeric_limits<Number>::digits10 + 1) << number;
 			return stream.str();
 		}
 		case ValueType::VOID:
@@ -186,8 +344,8 @@ bool Item::isSendOnChangeRequired(const Value& value) const
 
 	if (value.isNumber() && lastValue.isNumber())
 	{
-		double oldNum = lastValue.getNumber();
-		double num = value.getNumber();
+		Number oldNum = lastValue.getNumber();
+		Number num = value.getNumber();
 		if (  num >= sendOnChangeParams.minimum
 		   && num <= sendOnChangeParams.maximum
 		   && num >= oldNum * (1.0 - sendOnChangeParams.relVariation / 100.0) - sendOnChangeParams.absVariation
@@ -255,16 +413,25 @@ void Item::validateHistory() const
 		throw std::runtime_error("Item " + id + " must be historized");
 }
 
-void Item::validateType(ValueType _type) const
+void Item::validateValueType(ValueType _valueType) const
 {
-	if (!hasType(_type))
-		throw std::runtime_error("Item " + id + " must be of type " + _type.toStr());
+	if (!hasValueType(_valueType))
+		throw std::runtime_error("Item " + id + " must have value type " + _valueType.toStr());
 }
 
-void Item::validateTypeNot(ValueType _type) const
+void Item::validateValueTypeNot(ValueType _valueType) const
 {
-	if (hasType(_type))
-		throw std::runtime_error("Item " + id + " must not be of type " + _type.toStr());
+	if (hasValueType(_valueType))
+		throw std::runtime_error("Item " + id + " must not have value type " + _valueType.toStr());
+}
+
+void Item::validateUnitType(UnitType _unitType) const
+{
+	if (  unit.getType() != _unitType
+	   || unit.getType() == UnitType::UNKNOWN
+	   || _unitType == UnitType::UNKNOWN
+	   )
+		throw std::runtime_error("Item " + id + " must have unit type " + _unitType.toStr());
 }
 
 void Item::validateOwnerId(LinkId _ownerId) const

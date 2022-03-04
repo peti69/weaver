@@ -18,21 +18,22 @@ void Handler::validate(Items& items)
 
 	for (auto& [itemId, binding] : bindings)
 	{
-		auto& item = items.validate(itemId);
+		Item& item = items.validate(itemId);
 		item.validateOwnerId(id);
-		item.validateType(ValueType::NUMBER);
-		item.validateType(ValueType::UNDEFINED);
+		item.validateValueType(ValueType::NUMBER);
+		item.validateValueType(ValueType::UNDEFINED);
 		item.validatePollingEnabled(false);
 		item.setWritable(false);
 		item.setReadable(false);
 
 		Item& sourceItem = items.validate(binding.sourceItemId);
-		sourceItem.validateType(ValueType::NUMBER);
+		sourceItem.validateValueType(ValueType::NUMBER);
 		sourceItem.validateHistory();
 		dependants[binding.sourceItemId].insert(itemId);
 
 		Item& periodItem = items.validate(binding.periodItemId);
-		periodItem.validateType(ValueType::NUMBER);
+		periodItem.validateValueType(ValueType::NUMBER);
+		periodItem.validateUnitType(UnitType::PERIOD);
 		dependants[binding.periodItemId].insert(itemId);
 	}
 }
@@ -54,14 +55,15 @@ Events Handler::send(const Items& items, const Events& events)
 		const Value& period = items.get(binding.periodItemId).getLastValue();
 		if (period.isNumber())
 		{
+			Seconds seconds(static_cast<int>(period.getNumber(Unit::SECOND)));
 			const Item& sourceItem = items.get(binding.sourceItemId);
 			switch (binding.function)
 			{
 				case Function::MAXIMUM:
-					value = sourceItem.calcMaxFromHistory(now - Seconds(static_cast<int>(period.getNumber())));
+					value = sourceItem.calcMaxFromHistory(now - seconds);
 					break;
 				case Function::MINIMUM:
-					value = sourceItem.calcMinFromHistory(now - Seconds(static_cast<int>(period.getNumber())));
+					value = sourceItem.calcMinFromHistory(now - seconds);
 					break;
 			}
 		}

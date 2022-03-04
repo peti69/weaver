@@ -225,7 +225,12 @@ Items Config::getItems() const
 				return type;
 			throw std::runtime_error("Invalid value " + str + " for field type(s) in configuration");
 		};
-		item.setTypes(getArrayItems<ValueType>(itemValue, "type", modifier));
+		item.setValueTypes(getArrayItems<ValueType>(itemValue, "type", modifier));
+
+		Unit unit;
+		if (string str = getString(itemValue, "unit", "unknown"); !Unit::fromStr(str, unit))
+			throw std::runtime_error("Invalid value " + str + " for field unit in configuration");
+		item.setUnit(unit);
 
 		item.setOwnerId(getString(itemValue, "ownerId"));
 
@@ -313,6 +318,9 @@ Links Config::getLinks(const Items& items, Log& log) const
 			for (auto& modifierValue : getArray(linkValue, "modifiers").GetArray())
 			{
 				Modifier modifier;
+
+				if (string str = getString(modifierValue, "unit", "unknown"); !Unit::fromStr(str, modifier.unit))
+					throw std::runtime_error("Invalid value " + str + " for field unit in configuration");
 
 				modifier.factor = getFloat(modifierValue, "factor", 1.0);
 				modifier.summand = getFloat(modifierValue, "summand", 0.0);

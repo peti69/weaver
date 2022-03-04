@@ -13,7 +13,14 @@ void logEvent(const Logger& logger, const Event& event, string postfix = "")
 	LogMsg logMsg = logger.debug();
 	logMsg << event.getType().toStr() << " from " << event.getOriginId() << " for " << event.getItemId();
 	if (event.getType() != EventType::READ_REQ)
-		logMsg << ": " << event.getValue().toStr() << " [" << event.getValue().getType().toStr() << "]";
+	{
+		const Value& value = event.getValue();
+		if (value.isNumber())
+			logMsg << ": " << value.getUnit().toStr(value.toStr());
+		else
+			logMsg << ": " << value.toStr();
+		logMsg << " [" << value.getType().toStr() << "]";
+	}
 	logMsg << postfix << endOfMsg();
 }
 

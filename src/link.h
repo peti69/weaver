@@ -12,13 +12,17 @@ struct Modifier
 	// Modifier only applies to events for this item.
 	ItemId itemId;
 
+	// Unit of values received from the handler or values which will be sent to the
+	// handler.
+	Unit unit;
+
 	// Factor applied to values received from the handler. Acts as divisor for values
 	// which will be sent to the handler.
-	float factor;
+	Number factor;
 
 	// Summand applied to values received from the handler. Acts as subtrahend for values
 	// which will be sent to the handler.
-	float summand;
+	Number summand;
 
 	// JSON Pointer which is applied on inbound values to extract normalized values.
 	string inJsonPointer;
@@ -40,11 +44,11 @@ struct Modifier
 	void addInMapping(string from, string to) { inMappings[from] = to; }
 	void addOutMapping(string from, string to) { outMappings[from] = to; }
 
-	string mapFromInbound(string value) const;
-	string mapToOutbound(string value) const;
+	string mapInbound(string value) const;
+	string mapOutbound(string value) const;
 
-	Value convertToOutbound(const Value& value) const;
-	Value convertFromInbound(const Value& value) const;
+	Value convertOutbound(const Value& value) const;
+	Value convertInbound(const Value& value) const;
 };
 
 class Modifiers: public std::map<ItemId, Modifier>

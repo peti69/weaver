@@ -15,7 +15,7 @@ struct Stopwatch
 	int getRuntime() { return duration_cast<milliseconds>(steady_clock::now() - start).count(); }
 };
 
-string Modifier::mapToOutbound(string value) const
+string Modifier::mapOutbound(string value) const
 {
 	auto pos = outMappings.find(value);
 	if (pos != outMappings.end())
@@ -24,7 +24,7 @@ string Modifier::mapToOutbound(string value) const
 		return value;
 }
 
-string Modifier::mapFromInbound(string value) const
+string Modifier::mapInbound(string value) const
 {
 	auto pos = inMappings.find(value);
 	if (pos != inMappings.end())
@@ -33,7 +33,7 @@ string Modifier::mapFromInbound(string value) const
 		return value;
 }
 
-Value Modifier::convertToOutbound(const Value& value) const
+Value Modifier::convertOutbound(const Value& value) const
 {
 	if (value.isNumber())
 		return Value::newNumber((value.getNumber() / factor) - summand);
@@ -41,7 +41,7 @@ Value Modifier::convertToOutbound(const Value& value) const
 		return value;
 }
 
-Value Modifier::convertFromInbound(const Value& value) const
+Value Modifier::convertInbound(const Value& value) const
 {
 	if (value.isNumber())
 		return Value::newNumber((value.getNumber() + summand) * factor);
@@ -55,14 +55,18 @@ void Link::validate(Items& items) const
 	{
 		Item& item = items.validate(errorCounter);
 		item.validateOwnerId(controlLinkId);
-		item.validateType(ValueType::NUMBER);
+		item.validateValueType(ValueType::NUMBER);
 		item.validatePollingEnabled(false);
 		item.setReadable(false);
 		item.setWritable(false);
 	}
 
 	for (auto& [itemId, modifier] : modifiers)
-		items.validate(itemId);
+	{
+		Item& item = items.validate(itemId);
+		if (modifier.unit != Unit::UNKNOWN)
+			item.validateUnitType(modifier.unit.getType());
+	}
 
 	handler->validate(items);
 }
@@ -254,12 +258,12 @@ Events Link::receive(Items& items)
 
 			// convert event value (mapping)
 			if (value.isString() && modifier)
-				value = Value::newString(modifier->mapFromInbound(value.getString()));
+				value = Value::newString(modifier->mapInbound(value.getString()));
 
 			// convert event value (type)
-			if (value.isString() && !item.hasType(ValueType::STRING))
+			if (value.isString() && !item.hasValueType(ValueType::STRING))
 			{
-				if (value.isString() && numberAsString && item.hasType(ValueType::NUMBER))
+				if (value.isString() && numberAsString && item.hasValueType(ValueType::NUMBER))
 				{
 					try
 					{
@@ -269,7 +273,7 @@ Events Link::receive(Items& items)
 					{
 					}
 				}
-				if (value.isString() && booleanAsString && item.hasType(ValueType::BOOLEAN))
+				if (value.isString() && booleanAsString && item.hasValueType(ValueType::BOOLEAN))
 				{
 					if (item.isWritable())
 					{
@@ -286,12 +290,12 @@ Events Link::receive(Items& items)
 							value = Value::newBoolean(true);
 					}
 				}
-				if (value.isString() && voidAsString && item.hasType(ValueType::VOID))
+				if (value.isString() && voidAsString && item.hasValueType(ValueType::VOID))
 				{
 					if (value.getString() == voidValue || value.getString() == unwritableVoidValue)
 						value = Value::newVoid();
 				}
-				if (value.isString() && undefinedAsString && item.hasType(ValueType::UNDEFINED))
+				if (value.isString() && undefinedAsString && item.hasValueType(ValueType::UNDEFINED))
 				{
 					if (value.getString() == undefinedValue)
 						value = Value::newUndefined();
@@ -299,7 +303,7 @@ Events Link::receive(Items& items)
 				if (value.isString())
 				{
 					logger.error() << "Event STRING value '" << value.getString()
-					               << "' not convertible to type " << item.getTypes().toStr()
+					               << "' not convertible to type " << item.getValueTypes().toStr()
 					               << " of item " << item.getId() << endOfMsg();
 
 					eventPos = events.erase(eventPos);
@@ -308,19 +312,41 @@ Events Link::receive(Items& items)
 			}
 
 			// compare item types with event value type
-			if (!item.hasType(value.getType()))
+			if (!item.hasValueType(value.getType()))
 			{
 				logger.error() << "Event value type " << value.getType().toStr()
-				               << " not compatible with type " << item.getTypes().toStr()
+				               << " not compatible with type(s) " << item.getValueTypes().toStr()
 				               << " of item " << item.getId() << endOfMsg();
 
 				eventPos = events.erase(eventPos);
 				continue;
 			}
 
-			// convert event value (type preserving manipulations)
+			// convert event value (type preserving manipulations - general)
 			if (modifier)
-				value = modifier->convertFromInbound(value);
+				value = modifier->convertInbound(value);
+
+			// convert event value (type preserving manipulations - unit)
+			if (value.isNumber())
+			{
+				Unit targetUnit = item.getUnit();
+				Unit sourceUnit = value.getUnit();
+				if (sourceUnit == Unit::UNKNOWN && modifier)
+					sourceUnit = modifier->unit;
+				if (sourceUnit == Unit::UNKNOWN)
+					sourceUnit = targetUnit;
+				if (sourceUnit.canConvertTo(targetUnit))
+					value = Value::newNumber(sourceUnit.convertTo(value.getNumber(), targetUnit), targetUnit);
+				else
+				{
+					logger.error() << "Event value unit " << sourceUnit.toStr()
+					               << " can not be converted to unit " << targetUnit.toStr()
+					               << " of item " << item.getId() << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+			}
 
 			event.setValue(value);
 		}
@@ -380,9 +406,29 @@ void Link::send(Items& items, const Events& events)
 		{
 			Value value = event.getValue();
 
-			// convert event value (type preserving manipulations)
+			// convert event value (type preserving manipulations - unit)
+			if (value.isNumber())
+			{
+				Unit sourceUnit = value.getUnit();
+				Unit targetUnit = sourceUnit;
+				if (modifier && modifier->unit != Unit::UNKNOWN)
+					targetUnit = modifier->unit;
+				if (sourceUnit.canConvertTo(targetUnit))
+					value = Value::newNumber(sourceUnit.convertTo(value.getNumber(), targetUnit), targetUnit);
+				else
+				{
+					logger.error() << "Event value unit " << sourceUnit.toStr()
+					               << " can not be converted to unit " << targetUnit.toStr()
+					               << " of item " << item.getId() << endOfMsg();
+
+					eventPos = modifiedEvents.erase(eventPos);
+					continue;
+				}
+			}
+
+			// convert event value (type preserving manipulations - general)
 			if (modifier)
-				value = modifier->convertToOutbound(value);
+				value = modifier->convertOutbound(value);
 
 			// convert event value (type)
 			if (value.getType() == ValueType::NUMBER && numberAsString)
@@ -402,7 +448,7 @@ void Link::send(Items& items, const Events& events)
 
 			// convert event value (mapping)
 			if (value.isString() && modifier)
-				value = Value::newString(modifier->mapToOutbound(value.getString()));
+				value = Value::newString(modifier->mapOutbound(value.getString()));
 
 			// convert event value (formatting)
 			if (value.isString() && modifier)
