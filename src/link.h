@@ -100,7 +100,7 @@ private:
 	bool enabled;
 
 	// Discard READ_REQ events to be sent or received ones?
-	bool ignoreReadEvents;
+	bool suppressReadEvents;
 
 	// Id of item on which the number of errors on the link will be reported.
 	ItemId errorCounter;
@@ -150,6 +150,9 @@ private:
 	// In case undefinedAsString = true: String to be used.
 	string undefinedValue;
 
+	// Discard undefined values to be sent or received ones?
+	bool suppressUndefined;
+
 	// Alteration rules for events and their values which are transmitted over the link.
 	Modifiers modifiers;
 
@@ -166,21 +169,23 @@ private:
 	Events pendingEvents;
 
 public:
-	Link(LinkId id, bool enabled, bool ignoreReadEvents, ItemId errorCounter,
+	Link(LinkId id, bool enabled, bool suppressReadEvents, ItemId errorCounter,
 		int maxReceiveDuration, int maxSendDuration,
 		bool numberAsString, bool booleanAsString,
 		string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		bool undefinedAsString, string undefinedValue,
+		bool suppressUndefined,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
-		id(id), enabled(enabled), ignoreReadEvents(ignoreReadEvents), errorCounter(errorCounter),
+		id(id), enabled(enabled), suppressReadEvents(suppressReadEvents), errorCounter(errorCounter),
 		maxReceiveDuration(maxReceiveDuration), maxSendDuration(maxSendDuration),
 		numberAsString(numberAsString), booleanAsString(booleanAsString),
 		falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
 		undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
+		suppressUndefined(suppressUndefined),
 		modifiers(modifiers), handler(handler), logger(logger) {}
 	LinkId getId() const { return id; }
 	bool isEnabled() const { return enabled; }

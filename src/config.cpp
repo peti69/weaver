@@ -277,7 +277,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 		string id = getString(linkValue, "id");
 		bool enabled = getBool(linkValue, "enabled", true);
 
-		bool ignoreReadEvents = getBool(linkValue, "ignoreReadEvents", false);
+		bool suppressReadEvents = getBool(linkValue, "suppressReadEvents", false);
 		string errorCounter = getString(linkValue, "errorCounter", "");
 		int maxReceiveDuration = getInt(linkValue, "maxReceiveDuration", 20);
 		int maxSendDuration = getInt(linkValue, "maxSendDuration", 20);
@@ -312,6 +312,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 		string undefinedValue;
 		if (undefinedAsString)
 			undefinedValue = getString(getObject(linkValue, "undefinedAsString"), "value");
+		bool suppressUndefined = getBool(linkValue, "suppressUndefined", false);
 
 		Modifiers modifiers;
 		if (hasMember(linkValue, "modifiers"))
@@ -366,11 +367,11 @@ Links Config::getLinks(const Items& items, Log& log) const
 		else
 			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
-		links.add(Link(id, enabled, ignoreReadEvents, errorCounter,
+		links.add(Link(id, enabled, suppressReadEvents, errorCounter,
 			maxReceiveDuration, maxSendDuration, numberAsString, booleanAsString,
 			falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
 			voidAsString, voidValue, unwritableVoidValue,
-			undefinedAsString, undefinedValue,
+			undefinedAsString, undefinedValue, suppressUndefined,
 			modifiers, handler, logger));
 	}
 

@@ -176,7 +176,7 @@ Events Link::receive(Items& items)
 //		}
 
 		// remove READ_REQ depending on configuration
-		if (ignoreReadEvents && event.getType() == EventType::READ_REQ)
+		if (suppressReadEvents && event.getType() == EventType::READ_REQ)
 		{
 			eventPos = events.erase(eventPos);
 			continue;
@@ -185,6 +185,13 @@ Events Link::receive(Items& items)
 		if (event.getType() != EventType::READ_REQ)
 		{
 			Value value = event.getValue();
+
+			// remove undefined values depending on configuration
+			if (suppressUndefined && value.isUndefined())
+			{
+				eventPos = events.erase(eventPos);
+				continue;
+			}
 
 			// convert event value (JSON Pointer extraction)
 			if (value.isString() && modifier && modifier->inJsonPointer != "")
@@ -396,7 +403,7 @@ void Link::send(Items& items, const Events& events)
 		}
 
 		// remove READ_REQ depending on configuration
-		if (ignoreReadEvents && event.getType() == EventType::READ_REQ)
+		if (suppressReadEvents && event.getType() == EventType::READ_REQ)
 		{
 			eventPos = modifiedEvents.erase(eventPos);
 			continue;
@@ -405,6 +412,13 @@ void Link::send(Items& items, const Events& events)
 		if (event.getType() != EventType::READ_REQ)
 		{
 			Value value = event.getValue();
+
+			// remove undefined values depending on configuration
+			if (suppressUndefined && value.isUndefined())
+			{
+				eventPos = modifiedEvents.erase(eventPos);
+				continue;
+			}
 
 			// convert event value (type preserving manipulations - unit)
 			if (value.isNumber())
