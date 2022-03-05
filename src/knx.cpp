@@ -611,9 +611,9 @@ Events KnxHandler::sendX(const Items& items, const Events& events)
 				data = binding.dpt.exportValue(value);
 				if (!data.length())
 				{
-					logger.error() << "Event " << value.getType().toStr() << " value '" << event.getValue().getString()
-					               << "' can not be converted to DPT " << binding.dpt.toStr()
-					               << " data for item " << itemId << endOfMsg();
+					logger.error() << "Event value '" << value.toStr()
+					               << "' (type " << value.getType().toStr() << ") of item " << itemId
+					               << " can not be converted to DPT " << binding.dpt.toStr() << endOfMsg();
 					continue;
 				}
 				if (event.getType() == EventType::WRITE_REQ)
