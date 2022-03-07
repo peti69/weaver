@@ -54,6 +54,25 @@ ByteString cnvFromAsciiStr(string s)
 	return ByteString(reinterpret_cast<const unsigned char*>(s.data()), s.length());
 }
 
+string TimePoint::toStr(string timePointFormat) const
+{
+	std::time_t tp = std::chrono::system_clock::to_time_t(*this);
+	std::stringstream stream;
+	stream << std::put_time(std::localtime(&tp), timePointFormat.c_str());
+	return stream.str();
+}
+
+bool TimePoint::fromStr(string timePointStr, TimePoint& timePoint, string timePointFormat)
+{
+	std::stringstream stream(timePointStr);
+	std::tm tp;
+	stream >> std::get_time(&tp, timePointFormat.c_str());
+	if (stream.fail())
+		return false;
+	timePoint = TimePoint(std::chrono::system_clock::from_time_t(mktime(&tp)));
+	return true;
+}
+
 const std::map<UnitType, string> UnitType::details{
 	{UnitType::UNKNOWN, "unknown"},
 	{UnitType::PERIOD,  "period"},
@@ -228,6 +247,8 @@ string ValueType::toStr() const
 			return "string";
 		case BOOLEAN:
 			return "boolean";
+		case TIME_POINT:
+			return "timePoint";
 		default:
 			return "?";
 	}
@@ -247,6 +268,8 @@ bool ValueType::fromStr(string typeStr, ValueType& type)
 		type = STRING;
 	else if (typeStr == "boolean")
 		type = BOOLEAN;
+	else if (typeStr == "timePoint")
+		type = TIME_POINT;
 	else
 		return false;
 	return true;
@@ -270,7 +293,7 @@ string Value::toStr() const
 			return str;
 		case ValueType::NUMBER:
 		{
-			std::ostringstream stream;
+			std::stringstream stream;
 			stream << std::setprecision(std::numeric_limits<Number>::digits10 + 1) << number;
 			return stream.str();
 		}
@@ -280,6 +303,8 @@ string Value::toStr() const
 			return "uninitialized";
 		case ValueType::UNDEFINED:
 			return "undefined";
+		case ValueType::TIME_POINT:
+			return timePoint.toStr();
 		default:
 			return "?";
 	}

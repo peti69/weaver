@@ -17,11 +17,6 @@ using std::string;
 using std::cout;
 using std::endl;
 
-using Seconds = std::chrono::seconds;
-using TimePoint = std::chrono::system_clock::time_point;
-using Clock = std::chrono::system_clock;
-using namespace std::chrono_literals;
-
 typedef unsigned char Byte;
 typedef std::basic_string<Byte> ByteString;
 
@@ -49,6 +44,26 @@ extern string cnvToBinStr(string s);
 
 extern string cnvToAsciiStr(ByteString s);
 extern ByteString cnvFromAsciiStr(string s);
+
+using Seconds = std::chrono::seconds;
+using Clock = std::chrono::system_clock;
+using namespace std::chrono_literals;
+
+class TimePoint: public std::chrono::time_point<Clock>
+{
+private:
+	using TP = std::chrono::time_point<Clock>;
+
+public:
+	TimePoint() : TP(0s) {}
+	TimePoint(TP tp) : TP(tp) {}
+
+	bool isNull() const { return *this == TP(0s); }
+	void setToNull() { *this = TP(0s); }
+
+	string toStr(string timePointFormat = "%Y-%m-%dT%H:%M:%S") const;
+	static bool fromStr(string timePointStr, TimePoint& timePoint, string timePointFormat = "%Y-%m-%dT%H:%M:%S");
+};
 
 using Number = double;
 
@@ -144,6 +159,7 @@ public:
 	static const Code STRING = 3;
 	static const Code BOOLEAN = 4;
 	static const Code NUMBER = 5;
+	static const Code TIME_POINT = 6;
 };
 
 template<>
@@ -170,15 +186,17 @@ class Value
 private:
 	ValueType type;
 	string str;
-	bool boolean;
-	Number number;
-	Unit unit;
+	bool boolean = false;
+	Number number = 0.0;
+	Unit unit = Unit::UNKNOWN;
+	TimePoint timePoint;
 
-	Value(ValueType type) : type(type), boolean(false), number(0.0) {}
-	Value(ValueType type, bool boolean) : type(type), boolean(boolean), number(0.0) {}
-	Value(ValueType type, Number number) : type(type), boolean(false), number(number) {}
-	Value(ValueType type, Number number, Unit unit) : type(type), boolean(false), number(number), unit(unit) {}
-	Value(ValueType type, string str) : type(type), str(str), boolean(false), number(0.0) {}
+	Value(ValueType type) : type(type) {}
+	Value(ValueType type, bool boolean) : type(type), boolean(boolean) {}
+	Value(ValueType type, Number number) : type(type), number(number) {}
+	Value(ValueType type, Number number, Unit unit) : type(type), number(number), unit(unit) {}
+	Value(ValueType type, string str) : type(type), str(str) {}
+	Value(ValueType type, TimePoint timePoint) : type(type), timePoint(timePoint) {}
 
 public:
 	Value() : Value(ValueType::UNINITIALIZED) {}
@@ -189,6 +207,7 @@ public:
 	static Value newBoolean(bool boolean) { return Value(ValueType::BOOLEAN, boolean); }
 	static Value newNumber(Number number) { return Value(ValueType::NUMBER, number); }
 	static Value newNumber(Number number, Unit unit) { return Value(ValueType::NUMBER, number, unit); }
+	static Value newTimePoint(TimePoint timePoint) { return Value(ValueType::TIME_POINT, timePoint); }
 
 	ValueType getType() const { return type; }
 
@@ -198,12 +217,14 @@ public:
 	bool isString() const { return type == ValueType::STRING; }
 	bool isBoolean() const { return type == ValueType::BOOLEAN; }
 	bool isNumber() const { return type == ValueType::NUMBER; }
+	bool isTimePoint() const { return type == ValueType::TIME_POINT; }
 
 	const string& getString() const { assert(isString()); return str; }
 	bool getBoolean() const { assert(isBoolean()); return boolean; }
 	Number getNumber() const { assert(isNumber()); return number; }
 	Number getNumber(Unit targetUnit) const { assert(isNumber()); return unit.convertTo(number, targetUnit); }
 	Unit getUnit() const { assert(isNumber()); return unit; }
+	TimePoint getTimePoint() const { assert(isTimePoint()); return timePoint; }
 
 	string toStr() const;
 
@@ -306,10 +327,10 @@ private:
 	Seconds historyPeriod = Seconds::zero();
 
 	// Time of last published STATE_IND event for the item.
-	TimePoint lastSendTime = TimePoint::min();
+	TimePoint lastSendTime;
 
 	// Time of last (internally) generated READ_REQ event for the item.
-	TimePoint lastPollingTime = TimePoint::min();
+	TimePoint lastPollingTime;
 
 public:	
 	Item(ItemId id) : id(id) {}

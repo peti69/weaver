@@ -298,6 +298,11 @@ Links Config::getLinks(const Items& items, Log& log) const
 			unwritableTrueValue = getString(booleanAsStringValue, "unwritableTrueValue", trueValue);
 		}
 
+		bool timePointAsString = hasMember(linkValue, "timePointAsString");
+		string timePointFormat;
+		if (timePointAsString)
+			timePointFormat = getString(getObject(linkValue, "timePointAsString"), "format");
+
 		bool voidAsString = hasMember(linkValue, "voidAsString");
 		string voidValue;
 		string unwritableVoidValue;
@@ -368,9 +373,9 @@ Links Config::getLinks(const Items& items, Log& log) const
 			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
 		links.add(Link(id, enabled, suppressReadEvents, errorCounter,
-			maxReceiveDuration, maxSendDuration, numberAsString, booleanAsString,
-			falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
-			voidAsString, voidValue, unwritableVoidValue,
+			maxReceiveDuration, maxSendDuration, numberAsString,
+			booleanAsString, falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
+			timePointAsString, timePointFormat, voidAsString, voidValue, unwritableVoidValue,
 			undefinedAsString, undefinedValue, suppressUndefined,
 			modifiers, handler, logger));
 	}

@@ -86,22 +86,28 @@ Events Handler::receiveX(const Items& items)
 			auto itemPos = items.find(itemId);
 			if (itemPos == items.end())
 				logger.errorX() << "Item " << itemId << " is unknown" << endOfMsg();
+			auto& item = itemPos->second;
 
 			// verify that the item is owned
-			if (itemPos->second.getOwnerId() != id)
+			if (item.getOwnerId() != id)
 				logger.errorX() << "Item " << itemId << " is not owned by the link" << endOfMsg();
 
 			// determine item value
 			Value value;
-			if (iter->value.IsString())
+			if (iter->value.IsString() && item.hasValueType(ValueType::TIME_POINT))
+			{
+				if (TimePoint tp; TimePoint::fromStr(iter->value.GetString(), tp))
+					value = Value::newTimePoint(tp);
+			}
+			else if (iter->value.IsString() && item.hasValueType(ValueType::STRING))
 				value = Value::newString(iter->value.GetString());
-			else if (iter->value.IsBool())
+			else if (iter->value.IsBool() && item.hasValueType(ValueType::BOOLEAN))
 				value = Value::newBoolean(iter->value.GetBool());
-			else if (iter->value.IsNumber())
+			else if (iter->value.IsNumber() && item.hasValueType(ValueType::NUMBER))
 				value = Value::newNumber(iter->value.GetDouble());
-			else if (iter->value.IsNull())
+			else if (iter->value.IsNull() && item.hasValueType(ValueType::UNDEFINED))
 				value = Value::newUndefined();
-			else
+			if (value.isUninitialized())
 				logger.errorX() << "Value for item " << itemId << " is not supported" << endOfMsg();
 
 			// generate STATE_IND for item
@@ -159,13 +165,15 @@ Events Handler::send(const Items& items, const Events& events)
 				auto newValuePos = newValues.find(itemId);
 				const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getLastValue();
 				rapidjson::Value jsonValue;
-				if (value.getType() == ValueType::STRING)
+				if (value.isString())
 					jsonValue.SetString(value.getString(), allocator);
-				else if (value.getType() == ValueType::BOOLEAN)
+				else if (value.isBoolean())
 					jsonValue.SetBool(value.getBoolean());
-				else if (value.getType() == ValueType::NUMBER)
+				else if (value.isTimePoint())
+					jsonValue.SetString(value.getTimePoint().toStr(), allocator);
+				else if (value.isNumber())
 					jsonValue.SetDouble(value.getNumber());
-				else if (value.getType() == ValueType::UNDEFINED)
+				else if (value.isUndefined())
 					jsonValue.SetNull();
 				rapidjson::Value memberName(itemId, allocator);
 				document.AddMember(memberName, jsonValue, allocator);

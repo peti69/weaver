@@ -52,8 +52,8 @@ private:
 	// Items which need to be recalculated in case an item changes.
 	std::unordered_map<ItemId, ItemIds> dependants;
 
-	// Time then the last global recalculation had happened.
-	TimePoint lastCalculation = TimePoint::min();
+	// Time when the last global recalculation had happened.
+	TimePoint lastCalculation;
 
 public:
 	Handler(string id, Config config, Logger logger);

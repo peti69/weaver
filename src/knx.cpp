@@ -318,9 +318,7 @@ bool PhysicalAddr::fromStr(string paStr, PhysicalAddr& pa)
 }
 
 KnxHandler::KnxHandler(string _id, KnxConfig _config, Logger _logger) : 
-	id(_id), config(_config), logger(_logger), state(DISCONNECTED),
-	lastConnectTry(TimePoint::min()), lastControlReqSendTime(TimePoint::min()),
-	lastTunnelReqSendTime(TimePoint::min())
+	id(_id), config(_config), logger(_logger), state(DISCONNECTED)
 {
 	handlerState.errorCounter = 0;
 }
@@ -353,7 +351,7 @@ void KnxHandler::close()
 
 	if (state == CONNECTED)
 	{
-		lastConnectTry = TimePoint::min();
+		lastConnectTry.setToNull();
 
 		logger.info() << "Disconnected from KNX/IP gateway " << config.getIpAddr().toStr() << ":" << config.getIpPort() << endOfMsg();
 	}
@@ -539,7 +537,7 @@ Events KnxHandler::receiveX(const Items& items)
 			sentLDataReqs.clear();
 			lastReceivedSeqNo = 0xFF;
 			lastSentSeqNo = 0xFF;
-			lastTunnelReqSendTime = TimePoint::min();
+			lastTunnelReqSendTime.setToNull();
 			receivedReadReqs.clear();
 
 			logger.debug() << "Using channel 0x" << cnvToHexStr(channelId) << endOfMsg();
@@ -719,10 +717,10 @@ void KnxHandler::processReceivedLDataCon(ByteString msg)
 
 void KnxHandler::processReceivedTunnelAck(ByteString msg)
 {
-	if (lastTunnelReqSendTime != TimePoint::min() && lastSentSeqNo == msg[8])
+	if (!lastTunnelReqSendTime.isNull() && lastSentSeqNo == msg[8])
 	{
 		sentLDataReqs.emplace_back(lastSentLDataReq, Clock::now());
-		lastTunnelReqSendTime = TimePoint::min();
+		lastTunnelReqSendTime.setToNull();
 		return;
 	}
 
@@ -732,7 +730,7 @@ void KnxHandler::processReceivedTunnelAck(ByteString msg)
 
 void KnxHandler::processPendingTunnelAck()
 {
-	if (lastTunnelReqSendTime == TimePoint::min())
+	if (lastTunnelReqSendTime.isNull())
 		return;
 
 	if (lastTunnelReqSendTime + config.getTunnelAckTimeout() > Clock::now())
@@ -785,7 +783,7 @@ void KnxHandler::processPendingLDataCons()
 void KnxHandler::processWaitingLDataReqs()
 {
 	if (  state != CONNECTED
-	   || lastTunnelReqSendTime != TimePoint::min()
+	   || !lastTunnelReqSendTime.isNull()
 	   || sentLDataReqs.size() > 4
 	   )
 		return;

@@ -1,5 +1,3 @@
-#include <chrono>
-
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/pointer.h>
@@ -280,7 +278,7 @@ Events Link::receive(Items& items)
 					{
 					}
 				}
-				if (value.isString() && booleanAsString && item.hasValueType(ValueType::BOOLEAN))
+				else if (value.isString() && booleanAsString && item.hasValueType(ValueType::BOOLEAN))
 				{
 					if (item.isWritable())
 					{
@@ -297,12 +295,17 @@ Events Link::receive(Items& items)
 							value = Value::newBoolean(true);
 					}
 				}
-				if (value.isString() && voidAsString && item.hasValueType(ValueType::VOID))
+				else if (value.isString() && timePointAsString && item.hasValueType(ValueType::TIME_POINT))
+				{
+					if (TimePoint tp; TimePoint::fromStr(value.getString(), tp, timePointFormat))
+						value = Value::newTimePoint(tp);
+				}
+				else if (value.isString() && voidAsString && item.hasValueType(ValueType::VOID))
 				{
 					if (value.getString() == voidValue || value.getString() == unwritableVoidValue)
 						value = Value::newVoid();
 				}
-				if (value.isString() && undefinedAsString && item.hasValueType(ValueType::UNDEFINED))
+				else if (value.isString() && undefinedAsString && item.hasValueType(ValueType::UNDEFINED))
 				{
 					if (value.getString() == undefinedValue)
 						value = Value::newUndefined();
@@ -445,19 +448,21 @@ void Link::send(Items& items, const Events& events)
 				value = modifier->convertOutbound(value);
 
 			// convert event value (type)
-			if (value.getType() == ValueType::NUMBER && numberAsString)
+			if (value.isNumber() && numberAsString)
 				value = Value::newString(cnvToStr(value.getNumber()));
-			else if (value.getType() == ValueType::BOOLEAN && booleanAsString)
+			else if (value.isBoolean() && booleanAsString)
 				if (item.isWritable())
 					value = Value::newString(value.getBoolean() ? trueValue : falseValue);
 				else
 					value = Value::newString(value.getBoolean() ? unwritableTrueValue : unwritableFalseValue);
-			else if (value.getType() == ValueType::VOID && voidAsString)
+			else if (value.isTimePoint() && timePointAsString)
+				value = Value::newString(value.getTimePoint().toStr(timePointFormat));
+			else if (value.isVoid() && voidAsString)
 				if (item.isWritable())
 					value = Value::newString(voidValue);
 				else
 					value = Value::newString(unwritableVoidValue);
-			else if (value.getType() == ValueType::UNDEFINED && undefinedAsString)
+			else if (value.isUndefined() && undefinedAsString)
 				value = Value::newString(undefinedValue);
 
 			// convert event value (mapping)

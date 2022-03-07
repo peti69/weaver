@@ -55,7 +55,7 @@ private:
 	bool fileRead = false;
 
 	// Time when the last attempt was done to read the value file.
-	TimePoint lastFileReadTry = TimePoint::min();
+	TimePoint lastFileReadTry;
 
 	// Time span between successive attempts to read the item values from the file.
 	const Seconds rereadInterval = 60s;

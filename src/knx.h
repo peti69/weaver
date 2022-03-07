@@ -2,7 +2,6 @@
 #define KNX_H
 
 #include <set>
-#include <chrono>
 
 #include "link.h"
 #include "logger.h"
@@ -243,7 +242,7 @@ private:
 	// is expected.
 	LDataReq lastSentLDataReq;
 
-	// Time when the last TUNNEL REQUEST has been sent. It is set to TimePoint::min() when the
+	// Time when the last TUNNEL REQUEST has been sent. It is set to null when the
 	// TUNNEL ACK is received.
 	TimePoint lastTunnelReqSendTime;
 

@@ -133,6 +133,14 @@ private:
 	// In case booleanAsString = true: String to be used for true and an unwritable item.
 	string unwritableTrueValue;
 
+	// Indicates that time point values are transmitted over the link as strings
+	// and that an automatic conversion is required.
+	bool timePointAsString;
+
+	// In case timePointAsString = true: Conversion format according to
+	// std::get_time() and std::put_time().
+	string timePointFormat;
+
 	// Indicates that void values are transmitted over the link as strings
 	// and that an automatic conversion is required.
 	bool voidAsString;
@@ -174,6 +182,7 @@ public:
 		bool numberAsString, bool booleanAsString,
 		string falseValue, string trueValue,
 		string unwritableFalseValue, string unwritableTrueValue,
+		bool timePointAsString, string timePointFormat,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		bool undefinedAsString, string undefinedValue,
 		bool suppressUndefined,
@@ -183,6 +192,7 @@ public:
 		numberAsString(numberAsString), booleanAsString(booleanAsString),
 		falseValue(falseValue), trueValue(trueValue),
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
+		timePointAsString(timePointAsString), timePointFormat(timePointFormat),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
 		undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
 		suppressUndefined(suppressUndefined),
