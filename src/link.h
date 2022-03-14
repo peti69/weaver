@@ -6,6 +6,8 @@
 
 #include "basic.h"
 #include "logger.h"
+#include "item.h"
+#include "event.h"
 
 struct Modifier
 {
