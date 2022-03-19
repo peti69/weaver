@@ -687,7 +687,7 @@ void KnxHandler::processReceivedLDataInd(ByteString msg, const Items& items, Eve
 			else
 			{
 				Value value = binding.dpt.importValue(data);
-				if (value.isUninitialized())
+				if (value.isNull())
 					logger.error() << "Unable to convert DPT " << binding.dpt.toStr() << " data '" << cnvToHexStr(data)
 					               << "' to value for item " << binding.itemId << endOfMsg();
 				else

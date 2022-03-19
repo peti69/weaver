@@ -11,11 +11,11 @@ class UnitType
 {
 private:
 	using Code = unsigned char;
-	Code code;
+	Code code = UNKNOWN;
 	static const std::map<UnitType, string> details;
 
 public:
-	UnitType() : code(UNKNOWN) {}
+	UnitType() = default;
 	UnitType(Code code) : code(code) {}
 
 	operator Code() const { return code; }
@@ -33,7 +33,7 @@ class Unit
 {
 private:
 	using Code = unsigned char;
-	Code code;
+	Code code = UNKNOWN;
 	struct Detail
 	{
 		UnitType type;
@@ -43,7 +43,7 @@ private:
 	static const std::map<Unit, Detail> details;
 
 public:
-	Unit() : code(UNKNOWN) {}
+	Unit() = default;
 	Unit(Code code) : code(code) {}
 
 	operator Code() const { return code; }
@@ -82,24 +82,24 @@ public:
 class ValueType
 {
 private:
-	typedef unsigned char Code;
-	Code code;
+	using Code = unsigned char;
+	Code code = UNKNOWN;
 
 public:
-	ValueType() : code(UNINITIALIZED) {}
+	ValueType() = default;
 	ValueType(Code code) : code(code) {}
 
 	operator Code() const { return code; }
 	string toStr() const;
 	static bool fromStr(string typeStr, ValueType& type);
 
-	static const Code UNINITIALIZED = 0;
-	static const Code UNDEFINED = 1;
-	static const Code VOID = 2;
-	static const Code STRING = 3;
-	static const Code BOOLEAN = 4;
-	static const Code NUMBER = 5;
-	static const Code TIME_POINT = 6;
+	static constexpr Code UNKNOWN = 0;
+	static constexpr Code UNDEFINED = 1;
+	static constexpr Code VOID = 2;
+	static constexpr Code STRING = 3;
+	static constexpr Code BOOLEAN = 4;
+	static constexpr Code NUMBER = 5;
+	static constexpr Code TIME_POINT = 6;
 };
 
 template<>
@@ -113,10 +113,13 @@ struct std::hash<ValueType>
 
 class ValueTypes: public std::unordered_set<ValueType>
 {
+private:
+	using Base = std::unordered_set<ValueType>;
+
 public:
-	ValueTypes() {}
-	ValueTypes(std::unordered_set<ValueType> types) : std::unordered_set<ValueType>(types) {}
-	ValueTypes(std::initializer_list<ValueType> types) : std::unordered_set<ValueType>(types) {}
+	ValueTypes() = default;
+	ValueTypes(Base types) : Base(types) {}
+	ValueTypes(std::initializer_list<ValueType> types) : Base(types) {}
 
 	string toStr() const;
 };
@@ -124,7 +127,7 @@ public:
 class Value
 {
 private:
-	ValueType type;
+	ValueType type = ValueType::UNKNOWN;
 	string str;
 	bool boolean = false;
 	Number number = 0.0;
@@ -139,7 +142,7 @@ private:
 	Value(ValueType type, TimePoint timePoint) : type(type), timePoint(timePoint) {}
 
 public:
-	Value() : Value(ValueType::UNINITIALIZED) {}
+	Value() = default;
 
 	static Value newUndefined() { return Value(ValueType::UNDEFINED); }
 	static Value newVoid() { return Value(ValueType::VOID); }
@@ -150,8 +153,8 @@ public:
 	static Value newTimePoint(TimePoint timePoint) { return Value(ValueType::TIME_POINT, timePoint); }
 
 	ValueType getType() const { return type; }
+	bool isNull() const { return type == ValueType::UNKNOWN; }
 
-	bool isUninitialized() const { return type == ValueType::UNINITIALIZED; }
 	bool isUndefined() const { return type == ValueType::UNDEFINED; }
 	bool isVoid() const { return type == ValueType::VOID; }
 	bool isString() const { return type == ValueType::STRING; }

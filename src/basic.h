@@ -45,14 +45,14 @@ using namespace std::chrono_literals;
 class TimePoint: public std::chrono::time_point<Clock>
 {
 private:
-	using TP = std::chrono::time_point<Clock>;
+	using Base = std::chrono::time_point<Clock>;
 
 public:
-	TimePoint() : TP(0s) {}
-	TimePoint(TP tp) : TP(tp) {}
+	TimePoint() : Base(0s) {}
+	TimePoint(Base tp) : Base(tp) {}
 
-	bool isNull() const { return *this == TP(0s); }
-	void setToNull() { *this = TP(0s); }
+	bool isNull() const { return *this == Base(0s); }
+	void setToNull() { *this = Base(0s); }
 
 	string toStr(string timePointFormat = "%Y-%m-%dT%H:%M:%S") const;
 	static bool fromStr(string timePointStr, TimePoint& timePoint, string timePointFormat = "%Y-%m-%dT%H:%M:%S");

@@ -261,7 +261,7 @@ int main(int argc, char* argv[])
 			   )
 			{
 				const Value& value = item.getLastValue();
-				if (!value.isUninitialized())
+				if (!value.isNull())
 				{
 					generatedEvents.add(Event(controlLinkId, item.getId(), EventType::STATE_IND, value));
 					item.setLastSendTime(now);

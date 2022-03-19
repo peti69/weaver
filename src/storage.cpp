@@ -107,7 +107,7 @@ Events Handler::receiveX(const Items& items)
 				value = Value::newNumber(iter->value.GetDouble());
 			else if (iter->value.IsNull() && item.hasValueType(ValueType::UNDEFINED))
 				value = Value::newUndefined();
-			if (value.isUninitialized())
+			if (value.isNull())
 				logger.errorX() << "Value for item " << itemId << " is not supported" << endOfMsg();
 
 			// generate STATE_IND for item

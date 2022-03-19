@@ -164,7 +164,7 @@ string ValueType::toStr() const
 {
 	switch (code)
 	{
-		case UNINITIALIZED:
+		case UNKNOWN:
 			return "uninitialized";
 		case UNDEFINED:
 			return "undefined";
@@ -186,7 +186,7 @@ string ValueType::toStr() const
 bool ValueType::fromStr(string typeStr, ValueType& type)
 {
 	if (typeStr == "uninitialized")
-		type = UNINITIALIZED;
+		type = UNKNOWN;
 	else if (typeStr == "undefined")
 		type = UNDEFINED;
 	else if (typeStr == "void")
@@ -228,7 +228,7 @@ string Value::toStr() const
 		}
 		case ValueType::VOID:
 			return "void";
-		case ValueType::UNINITIALIZED:
+		case ValueType::UNKNOWN:
 			return "uninitialized";
 		case ValueType::UNDEFINED:
 			return "undefined";
@@ -241,14 +241,7 @@ string Value::toStr() const
 
 bool Value::operator==(const Value& x) const
 {
-	return (  x.type == type
-	       && (  (type == ValueType::STRING && x.str == str)
-	          || (type == ValueType::BOOLEAN && x.boolean == boolean)
-	          || (type == ValueType::NUMBER && x.number == number)
-	          || type == ValueType::VOID
-	          || type == ValueType::UNINITIALIZED
-	          || type == ValueType::UNDEFINED
-	          )
-	       );
+	return x.type == type && x.str == str && x.boolean == boolean
+			&& x.number == number && x.unit == unit && x.timePoint == timePoint;
 }
 

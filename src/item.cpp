@@ -11,7 +11,7 @@ void Item::addToHistory(TimePoint now, const Value& value)
 
 Value Item::calcMinFromHistory(TimePoint start) const
 {
-	if (lastValue.isUninitialized() || !lastValue.isNumber())
+	if (lastValue.isNull() || !lastValue.isNumber())
 		return Value::newUndefined();
 	auto number = lastValue.getNumber();
 	for (auto pos = history.rbegin(); pos != history.rend() && pos->timePoint >= start; pos++)
@@ -22,7 +22,7 @@ Value Item::calcMinFromHistory(TimePoint start) const
 
 Value Item::calcMaxFromHistory(TimePoint start) const
 {
-	if (lastValue.isUninitialized() || !lastValue.isNumber())
+	if (lastValue.isNull() || !lastValue.isNumber())
 		return Value::newUndefined();
 	auto number = lastValue.getNumber();
 	for (auto pos = history.rbegin(); pos != history.rend() && pos->timePoint >= start; pos++)
@@ -33,7 +33,7 @@ Value Item::calcMaxFromHistory(TimePoint start) const
 
 bool Item::isSendOnTimerRequired(TimePoint now) const
 {
-	return sendOnTimerParams.active && !lastValue.isUninitialized() && lastSendTime + sendOnTimerParams.interval <= now;
+	return sendOnTimerParams.active && !lastValue.isNull() && lastSendTime + sendOnTimerParams.interval <= now;
 }
 
 bool Item::isSendOnChangeRequired(const Value& value) const
