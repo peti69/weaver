@@ -320,6 +320,11 @@ Events Link::receive(Items& items)
 					continue;
 				}
 			}
+			else if (value.isBoolean() && !item.hasValueType(ValueType::BOOLEAN))
+			{
+				if (voidAsBoolean)
+					value = Value::newVoid();
+			}
 
 			// compare item types with event value type
 			if (!item.hasValueType(value.getType()))
@@ -462,6 +467,8 @@ void Link::send(Items& items, const Events& events)
 					value = Value::newString(voidValue);
 				else
 					value = Value::newString(unwritableVoidValue);
+			else if (value.isVoid() && voidAsBoolean)
+				value = Value::newBoolean(true);
 			else if (value.isUndefined() && undefinedAsString)
 				value = Value::newString(undefinedValue);
 

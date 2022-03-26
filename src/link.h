@@ -115,11 +115,11 @@ private:
 	// more time than defined here in milliseconds.
 	int maxSendDuration;
 
-	// Indicates that number values are transmitted over the link as strings
+	// Indicates that number values are transmitted over the link as string values
 	// and that an automatic conversion is required.
 	bool numberAsString;
 
-	// Indicates that boolean values are transmitted over the link as strings
+	// Indicates that boolean values are transmitted over the link as string values
 	// and that an automatic conversion is required.
 	bool booleanAsString;
 
@@ -135,7 +135,7 @@ private:
 	// In case booleanAsString = true: String to be used for true and an unwritable item.
 	string unwritableTrueValue;
 
-	// Indicates that time point values are transmitted over the link as strings
+	// Indicates that time point values are transmitted over the link as string values
 	// and that an automatic conversion is required.
 	bool timePointAsString;
 
@@ -143,7 +143,7 @@ private:
 	// std::get_time() and std::put_time().
 	string timePointFormat;
 
-	// Indicates that void values are transmitted over the link as strings
+	// Indicates that void values are transmitted over the link as string values
 	// and that an automatic conversion is required.
 	bool voidAsString;
 
@@ -153,7 +153,11 @@ private:
 	// In case voidAsString = true: String to be used for an unwritable item.
 	string unwritableVoidValue;
 
-	// Indicates that undefined values are transmitted over the link as strings
+	// Indicates that void values are transmitted over the link as boolean values
+	// and that an automatic conversion is required.
+	bool voidAsBoolean;
+
+	// Indicates that undefined values are transmitted over the link as string values
 	// and that an automatic conversion is required.
 	bool undefinedAsString;
 
@@ -186,7 +190,7 @@ public:
 		string unwritableFalseValue, string unwritableTrueValue,
 		bool timePointAsString, string timePointFormat,
 		bool voidAsString, string voidValue, string unwritableVoidValue,
-		bool undefinedAsString, string undefinedValue,
+		bool voidAsBoolean, bool undefinedAsString, string undefinedValue,
 		bool suppressUndefined,
 		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
 		id(id), enabled(enabled), suppressReadEvents(suppressReadEvents), errorCounter(errorCounter),
@@ -196,7 +200,7 @@ public:
 		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
 		timePointAsString(timePointAsString), timePointFormat(timePointFormat),
 		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
-		undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
+		voidAsBoolean(voidAsBoolean), undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
 		suppressUndefined(suppressUndefined),
 		modifiers(modifiers), handler(handler), logger(logger) {}
 	LinkId getId() const { return id; }

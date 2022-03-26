@@ -82,21 +82,22 @@ int main(int argc, char* argv[])
 		items = configFile.getItems();
 		links = configFile.getLinks(items, log);
 
-		// let links verify and adapt item properties
-		for (auto& [linkId, link] : links)
-			link.validate(items);
-
 		// let items verify and adapt item properties
 		for (auto& [itemId, item] : items)
 		{
 			if (item.getOwnerId() != controlLinkId && !links.exists(item.getOwnerId()))
 				throw std::runtime_error("Item " + itemId + " is associated with unknown link " + item.getOwnerId());
 
-//			if (!item.isWritable() && item.isResponsive())
-//				throw std::runtime_error("Item " + item.getId() + " is not writable but responsive");
-//			if (!item.isReadable() && item.isPollingEnabled())
-//				throw std::runtime_error("Item " + item.getId() + " is not readable but polling is enabled");
+			if (item.hasValueType(ValueType::VOID))
+			{
+				item.setResponsive(false);
+				item.setReadable(false);
+			}
 		}
+
+		// let links verify and adapt item properties
+		for (auto& [linkId, link] : links)
+			link.validate(items);
 	}
 	catch (const std::exception& error)
 	{

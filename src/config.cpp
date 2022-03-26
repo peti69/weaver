@@ -313,6 +313,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 			unwritableVoidValue = getString(voidAsStringValue, "unwritableValue", voidValue);
 		}
 
+		bool voidAsBoolean = hasMember(linkValue, "voidAsBoolean");
+
 		bool undefinedAsString = hasMember(linkValue, "undefinedAsString");
 		string undefinedValue;
 		if (undefinedAsString)
@@ -376,7 +378,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 			maxReceiveDuration, maxSendDuration, numberAsString,
 			booleanAsString, falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
 			timePointAsString, timePointFormat, voidAsString, voidValue, unwritableVoidValue,
-			undefinedAsString, undefinedValue, suppressUndefined,
+			voidAsBoolean, undefinedAsString, undefinedValue, suppressUndefined,
 			modifiers, handler, logger));
 	}
 
