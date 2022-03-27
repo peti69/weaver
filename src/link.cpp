@@ -278,7 +278,7 @@ Events Link::receive(Items& items)
 					{
 					}
 				}
-				else if (value.isString() && booleanAsString && item.hasValueType(ValueType::BOOLEAN))
+				if (value.isString() && booleanAsString && item.hasValueType(ValueType::BOOLEAN))
 				{
 					if (item.isWritable())
 					{
@@ -295,17 +295,17 @@ Events Link::receive(Items& items)
 							value = Value::newBoolean(true);
 					}
 				}
-				else if (value.isString() && timePointAsString && item.hasValueType(ValueType::TIME_POINT))
+				if (value.isString() && timePointAsString && item.hasValueType(ValueType::TIME_POINT))
 				{
 					if (TimePoint tp; TimePoint::fromStr(value.getString(), tp, timePointFormat))
 						value = Value::newTimePoint(tp);
 				}
-				else if (value.isString() && voidAsString && item.hasValueType(ValueType::VOID))
+				if (value.isString() && voidAsString && item.hasValueType(ValueType::VOID))
 				{
 					if (value.getString() == voidValue || value.getString() == unwritableVoidValue)
 						value = Value::newVoid();
 				}
-				else if (value.isString() && undefinedAsString && item.hasValueType(ValueType::UNDEFINED))
+				if (value.isString() && undefinedAsString && item.hasValueType(ValueType::UNDEFINED))
 				{
 					if (value.getString() == undefinedValue)
 						value = Value::newUndefined();
