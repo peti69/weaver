@@ -147,10 +147,13 @@ Events Handler::send(const Items& items, const Events& events)
 	// analyze WRITE_REQ and determine changed values
 	std::unordered_map<ItemId, Value> newValues;
 	for (auto& event : events)
-		if (  event.getType() == EventType::WRITE_REQ
-		   && items.get(event.getItemId()).getLastValue() != event.getValue()
-		   )
-			newValues[event.getItemId()] = event.getValue();
+		if (event.getType() == EventType::WRITE_REQ)
+			if (auto& item = items.get(event.getItemId()); item.getLastValue() != event.getValue())
+			{
+				logger.info() << "Value of " << item.getId() << " changes from " << item.getLastValue().toStr()
+				              << " to " << event.getValue().toStr() << endOfMsg();
+				newValues[event.getItemId()] = event.getValue();
+			}
 
 	// if a value changed persist all owned items
 	if (newValues.size())
