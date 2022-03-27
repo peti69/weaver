@@ -67,7 +67,7 @@ bool TimePoint::fromStr(string timePointStr, TimePoint& timePoint, string timePo
 	stream >> std::get_time(&tp, timePointFormat.c_str());
 	if (stream.fail())
 		return false;
-	timePoint = TimePoint(std::chrono::system_clock::from_time_t(mktime(&tp)));
+	timePoint = TimePoint(std::chrono::system_clock::from_time_t(std::mktime(&tp)));
 	return true;
 }
 
