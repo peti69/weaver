@@ -144,29 +144,33 @@ Events Handler::send(const Items& items, const Events& events)
 	if (!fileRead)
 		return Events();
 
-	// analyze WRITE_REQ and determine changed values
-	std::unordered_map<ItemId, Value> newValues;
+	// analyze WRITE_REQ and determine persistent items with changed values
+	std::unordered_map<ItemId, Value> changedItems;
+	bool persistentItemChanged = false;
 	for (auto& event : events)
 		if (event.getType() == EventType::WRITE_REQ)
 			if (auto& item = items.get(event.getItemId()); item.getLastValue() != event.getValue())
 			{
+				auto& binding = bindings.at(item.getId());
 				logger.info() << "Value of " << item.getId() << " changes from " << item.getLastValue().toStr()
 				              << " to " << event.getValue().toStr() << endOfMsg();
-				newValues[event.getItemId()] = event.getValue();
+				changedItems[item.getId()] = event.getValue();
+				persistentItemChanged |= binding.persistent;
 			}
 
-	// if a value changed persist all owned items
-	if (newValues.size())
+	// if the value of a persistent item changed persist all owned items
+	if (persistentItemChanged)
 	{
 		// translate owned items to a DOM tree
 		rapidjson::Document document;
 		auto& allocator = document.GetAllocator();
 		document.SetObject();
-		for (auto& [itemId, item] : items)
-			if (item.getOwnerId() == id && bindings.at(itemId).persistent)
+		for (auto& [itemId, binding] : bindings)
+			if (binding.persistent)
 			{
-				auto newValuePos = newValues.find(itemId);
-				const Value& value = newValuePos != newValues.end() ? newValuePos->second : item.getLastValue();
+				auto& item = items.get(itemId);
+				auto changedItemPos = changedItems.find(itemId);
+				const Value& value = changedItemPos != changedItems.end() ? changedItemPos->second : item.getLastValue();
 				rapidjson::Value jsonValue;
 				if (value.isString())
 					jsonValue.SetString(value.getString(), allocator);
@@ -198,9 +202,9 @@ Events Handler::send(const Items& items, const Events& events)
 		document.Accept(writer);
 	}
 
-	// generate for every changed value a corresponding STATE_IND
+	// generate for every changed item a corresponding STATE_IND
 	Events newEvents;
-	for (auto& [itemId, value] : newValues)
+	for (auto& [itemId, value] : changedItems)
 		newEvents.add(Event(id, itemId, EventType::STATE_IND, value));
 
 	return newEvents;
