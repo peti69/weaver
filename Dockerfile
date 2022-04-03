@@ -1,4 +1,4 @@
-FROM alpine:3.13
+FROM alpine:3.12
 
 LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, HTTP(S), plain TCP, MQTT and serial devices"
 
