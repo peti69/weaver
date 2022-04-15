@@ -15,9 +15,13 @@ HttpHandler::HttpHandler(string _id, HttpConfig _config, Logger _logger) :
 		LogMsg msg = logger.info();
 		msg << "Using cURL " << info->version << ", ";
 		if (info->ssl_version)
-			msg << "TLS/SSL support (" << info->ssl_version << ")";
+			msg << "TLS/SSL support (" << info->ssl_version << "), ";
 		else
-			msg << "no TTS/SSL support";
+			msg << "no TTS/SSL support, ";
+		if (info->features & CURL_VERSION_ASYNCHDNS)
+			msg << "async DNS";
+		else
+			msg << "sync DNS";
 		msg << endOfMsg();
 	}
 
@@ -215,6 +219,10 @@ Events HttpHandler::sendX(const Events& events)
 			if (!easyHandle)
 				logger.errorX() << "Function curl_easy_init() failed" << endOfMsg();
 
+			// instruct cULR to enable TCP keep alive probes
+			CURLcode code = curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPALIVE , 1L);
+			handleError("curl_easy_setopt", code);
+
 			// construct URL
 			string url = binding.url;
 			static const string valueTag = "%Value%";
@@ -222,7 +230,7 @@ Events HttpHandler::sendX(const Events& events)
 				url.replace(pos, valueTag.length(), event.getValue().toStr());
 
 			// pass URL to cURL
-			CURLcode code = curl_easy_setopt(easyHandle, CURLOPT_URL, url.c_str());
+			code = curl_easy_setopt(easyHandle, CURLOPT_URL, url.c_str());
 			handleError("curl_easy_setopt", code);
 
 			// tell cURL that a POST instead of a GET is required
