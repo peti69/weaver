@@ -4,15 +4,6 @@
 
 #include "link.h"
 
-using namespace std::chrono;
-
-struct Stopwatch
-{
-	steady_clock::time_point start;
-	Stopwatch() : start(steady_clock::now()) {}
-	int getRuntime() { return duration_cast<milliseconds>(steady_clock::now() - start).count(); }
-};
-
 string Modifier::mapOutbound(string value) const
 {
 	auto pos = outMappings.find(value);

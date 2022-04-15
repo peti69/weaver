@@ -60,4 +60,13 @@ public:
 
 using Number = double;
 
+struct Stopwatch
+{
+	using Clock = std::chrono::steady_clock;
+	Clock::time_point start;
+	Stopwatch() : start(Clock::now()) {}
+	int getRuntime() { return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start).count(); }
+};
+
+
 #endif
