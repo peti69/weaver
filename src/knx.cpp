@@ -157,12 +157,12 @@ ByteString DatapointType::exportValue(const Value& value) const
 //			}
 			int32_t E = 0;
 			int32_t M = d * 100.0;
-			while ((M < -2048 || M > 2047) && E <= 15) { M >>= 2; E++; }
+			while ((M < -2048 || M > 2047) && E <= 15) { M >>= 1; E++; }
 			if (M >= -2048 && M <= 2047)
 			{
 				Byte bytes[3];
 				bytes[0] = 0x00;
-				bytes[1] = (E << 3) | ((M >> 8) & 0x07);
+				bytes[1] = ((M >> 24) & 0x80) | (E << 3) | ((M >> 8) & 0x07);
 				bytes[2] = M & 0xFF;
 				return ByteString(bytes, sizeof(bytes));
 			}
