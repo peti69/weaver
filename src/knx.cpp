@@ -162,7 +162,7 @@ ByteString DatapointType::exportValue(const Value& value) const
 			{
 				Byte bytes[3];
 				bytes[0] = 0x00;
-				bytes[1] = ((M >> 24) & 0x80) | (E << 3) | ((M >> 8) & 0x07);
+				bytes[1] = (E << 3) | ((M >> 8) & 0x07);
 				bytes[2] = M & 0xFF;
 				return ByteString(bytes, sizeof(bytes));
 			}
