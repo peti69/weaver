@@ -236,10 +236,15 @@ Value DatapointType::importValue(ByteString bytes) const
 		u.i = bytes[1] << 24 | bytes[2] << 16 | bytes[3] << 8 | bytes[4];
 		return Value::newNumber(u.f);
 	}
+	else if (mainNo == 16)
+	{
+		auto pos = bytes.find_last_not_of('\0');
+		if (pos != ByteString::npos && pos > 0)
+			return Value::newString(cnvToAsciiStr(bytes.substr(1, pos - 1)));
+	}
 	else if (mainNo == 17 && bytes.length() == 2)
 		return Value::newNumber(1.0 * bytes[1]);
-	else
-		return Value();
+	return Value();
 }
 
 string GroupAddr::toStr() const
