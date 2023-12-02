@@ -27,6 +27,9 @@ public:
 	static constexpr Code TEMPERATURE = 3;
 	static constexpr Code VOLUME = 4;
 	static constexpr Code ILLUMINANCE = 5;
+	static constexpr Code CURRENT = 6;
+	static constexpr Code ENERGY = 7;
+	static constexpr Code POWER = 8;
 };
 
 class Unit
@@ -64,9 +67,9 @@ public:
 	static constexpr Code CELCIUS = 5;
 	static constexpr Code LUX = 6;
 	static constexpr Code KILOLUX = 7;
-	static constexpr Code GRAM_PER_CUBIC_METER = 8;
+	static constexpr Code GRAM_PER_CUBICMETER = 8;
 	static constexpr Code WATT = 9;
-	static constexpr Code KILOWATT_HOUR = 10;
+	static constexpr Code KILOWATTHOUR = 10;
 	static constexpr Code CUBICMETER = 11;
 	static constexpr Code DEGREE = 12;
 	static constexpr Code LITER_PER_MINUTE = 13;
@@ -77,6 +80,9 @@ public:
 	static constexpr Code HOUR = 18;
 	static constexpr Code KILOMETER_PER_HOUR = 19;
 	static constexpr Code MILES_PER_HOUR = 20;
+	static constexpr Code AMPERE = 21;
+	static constexpr Code WATTHOUR = 22;
+	static constexpr Code KILOWATT = 23;
 };
 
 class ValueType

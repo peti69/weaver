@@ -8,7 +8,9 @@ const std::map<UnitType, string> UnitType::details{
 	{UnitType::SPEED,  "speed"},
 	{UnitType::TEMPERATURE,  "temperature"},
 	{UnitType::VOLUME,  "volume"},
-	{UnitType::ILLUMINANCE,  "illuminance"}};
+	{UnitType::ILLUMINANCE,  "illuminance"},
+	{UnitType::CURRENT,  "current"},
+	{UnitType::ENERGY,  "energy"}};
 
 string UnitType::toStr() const
 {
@@ -27,13 +29,16 @@ const std::map<Unit, Unit::Detail> Unit::details{
 	{Unit::CELCIUS, {UnitType::TEMPERATURE, "°C", true}},
 	{Unit::LUX, {UnitType::ILLUMINANCE, "lx", true}},
 	{Unit::KILOLUX, {UnitType::ILLUMINANCE, "klx", true}},
-	{Unit::GRAM_PER_CUBIC_METER, {UnitType::UNKNOWN, "g/m³", true}},
-	{Unit::WATT, {UnitType::UNKNOWN, "W", true}},
-	{Unit::KILOWATT_HOUR, {UnitType::UNKNOWN, "kWh", true}},
+	{Unit::GRAM_PER_CUBICMETER, {UnitType::UNKNOWN, "g/m³", true}},
+	{Unit::WATT, {UnitType::POWER, "W", true}},
+	{Unit::KILOWATT, {UnitType::POWER, "kW", true}},
+	{Unit::WATTHOUR, {UnitType::ENERGY, "Wh", true}},
+	{Unit::KILOWATTHOUR, {UnitType::ENERGY, "kWh", true}},
 	{Unit::CUBICMETER, {UnitType::VOLUME, "m³", true}},
 	{Unit::DEGREE, {UnitType::UNKNOWN, "°", false}},
 	{Unit::LITER_PER_MINUTE, {UnitType::UNKNOWN, "l/min", true}},
-	{Unit::MILLIAMPERE, {UnitType::UNKNOWN, "mA", true}},
+	{Unit::MILLIAMPERE, {UnitType::CURRENT, "mA", true}},
+	{Unit::AMPERE, {UnitType::CURRENT, "A", true}},
 	{Unit::MILLIMETER, {UnitType::UNKNOWN, "mm", true}},
 	{Unit::EURO, {UnitType::UNKNOWN, "€", true}},
 	{Unit::HOUR, {UnitType::PERIOD, "h", true}},
@@ -154,6 +159,30 @@ Number Unit::convertTo(Number value, Unit targetUnit) const
 			switch (targetUnit)
 			{
 				case LUX: return value * 1000;
+			}
+			break;
+		case WATTHOUR:
+			switch (targetUnit)
+			{
+				case KILOWATTHOUR: return value / 1000;
+			}
+			break;
+		case KILOWATTHOUR:
+			switch (targetUnit)
+			{
+				case WATTHOUR: return value * 1000;
+			}
+			break;
+		case MILLIAMPERE:
+			switch (targetUnit)
+			{
+				case AMPERE: return value / 1000;
+			}
+			break;
+		case AMPERE:
+			switch (targetUnit)
+			{
+				case MILLIAMPERE: return value * 1000;
 			}
 			break;
 	}
