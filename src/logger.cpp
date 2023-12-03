@@ -34,34 +34,7 @@ void LogMsg::end()
 	if (throwException)
 		throw std::runtime_error(str());
 	else
-	{
-		std::ostringstream stream;
-
-		timeval tv;
-		gettimeofday(&tv, 0);
-		//using std::chrono::system_clock;
-		//std::time_t now = system_clock::to_time_t(system_clock::now());
-		std::time_t now = tv.tv_sec;
-		//cout << std::put_time(std::localtime(&now), "%F %T ");
-		char nowStr[40];
-		strftime(nowStr, sizeof(nowStr), "%F %T", std::localtime(&now));
-		stream << nowStr << "." << std::setw(3) << std::setfill('0') << tv.tv_usec / 1000 << " ";
-		
-		switch (level)
-		{
-			case LogLevel::DEBUG:
-				stream << "[DEBUG]"; break;
-			case LogLevel::INFO:
-				stream << "[INFO ]"; break;
-			case LogLevel::WARN:
-				stream << "[WARN ]"; break;
-			case LogLevel::ERROR:
-				stream << "[ERROR]"; break;
-		}
-
-		stream << " " << component << ": " << str();
-		log.addMsg(stream.str());
-	}
+		log.addMsg(*this);
 }
 
 void Log::init(LogConfig _config) 
@@ -76,15 +49,43 @@ void Log::init(LogConfig _config)
 	}
 }
 
-void Log::addMsg(string msg) 
+void Log::addMsg(const LogMsg& msg)
 {
+	if (config.getMinLevel() > msg.level)
+		return;
+
+	std::ostringstream stream;
+	timeval tv;
+	gettimeofday(&tv, 0);
+	//using std::chrono::system_clock;
+	//std::time_t now = system_clock::to_time_t(system_clock::now());
+	std::time_t now = tv.tv_sec;
+	//cout << std::put_time(std::localtime(&now), "%F %T ");
+	char nowStr[40];
+	strftime(nowStr, sizeof(nowStr), "%F %T", std::localtime(&now));
+	stream << nowStr << "." << std::setw(3) << std::setfill('0') << tv.tv_usec / 1000 << " ";
+	switch (msg.level)
+	{
+		case LogLevel::DEBUG:
+			stream << "[DEBUG]"; break;
+		case LogLevel::INFO:
+			stream << "[INFO ]"; break;
+		case LogLevel::WARN:
+			stream << "[WARN ]"; break;
+		case LogLevel::ERROR:
+			stream << "[ERROR]"; break;
+	}
+	stream << " " << msg.component << ": " << msg.str();
+
+	string msgStr = stream.str();
+
 	if (!config.getFileName().empty())
 	{
 		if (!logFile.is_open())
 			logFile.open(config.getFileName(), std::ios::out | std::ios::app);
 		if (logFile.is_open())
 		{
-			logFile << msg << endl;
+			logFile << msgStr << endl;
 			if (config.getMaxFileSize() > 0)
 			{
 				long pos = logFile.tellp();
@@ -100,6 +101,7 @@ void Log::addMsg(string msg)
 			}
 		}
 	}
-	cout << msg << endl;
+
+	cout << msgStr << endl;
 }
 
