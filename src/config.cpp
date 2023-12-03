@@ -204,8 +204,20 @@ LogConfig Config::getLogConfig() const
 	string fileName = getString(document, "logFileName", "");
 	int maxFileSize = getInt(document, "maxLogFileSize", 0);
 	int maxFileCount = getInt(document, "maxLogFileCount", 0);
-	
-	return LogConfig(fileName, maxFileSize, maxFileCount);
+	LogLevel minLevel;
+	string str = getString(document, "minLogLevel", "info");
+	if (str == "debug")
+		minLevel = LogLevel::DEBUG;
+	else if (str == "info")
+		minLevel = LogLevel::INFO;
+	else if (str == "warn")
+		minLevel = LogLevel::WARN;
+	else if (str == "error")
+		minLevel = LogLevel::ERROR;
+	else
+		throw std::runtime_error("Invalid value " + str + " for field minLogLevel in configuration");
+
+	return LogConfig(fileName, maxFileSize, maxFileCount, minLevel);
 }
 
 Items Config::getItems() const
