@@ -152,8 +152,8 @@ Events Handler::send(const Items& items, const Events& events)
 			if (auto& item = items.get(event.getItemId()); item.getLastValue() != event.getValue())
 			{
 				auto& binding = bindings.at(item.getId());
-				logger.info() << "Value of " << item.getId() << " changes from " << item.getLastValue().toStr()
-				              << " to " << event.getValue().toStr() << endOfMsg();
+				logger.debug() << "Value of " << item.getId() << " changes from " << item.getLastValue().toStr()
+				               << " to " << event.getValue().toStr() << endOfMsg();
 				changedItems[item.getId()] = event.getValue();
 				persistentItemChanged |= binding.persistent;
 			}
