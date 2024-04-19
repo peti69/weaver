@@ -290,7 +290,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 		bool enabled = getBool(linkValue, "enabled", true);
 
 		bool suppressReadEvents = getBool(linkValue, "suppressReadEvents", false);
-		string errorCounter = getString(linkValue, "errorCounter", "");
+		string operationalItemId = getString(linkValue, "operationalItemId", "");
+		string errorCounterItemId = getString(linkValue, "errorCounterItemId", "");
 		int maxReceiveDuration = getInt(linkValue, "maxReceiveDuration", 20);
 		int maxSendDuration = getInt(linkValue, "maxSendDuration", 20);
 
@@ -386,7 +387,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 		else
 			throw std::runtime_error("Link " + id + " with unknown or missing type in configuration");
 
-		links.add(Link(id, enabled, suppressReadEvents, errorCounter,
+		links.add(Link(id, enabled, suppressReadEvents, operationalItemId, errorCounterItemId,
 			maxReceiveDuration, maxSendDuration, numberAsString,
 			booleanAsString, falseValue, trueValue, unwritableFalseValue, unwritableTrueValue,
 			timePointAsString, timePointFormat, voidAsString, voidValue, unwritableVoidValue,

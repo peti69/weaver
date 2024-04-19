@@ -63,9 +63,8 @@ public:
 // State of an interface to an external system.
 struct HandlerState
 {
-	int errorCounter;
-
-	HandlerState() : errorCounter(-1) {}
+	int errorCounter = 0;
+	bool operational = false;
 };
 
 // Interface for exchanging events with an external system.
@@ -104,8 +103,11 @@ private:
 	// Discard READ_REQ events to be sent or received ones?
 	bool suppressReadEvents;
 
-	// Id of item on which the number of errors on the link will be reported.
-	ItemId errorCounter;
+	// Id of item on which the operational status of the link will be reported.
+	ItemId operationalItemId;
+
+	// Id of item on which the number of occurred errors on the link will be reported.
+	ItemId errorCounterItemId;
 
 	// A warning message is generated in case event receiving over the link requires
 	// more time than defined here in milliseconds.
@@ -176,14 +178,15 @@ private:
 	// Logger for any kind of logging in the context of the link.
 	Logger logger;
 
-	// Last retrieved handler state
+	// Last retrieved handler state.
 	HandlerState oldHandlerState;
 
 	// Events generated in send() and waiting to be returned by receive().
 	Events pendingEvents;
 
 public:
-	Link(LinkId id, bool enabled, bool suppressReadEvents, ItemId errorCounter,
+	Link(LinkId id, bool enabled, bool suppressReadEvents,
+		ItemId operationalItemId, ItemId errorCounterItemId,
 		int maxReceiveDuration, int maxSendDuration,
 		bool numberAsString, bool booleanAsString,
 		string falseValue, string trueValue,
@@ -192,17 +195,7 @@ public:
 		bool voidAsString, string voidValue, string unwritableVoidValue,
 		bool voidAsBoolean, bool undefinedAsString, string undefinedValue,
 		bool suppressUndefined,
-		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
-		id(id), enabled(enabled), suppressReadEvents(suppressReadEvents), errorCounter(errorCounter),
-		maxReceiveDuration(maxReceiveDuration), maxSendDuration(maxSendDuration),
-		numberAsString(numberAsString), booleanAsString(booleanAsString),
-		falseValue(falseValue), trueValue(trueValue),
-		unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
-		timePointAsString(timePointAsString), timePointFormat(timePointFormat),
-		voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
-		voidAsBoolean(voidAsBoolean), undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
-		suppressUndefined(suppressUndefined),
-		modifiers(modifiers), handler(handler), logger(logger) {}
+		Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger);
 	LinkId getId() const { return id; }
 	bool isEnabled() const { return enabled; }
 	void validate(Items& items) const;

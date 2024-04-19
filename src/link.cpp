@@ -38,11 +38,49 @@ Value Modifier::convertInbound(const Value& value) const
 		return value;
 }
 
+Link::Link(LinkId id, bool enabled, bool suppressReadEvents,
+	ItemId operationalItemId, ItemId errorCounterItemId,
+	int maxReceiveDuration, int maxSendDuration,
+	bool numberAsString, bool booleanAsString,
+	string falseValue, string trueValue,
+	string unwritableFalseValue, string unwritableTrueValue,
+	bool timePointAsString, string timePointFormat,
+	bool voidAsString, string voidValue, string unwritableVoidValue,
+	bool voidAsBoolean, bool undefinedAsString, string undefinedValue,
+	bool suppressUndefined,
+	Modifiers modifiers, std::shared_ptr<HandlerIf> handler, Logger logger) :
+	id(id), enabled(enabled), suppressReadEvents(suppressReadEvents),
+	operationalItemId(operationalItemId), errorCounterItemId(errorCounterItemId),
+	maxReceiveDuration(maxReceiveDuration), maxSendDuration(maxSendDuration),
+	numberAsString(numberAsString), booleanAsString(booleanAsString),
+	falseValue(falseValue), trueValue(trueValue),
+	unwritableFalseValue(unwritableFalseValue), unwritableTrueValue(unwritableTrueValue),
+	timePointAsString(timePointAsString), timePointFormat(timePointFormat),
+	voidAsString(voidAsString), voidValue(voidValue), unwritableVoidValue(unwritableVoidValue),
+	voidAsBoolean(voidAsBoolean), undefinedAsString(undefinedAsString), undefinedValue(undefinedValue),
+	suppressUndefined(suppressUndefined),
+	modifiers(modifiers), handler(handler), logger(logger)
+{
+	if (operationalItemId != "")
+		pendingEvents.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(oldHandlerState.operational)));
+	if (errorCounterItemId != "")
+		pendingEvents.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(oldHandlerState.errorCounter)));
+}
+
 void Link::validate(Items& items) const
 {
-	if (errorCounter != "")
+	if (operationalItemId != "")
 	{
-		Item& item = items.validate(errorCounter);
+		Item& item = items.validate(operationalItemId);
+		item.validateOwnerId(controlLinkId);
+		item.validateValueType(ValueType::BOOLEAN);
+		item.validatePollingEnabled(false);
+		item.setReadable(false);
+		item.setWritable(false);
+	}
+	if (errorCounterItemId != "")
+	{
+		Item& item = items.validate(errorCounterItemId);
 		item.validateOwnerId(controlLinkId);
 		item.validateValueType(ValueType::NUMBER);
 		item.validatePollingEnabled(false);
@@ -82,13 +120,22 @@ Events Link::receive(Items& items)
 		if (runtime > maxReceiveDuration)
 			logger.warn() << "Event receiving took " << runtime << " ms" << endOfMsg();
 
-		if (errorCounter != "")
+		// monitor handler state
+		if (operationalItemId != "")
 		{
-			// monitor handler state
+			HandlerState state = handler->getState();
+			if (state.operational != oldHandlerState.operational)
+			{
+				events.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(state.operational)));
+				oldHandlerState = state;
+			}
+		}
+		if (errorCounterItemId != "")
+		{
 			HandlerState state = handler->getState();
 			if (state.errorCounter != oldHandlerState.errorCounter)
 			{
-				events.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
+				events.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
 				oldHandlerState = state;
 			}
 		}
@@ -512,13 +559,22 @@ void Link::send(Items& items, const Events& events)
 	if (runtime > maxReceiveDuration)
 		logger.warn() << "Event sending took " << runtime << " ms" << endOfMsg();
 
-	if (errorCounter != "")
+	// monitor handler state
+	if (operationalItemId != "")
 	{
-		// monitor handler state
+		HandlerState state = handler->getState();
+		if (state.operational != oldHandlerState.operational)
+		{
+			pendingEvents.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(state.operational)));
+			oldHandlerState = state;
+		}
+	}
+	if (errorCounterItemId != "")
+	{
 		HandlerState state = handler->getState();
 		if (state.errorCounter != oldHandlerState.errorCounter)
 		{
-			pendingEvents.add(Event(controlLinkId, errorCounter, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
+			pendingEvents.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
 			oldHandlerState = state;
 		}
 	}

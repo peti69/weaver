@@ -43,6 +43,7 @@ PortHandler::PortHandler(string _id, PortConfig _config, Logger _logger) :
 	id(_id), config(_config), logger(_logger), fd(-1), lastOpenTry(0), lastDataReceipt(0)
 {
 	handlerState.errorCounter = 0;
+	handlerState.operational = false;
 }
 
 PortHandler::~PortHandler() 
@@ -188,6 +189,7 @@ bool PortHandler::open()
 	
 	autoClose.disable();
 	logger.info() << "Serial port " << config.getName() << " open" << endOfMsg();
+	handlerState.operational = true;
 	
 	return true;
 }
@@ -205,6 +207,7 @@ void PortHandler::close()
 	msgData.clear();
 
 	logger.info() << "Serial port " << config.getName() << " closed" << endOfMsg();
+	handlerState.operational = false;
 }
 
 void PortHandler::receiveData()
