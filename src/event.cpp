@@ -15,7 +15,7 @@ string EventType::toStr() const
 	}
 }
 
-bool EventType::fromStr(string typeStr, EventType& type)
+bool EventType::fromStr(const string& typeStr, EventType& type)
 {
 	if (typeStr == "STATE_IND")
 		type = STATE_IND;

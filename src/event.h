@@ -20,7 +20,7 @@ public:
 
 	operator Code() const { return code; }
 	string toStr() const;
-	static bool fromStr(string typeStr, EventType& type);
+	static bool fromStr(const string& typeStr, EventType& type);
 
 	static const Code STATE_IND = 0;
 	static const Code WRITE_REQ = 1;
@@ -44,10 +44,10 @@ private:
 	Value value;
 	
 public:
-	Event(LinkId originId, ItemId itemId, EventType type, const Value& value) :
+	Event(const LinkId& originId, const ItemId& itemId, EventType type, const Value& value) :
 		originId(originId), itemId(itemId), type(type), value(value) {}
-	LinkId getOriginId() const { return originId; }
-	ItemId getItemId() const { return itemId; }
+	const LinkId& getOriginId() const { return originId; }
+	const ItemId& getItemId() const { return itemId; }
 	EventType getType() const { return type; }
 	const Value& getValue() const { return value; }
 	void setValue(const Value& _value) { value = _value; }
@@ -56,7 +56,7 @@ public:
 class Events: public std::list<Event>
 {
 public:
-	void add(Event event) { push_back(event); }
+	void add(const Event& event) { push_back(event); }
 	void add(Events& events) { splice(begin(), events); }
 };
 
