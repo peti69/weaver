@@ -160,6 +160,7 @@ public:
 	void validatePollingEnabled(bool _enabled) const;
 	void validateHistory() const;
 	void validateValueType(ValueType _valueType) const;
+	void validateValueType(const ValueTypes& _valueTypes) const;
 	void validateValueTypeNot(ValueType _valueType) const;
 	void validateUnitType(UnitType _unitType) const;
 	void validateOwnerId(LinkId _ownerId) const;

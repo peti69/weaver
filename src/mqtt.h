@@ -26,20 +26,20 @@ public:
 	TopicPattern() {}
 
 	// Indicates whether self is usable or not.
-	bool isNull() { return topicPatternStr.empty(); }
+	bool isNull() const { return topicPatternStr.empty(); }
 
 	// Extracts the item id from the passed topic according to the pattern.
-	string getItemId(string topic) const;
+	string getItemId(const string& topic) const;
 
 	// Constructs from the pattern and the passed item id the appropriate MQTT topic for publishing.
-	string createPubTopic(string itemId) const;
+	string createPubTopic(const string& itemId) const;
 
 	// Constructs from the pattern the appropriate MQTT topic pattern for subscribing.
 	string createSubTopicPattern() const;
 
 	// Constructs a TopicPattern from the passed pattern string. The string must be a valid MQTT topic
 	// without + and #. One of its level must be %ItemId%.
-	static TopicPattern fromStr(string topicPatternStr);
+	static TopicPattern fromStr(const string& topicPatternStr);
 };
 
 class Config
@@ -61,8 +61,8 @@ public:
 	class Bindings: public std::unordered_map<string, Binding>
 	{
 	public:
-		void add(Binding binding) { insert(value_type(binding.itemId, binding)); }
-		bool exists(string itemId) const { return find(itemId) != end(); }
+		void add(const Binding& binding) { insert(value_type(binding.itemId, binding)); }
+		bool exists(const string& itemId) const { return find(itemId) != end(); }
 	};
 
 private:
@@ -150,7 +150,7 @@ private:
 		string topic;
 		string payload;
 		bool retainFlag;
-		Msg(string topic, string payload, bool reatianFlag) :
+		Msg(const string& topic, const string& payload, bool retainFlag) :
 			topic(topic), payload(payload), retainFlag(retainFlag) {
 		}
 	};
@@ -161,7 +161,7 @@ private:
 	HandlerState handlerState;
 
 public:
-	Handler(string _id, Config _config, Logger _logger);
+	Handler(string id, Config config, Logger logger);
 	virtual ~Handler();
 	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return handlerState; }
@@ -173,11 +173,11 @@ private:
 	void disconnect();
 	Events receiveX(const Items& items);
 	void sendX(const Items& items, const Events& events);
-	void handleError(string funcName, int errorCode);
-	void onLog(int level, string text);
+	void handleError(const string& funcName, int errorCode);
+	void onLog(int level, const string& text);
 	void onConnect(int rc);
 	void onMessage(const Msg& msg);
-	void sendMessage(string topic, string payload, bool retainFlag);
+	void sendMessage(const string& topic, const string& payload, bool retainFlag);
 
 	friend void onConnect(struct mosquitto*, void*, int);
 	friend void onMessage(struct mosquitto*, void*, const struct mosquitto_message*);

@@ -11,7 +11,7 @@ namespace mqtt
 
 const string TopicPattern::variable = "%ItemId%";
 
-string TopicPattern::getItemId(string topic) const
+string TopicPattern::getItemId(const string& topic) const
 {
 	string::size_type pos1 = topicPatternStr.find(variable);
 	if (topic.substr(0, pos1) != topicPatternStr.substr(0, pos1))
@@ -24,7 +24,7 @@ string TopicPattern::getItemId(string topic) const
 	return topic.substr(pos1, pos2 - pos1);
 }
 
-string TopicPattern::createPubTopic(string itemId) const
+string TopicPattern::createPubTopic(const string& itemId) const
 {
 	string::size_type pos = topicPatternStr.find(variable);
 	return topicPatternStr.substr(0, pos) + itemId + topicPatternStr.substr(pos + variable.length());
@@ -36,18 +36,22 @@ string TopicPattern::createSubTopicPattern() const
 	return topicPatternStr.substr(0, pos) + "+" + topicPatternStr.substr(pos + variable.length());
 }
 
-TopicPattern TopicPattern::fromStr(string topicPatternStr)
+TopicPattern TopicPattern::fromStr(const string& topicPatternStr)
 {
+	// pattern must not contain + or #
 	if (topicPatternStr.find_first_of("+#") != string::npos)
 		return TopicPattern();
 
+	// pattern must contain %ItemId%
 	string::size_type pos = topicPatternStr.find(variable);
 	if (pos == string::npos)
 		return TopicPattern();
 
+	// pattern must have / in front of %ItemId% in case the pattern does not start with %ItemId%
 	if (pos > 0 && topicPatternStr[pos - 1] != '/')
 		return TopicPattern();
 
+	// pattern must have / behind %ItemId% in case the pattern does not end with %ItemId%
 	if (pos + variable.length() < topicPatternStr.length() && topicPatternStr[pos + variable.length()] != '/')
 		return TopicPattern();
 
@@ -69,8 +73,8 @@ void onLog(struct mosquitto* client, void* handler, int level, const char* msg)
 	static_cast<Handler*>(handler)->onLog(level, msg);
 }
 
-Handler::Handler(string _id, Config _config, Logger _logger) :
-	id(_id), config(_config), logger(_logger), client(0), state(DISCONNECTED),
+Handler::Handler(string id, Config config, Logger logger) :
+	id(id), config(config), logger(logger), client(0), state(DISCONNECTED),
 	lastConnectTry(0), lastMsgSendTime(0)
 {
 	handlerState.errorCounter = 0;
@@ -117,8 +121,33 @@ void Handler::validate(Items& items)
 				item.setWritable(!config.getOutWriteTopicPattern().isNull());
 			}
 
+	auto validateTopic = [&](string topic)
+	{
+		for (;;)
+		{
+			string::size_type begin = topic.find('%');
+			if (begin == string::npos)
+				return;
+			string::size_type end = topic.find('%', begin + 1);
+			if (end == string::npos)
+				return;
+			string itemId = topic.substr(begin + 1, end - begin - 1);
+			topic.erase(begin, end - begin + 1);
+
+			Item& item = items.validate(itemId);
+			item.validateValueType({ValueType::STRING, ValueType::NUMBER});
+		}
+	};
+
 	for (auto& [itemId, binding] : bindings)
+	{
 		items.validate(itemId);
+
+		for (auto& topic : binding.stateTopics)
+			validateTopic(topic);
+		validateTopic(binding.writeTopic);
+		validateTopic(binding.readTopic);
+	}
 }
 
 void Handler::disconnect()
@@ -152,7 +181,7 @@ long Handler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int
 		|| state == CONNECTING_FAILED || waitingMsgs.size() ? 0 : -1;
 }
 
-void Handler::handleError(string funcName, int errorCode)
+void Handler::handleError(const string& funcName, int errorCode)
 {
 	if (errorCode != MOSQ_ERR_SUCCESS)
 	{
@@ -164,7 +193,7 @@ void Handler::handleError(string funcName, int errorCode)
 	}
 }
 
-void Handler::onLog(int level, string text)
+void Handler::onLog(int level, const string& text)
 {
 	if (!config.getLogLibEvents())
 		return;
@@ -293,13 +322,13 @@ Events Handler::receiveX(const Items& items)
 				if (binding.readTopic != "")
 					topics.insert(binding.readTopic);
 			}
-		for (string topic : topics)
+		for (const string& topic : topics)
 		{
 			int ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
 			handleError("mosquitto_subscribe", ec);
 		}
 
-		auto subscribe = [&] (TopicPattern topicPattern)
+		auto subscribe = [&](const TopicPattern& topicPattern)
 		{
 			if (topicPattern.isNull())
 				return;
@@ -310,7 +339,7 @@ Events Handler::receiveX(const Items& items)
 		subscribe(config.getInWriteTopicPattern());
 		subscribe(config.getInReadTopicPattern());
 
-		for (auto topic : config.getSubTopics())
+		for (auto& topic : config.getSubTopics())
 		{
 			int ec = mosquitto_subscribe(client, 0, topic.c_str(), 0);
 			handleError("mosquitto_subscribe", ec);
@@ -331,30 +360,36 @@ Events Handler::receiveX(const Items& items)
 	for (auto& msg : receivedMsgs)
 	{
 		// try explicit matching
-		bool matched = false;
+		int eventCount = events.size();
 		for (auto& [itemId, binding] : bindings)
-		{
-			auto analyzePayload = [&] (EventType type)
+			if (std::regex_search(msg.payload, binding.msgPattern))
 			{
-				if (std::regex_search(msg.payload, binding.msgPattern))
+				auto matches = [&](const string& topicPattern)
 				{
-					events.add(Event(id, itemId, type, Value::newString(msg.payload)));
-					matched = true;
+					bool result;
+					int ec = mosquitto_topic_matches_sub(topicPattern.c_str(), msg.topic.c_str(), &result);
+					handleError("mosquitto_topic_matches_sub", ec);
+					return result;
+				};
+				if (items.getOwnerId(itemId) == id)
+				{
+					for (auto& topicPattern : binding.stateTopics)
+						if (matches(topicPattern))
+							events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(msg.payload)));
 				}
-			};
-			if (binding.readTopic == msg.topic)
-				events.add(Event(id, itemId, EventType::READ_REQ, Value()));
-			else if (binding.writeTopic == msg.topic)
-				analyzePayload(EventType::WRITE_REQ);
-			else if (binding.stateTopics.find(msg.topic) != binding.stateTopics.end())
-				analyzePayload(EventType::STATE_IND);
-		}
-		if (matched)
+				else
+					if (binding.readTopic != "" && matches(binding.readTopic))
+						events.add(Event(id, itemId, EventType::READ_REQ, Value()));
+					else if (binding.writeTopic != "" && matches(binding.writeTopic))
+						events.add(Event(id, itemId, EventType::WRITE_REQ, Value::newString(msg.payload)));
+			}
+		if (events.size() > eventCount)
 			continue;
 
 		// try implicit matching
+		eventCount = events.size();
 		string itemId;
-		auto getItemId = [&] (TopicPattern topicPattern)
+		auto getItemId = [&](const TopicPattern& topicPattern)
 		{
 			if (topicPattern.isNull())
 				return false;
@@ -369,6 +404,8 @@ Events Handler::receiveX(const Items& items)
 			events.add(Event(id, itemId, EventType::WRITE_REQ, Value::newString(msg.payload)));
 		else if (getItemId(config.getInReadTopicPattern()))
 			events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
+		else
+			logger.warn() << "Unable to handle message " << msg.payload << " received on topic " << msg.topic << endOfMsg();
 	}
 	receivedMsgs.clear();
 
@@ -395,7 +432,7 @@ Events Handler::send(const Items& items, const Events& events)
 
 void Handler::sendX(const Items& items, const Events& events)
 {
-	auto sendMsg = [this] (string topic, string payload, bool retainFlag)
+	auto sendMsg = [&](const string& topic, const string& payload, bool retainFlag)
 	{
 		if (state != CONNECTED)
 		{
@@ -452,9 +489,46 @@ void Handler::sendX(const Items& items, const Events& events)
 			}
 		}
 
-		// skip events for those no topic could be found
+		// skip events for those no topic has been found
 		if (!topics.size())
 			continue;
+
+		// replace item ids by item values inside topics
+		std::unordered_set<string> newTopics;
+		for (string topic : topics)
+		{
+			string::size_type curr = 0;
+			for (;;)
+			{
+				auto begin = topic.find('%', curr);
+				if (begin == string::npos)
+				{
+					newTopics.insert(topic);
+					break;
+				}
+				auto end = topic.find('%', begin + 1);
+				if (end == string::npos)
+				{
+					newTopics.insert(topic);
+					break;
+				}
+
+				auto& item = items.get(topic.substr(begin + 1, end - begin - 1));
+				const Value& value = item.getLastValue();
+				if (value.isString())
+					topic.replace(begin, end - begin + 1, value.getString());
+				else if (value.isNumber())
+					topic.replace(begin, end - begin + 1, cnvToStr(value.getNumber()));
+				else
+				{
+					logger.warn() << "No STRING or NUMBER value available to complete topic " << topic << " for item " << itemId << endOfMsg();
+					break;
+				}
+
+				curr = end + 1;
+			}
+		}
+		topics = newTopics;
 
 		// determine payload
 		string payload;
@@ -469,7 +543,7 @@ void Handler::sendX(const Items& items, const Events& events)
 		}
 
 		// send message
-		for (string topic : topics)
+		for (const auto& topic : topics)
 			sendMsg(topic, payload, event.getType() == EventType::STATE_IND ? config.getRetainFlag() : false);
 	}
 
@@ -480,7 +554,7 @@ void Handler::sendX(const Items& items, const Events& events)
 	}
 }
 
-void Handler::sendMessage(string topic, string payload, bool retainFlag)
+void Handler::sendMessage(const string& topic, const string& payload, bool retainFlag)
 {
 	lastMsgSendTime = std::time(0);
 

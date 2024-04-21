@@ -121,6 +121,16 @@ void Item::validateValueType(ValueType _valueType) const
 		throw std::runtime_error("Item " + id + " must have value type " + _valueType.toStr());
 }
 
+void Item::validateValueType(const ValueTypes& _valueTypes) const
+{
+	bool ok = false;
+	for (ValueType _valueType : _valueTypes)
+		if (hasValueType(_valueType))
+			ok = true;
+	if (!ok)
+		throw std::runtime_error("Item " + id + " must have one of the value types " + _valueTypes.toStr());
+}
+
 void Item::validateValueTypeNot(ValueType _valueType) const
 {
 	if (hasValueType(_valueType))
