@@ -97,7 +97,8 @@ int main(int argc, char* argv[])
 
 		// let links verify and adapt item properties
 		for (auto& [linkId, link] : links)
-			link.validate(items);
+			if (link.isEnabled())
+				link.validate(items);
 	}
 	catch (const std::exception& error)
 	{
