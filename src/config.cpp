@@ -352,7 +352,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 					for (auto& mappingValue : getArray(modifierValue, "inMappings").GetArray())
 						modifier.addInMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
 
-				modifier.outPattern = getString(modifierValue, "outPattern", "%Value%");
+				modifier.outPattern = getString(modifierValue, "outPattern", "%EventValue%");
 				if (hasMember(modifierValue, "outMappings"))
 					for (auto& mappingValue : getArray(modifierValue, "outMappings").GetArray())
 						modifier.addOutMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));

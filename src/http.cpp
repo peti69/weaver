@@ -225,7 +225,7 @@ Events HttpHandler::sendX(const Events& events)
 
 			// construct URL
 			string url = binding.url;
-			static const string valueTag = "%Value%";
+			static const string valueTag = "%EventValue%";
 			if (auto pos = url.find(valueTag); pos != string::npos)
 				url.replace(pos, valueTag.length(), event.getValue().toStr());
 

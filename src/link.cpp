@@ -540,7 +540,7 @@ void Link::send(Items& items, const Events& events)
 				if (auto pos = str.find(timeTag); pos != string::npos)
 					str.replace(pos, timeTag.length(), cnvToStr(std::time(0)));
 
-				static const string valueTag = "%Value%";
+				static const string valueTag = "%EventValue%";
 				if (auto pos = str.find(valueTag); pos != string::npos)
 					str.replace(pos, valueTag.length(), value.toStr());
 
