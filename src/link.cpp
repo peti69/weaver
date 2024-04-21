@@ -132,24 +132,12 @@ Events Link::receive(Items& items)
 			logger.warn() << "Event receiving took " << runtime << " ms" << endOfMsg();
 
 		// monitor handler state
-		if (operationalItemId != "")
-		{
-			HandlerState state = handler->getState();
-			if (state.operational != oldHandlerState.operational)
-			{
-				events.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(state.operational)));
-				oldHandlerState = state;
-			}
-		}
-		if (errorCounterItemId != "")
-		{
-			HandlerState state = handler->getState();
-			if (state.errorCounter != oldHandlerState.errorCounter)
-			{
-				events.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
-				oldHandlerState = state;
-			}
-		}
+		HandlerState state = handler->getState();
+		if (operationalItemId != "" && state.operational != oldHandlerState.operational)
+			events.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(state.operational)));
+		if (errorCounterItemId != "" &&  state.errorCounter != oldHandlerState.errorCounter)
+			events.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
+		oldHandlerState = state;
 	}
 
 	for (auto eventPos = events.begin(); eventPos != events.end();)
@@ -571,24 +559,12 @@ void Link::send(Items& items, const Events& events)
 		logger.warn() << "Event sending took " << runtime << " ms" << endOfMsg();
 
 	// monitor handler state
-	if (operationalItemId != "")
-	{
-		HandlerState state = handler->getState();
-		if (state.operational != oldHandlerState.operational)
-		{
-			pendingEvents.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(state.operational)));
-			oldHandlerState = state;
-		}
-	}
-	if (errorCounterItemId != "")
-	{
-		HandlerState state = handler->getState();
-		if (state.errorCounter != oldHandlerState.errorCounter)
-		{
-			pendingEvents.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
-			oldHandlerState = state;
-		}
-	}
+	HandlerState state = handler->getState();
+	if (operationalItemId != "" && state.operational != oldHandlerState.operational)
+		pendingEvents.add(Event(controlLinkId, operationalItemId, EventType::STATE_IND, Value::newBoolean(state.operational)));
+	if (errorCounterItemId != "" &&  state.errorCounter != oldHandlerState.errorCounter)
+		pendingEvents.add(Event(controlLinkId, errorCounterItemId, EventType::STATE_IND, Value::newNumber(state.errorCounter)));
+	oldHandlerState = state;
 }
 
 
