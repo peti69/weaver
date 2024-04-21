@@ -1,6 +1,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/pointer.h>
+#include <cmath>
 
 #include "link.h"
 
@@ -25,7 +26,12 @@ string Modifier::mapInbound(string value) const
 Value Modifier::convertOutbound(const Value& value) const
 {
 	if (value.isNumber())
-		return Value::newNumber((value.getNumber() / factor) - summand);
+	{
+		Number num = (value.getNumber() / factor) - summand;
+		if (round)
+			num = std::round(num);
+		return Value::newNumber(num);
+	}
 	else
 		return value;
 }
@@ -33,7 +39,12 @@ Value Modifier::convertOutbound(const Value& value) const
 Value Modifier::convertInbound(const Value& value) const
 {
 	if (value.isNumber())
-		return Value::newNumber((value.getNumber() + summand) * factor);
+	{
+		Number num = (value.getNumber() + summand) * factor;
+		if (round)
+			num = std::round(num);
+		return Value::newNumber(num);
+	}
 	else
 		return value;
 }

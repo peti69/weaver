@@ -345,6 +345,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 
 				modifier.factor = getFloat(modifierValue, "factor", 1.0);
 				modifier.summand = getFloat(modifierValue, "summand", 0.0);
+				modifier.round = getBool(modifierValue, "round", false);
 
 				modifier.inJsonPointer = getString(modifierValue, "inJsonPointer", "");
 				modifier.inPattern = getRegEx(modifierValue, "inPattern", "^(.*)$");

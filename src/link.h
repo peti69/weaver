@@ -20,11 +20,14 @@ struct Modifier
 
 	// Factor applied to values received from the handler. Acts as divisor for values
 	// which will be sent to the handler.
-	Number factor;
+	Number factor = 1.0;
 
 	// Summand applied to values received from the handler. Acts as subtrahend for values
 	// which will be sent to the handler.
-	Number summand;
+	Number summand = 0.0;
+
+	// Indicates if passed values are rounded or.
+	bool round = false;
 
 	// JSON Pointer which is applied on inbound values to extract normalized values.
 	string inJsonPointer;
