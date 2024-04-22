@@ -214,7 +214,7 @@ int main(int argc, char* argv[])
 			if (linkPair.second.isEnabled())
 				try
 				{
-					events.splice(events.begin(), linkPair.second.receive(items));
+					events.splice(events.end(), linkPair.second.receive(items));
 				}
 				catch (const std::exception& error)
 				{
