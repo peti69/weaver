@@ -309,7 +309,10 @@ Events Link::receive(Items& items)
 				{
 					try
 					{
-						value = Value::newNumber(std::stod(value.getString()));
+						std::size_t pos;
+						Number number = std::stod(value.getString(), &pos);
+						if (pos == value.getString().length())
+							value = Value::newNumber(number);
 					}
 					catch (const std::exception& ex)
 					{
