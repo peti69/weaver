@@ -32,6 +32,7 @@ string cnvToStr(T v)
 extern string cnvToHexStr(Byte b);
 extern string cnvToHexStr(ByteString s);
 extern string cnvToHexStr(string s);
+extern string cnvFromHexStr(string s);
 
 extern string cnvToBinStr(string s);
 

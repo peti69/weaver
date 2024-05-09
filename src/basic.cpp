@@ -20,17 +20,51 @@ string cnvToHexStr(Byte b)
 string cnvToHexStr(ByteString s)
 {
 	std::ostringstream stream;
-	for (int i = 0; i < s.length(); i++) 
-		stream << (i > 0 ? " " : "") << std::setw(2) << std::setfill('0') << std::hex << int(s[i]);
+	for (auto i : s)
+		stream << std::setw(2) << std::setfill('0') << std::hex << int(i);
 	return stream.str();
 }
 
 string cnvToHexStr(string s)
 {
-	std::ostringstream stream;
-	for (int i = 0; i < s.length(); i++) 
-		stream << (i > 0 ? " " : "") << std::setw(2) << std::setfill('0') << std::hex << int(Byte(s[i]));
-	return stream.str();
+	auto int2char = [](int input)
+	{
+		if (input >= 0 && input <= 9)
+			return '0' + input;
+		if (input >= 10 && input <= 15)
+			return 'A' + input - 10;
+		throw std::invalid_argument("Invalid input character");
+	};
+
+	string result(s.length() * 2, '0');
+	for (int i = 0; i < s.length(); i++)
+	{
+		result[i * 2] = int2char((s[i] & 0xF0) >> 4);
+		result[i * 2 + 1] = int2char(s[i] & 0x0F);
+	}
+	return result;
+}
+
+string cnvFromHexStr(string s)
+{
+	auto char2int = [](char input)
+	{
+		if (input >= '0' && input <= '9')
+			return input - '0';
+		if (input >= 'A' && input <= 'F')
+			return input - 'A' + 10;
+		if (input >= 'a' && input <= 'f')
+			return input - 'a' + 10;
+		throw std::invalid_argument("Invalid input character");
+	};
+
+	if (s.length() % 2 != 0)
+		throw std::invalid_argument("Invalid input string");
+
+	string result(s.length() / 2, 0x00);
+	for (int i = 0; i < s.length() / 2; i++)
+		result[i] = char2int(s[i * 2]) * 16 + char2int(s[i * 2 + 1]);
+	return result;
 }
 
 string cnvToBinStr(string s)
