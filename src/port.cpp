@@ -96,6 +96,9 @@ bool PortHandler::open()
 	struct termios settings;
 	memset(&settings, 0, sizeof(settings));
 	
+	// enable raw mode - special processing of characters is disabled
+	cfmakeraw(&settings);
+
 	// set baud rate
 	speed_t speed;
 	switch (config.getBaudRate())
@@ -141,7 +144,7 @@ bool PortHandler::open()
 		default:
 			assert(false && "invalid parity");
 	}
-	
+
 	// set data bits
 	tcflag_t cs;
 	switch (config.getDataBits())
@@ -159,7 +162,7 @@ bool PortHandler::open()
 	}
 	settings.c_cflag &= ~CSIZE;
 	settings.c_cflag |= cs;
-		
+
 	// set stop bits
 	switch (config.getStopBits())
 	{
@@ -170,27 +173,27 @@ bool PortHandler::open()
 		default:
 			assert(false && "invalid stop bits");
 	}
-	
+
 	// enable the receiver and set local mode
-	settings.c_cflag |= (CLOCAL | CREAD);
+	//settings.c_cflag |= (CLOCAL | CREAD);
 
 	// ignore parity errors	
 	//settings.c_iflag |= IGNPAR;  
-	  
+
 	// enable canonical mode
-	settings.c_lflag |= ICANON;
-	
+	//settings.c_lflag |= ICANON;
+
 	// generate signals
-	settings.c_lflag |= ISIG;
+	//settings.c_lflag |= ISIG;
 
 	// enable new settings
 	if (tcsetattr(fd, TCSANOW, &settings) != 0)
 		logger.errorX() << unixError("tcsetattr") << endOfMsg();
-	
+
 	autoClose.disable();
 	logger.info() << "Serial port " << config.getName() << " open" << endOfMsg();
 	handlerState.operational = true;
-	
+
 	return true;
 }
 
