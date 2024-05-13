@@ -33,7 +33,7 @@ string cnvToHexStr(string s)
 			return '0' + input;
 		if (input >= 10 && input <= 15)
 			return 'A' + input - 10;
-		throw std::invalid_argument("Invalid input character");
+		throw std::invalid_argument("cnvToHexStr: Invalid input character");
 	};
 
 	string result(s.length() * 2, '0');
@@ -55,11 +55,11 @@ string cnvFromHexStr(string s)
 			return input - 'A' + 10;
 		if (input >= 'a' && input <= 'f')
 			return input - 'a' + 10;
-		throw std::invalid_argument("Invalid input character");
+		throw std::invalid_argument("cnvFromHexStr: Invalid input character");
 	};
 
 	if (s.length() % 2 != 0)
-		throw std::invalid_argument("Invalid input string");
+		throw std::invalid_argument("cnvFromHexStr: Invalid input string");
 
 	string result(s.length() / 2, 0x00);
 	for (int i = 0; i < s.length() / 2; i++)
