@@ -56,12 +56,21 @@ void PortHandler::validate(Items& items)
 	auto& bindings = config.getBindings();
 
 	for (auto& [itemId, item] : items)
-		if (item.getOwnerId() == id && !bindings.count(itemId))
+		if (item.getOwnerId() == id && itemId != config.getInputItemId() && !bindings.count(itemId))
 			throw std::runtime_error("Item " + itemId + " has no binding for link " + id);
 
-	for (auto& bindingPair : bindings)
+	if (ItemId itemId = config.getInputItemId(); itemId != "")
 	{
-		auto& item = items.validate(bindingPair.first);
+		auto& item = items.validate(itemId);
+		item.validateOwnerId(id);
+		item.validateValueType(ValueType::STRING);
+		item.setReadable(false);
+		item.setWritable(true);
+	}
+
+	for (auto& [itemId, binding] : bindings)
+	{
+		auto& item = items.validate(itemId);
 		item.validateOwnerId(id);
 		item.setReadable(false);
 		item.setWritable(false);
@@ -81,116 +90,122 @@ bool PortHandler::open()
 	lastOpenTry = now;
 	lastDataReceipt = now;
 
-	// open port
-	fd = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
-	if (fd < 0)
-		logger.errorX() << unixError("open") << endOfMsg();
-	auto autoClose = finally([this] { ::close(fd); fd = -1; });
+	if (config.getInputItemId() == "")
+	{
+		// open port
+		fd = ::open(config.getName().c_str(), O_RDONLY | O_NONBLOCK | O_NDELAY |O_NOCTTY);
+		if (fd < 0)
+			logger.errorX() << unixError("open") << endOfMsg();
+		auto autoClose = finally([this] { ::close(fd); fd = -1; });
 
-	// get current port settings
-	memset(&oldSettings, 0, sizeof(oldSettings));
-	if (tcgetattr(fd, &oldSettings) != 0)
-		logger.errorX() << unixError("tcgetattr") << endOfMsg();
+		// get current port settings
+		memset(&oldSettings, 0, sizeof(oldSettings));
+		if (tcgetattr(fd, &oldSettings) != 0)
+			logger.errorX() << unixError("tcgetattr") << endOfMsg();
 
-	// create new port settings
-	struct termios settings;
-	memset(&settings, 0, sizeof(settings));
+		// create new port settings
+		struct termios settings;
+		memset(&settings, 0, sizeof(settings));
 	
-	// enable raw mode - special processing of characters is disabled
-	cfmakeraw(&settings);
+		// enable raw mode - special processing of characters is disabled
+		cfmakeraw(&settings);
 
-	// set baud rate
-	speed_t speed;
-	switch (config.getBaudRate())
-	{
-		case 1200:
-			speed = B1200; break;
-		case 1800:
-			speed = B1800; break;
-		case 2400:
-			speed = B2400; break;
-		case 4800:
-			speed = B4800; break;
-		case 9600:
-			speed = B9600; break;
-		case 19200:
-			speed = B19200; break;
-		case 38400:
-			speed = B38400; break;
-		case 57600:
-			speed = B57600; break;
-		case 115200:
-			speed = B115200; break;
-		default:
-			assert(false && "invalid baud rate");
+		// set baud rate
+		speed_t speed;
+		switch (config.getBaudRate())
+		{
+			case 1200:
+				speed = B1200; break;
+			case 1800:
+				speed = B1800; break;
+			case 2400:
+				speed = B2400; break;
+			case 4800:
+				speed = B4800; break;
+			case 9600:
+				speed = B9600; break;
+			case 19200:
+				speed = B19200; break;
+			case 38400:
+				speed = B38400; break;
+			case 57600:
+				speed = B57600; break;
+			case 115200:
+				speed = B115200; break;
+			default:
+				assert(false && "invalid baud rate");
+		}
+		cfsetospeed(&settings, speed);
+		cfsetispeed(&settings, speed);
+
+		// set parity
+		switch (config.getParity())
+		{
+			case PortConfig::NONE:
+				settings.c_cflag &= ~PARENB;
+				break;
+			case PortConfig::ODD:
+				settings.c_cflag |= PARENB;
+				settings.c_cflag |= PARODD;
+				break;
+			case PortConfig::EVEN:
+				settings.c_cflag |= PARENB;
+				settings.c_cflag &= ~PARODD;
+				break;
+			default:
+				assert(false && "invalid parity");
+		}
+
+		// set data bits
+		tcflag_t cs;
+		switch (config.getDataBits())
+		{
+			case 5:
+				cs = CS5; break;
+			case 6:
+				cs = CS6; break;
+			case 7:
+				cs = CS7; break;
+			case 8:
+				cs = CS8; break;
+			default:
+				assert(false && "invalid data bits");
+		}
+		settings.c_cflag &= ~CSIZE;
+		settings.c_cflag |= cs;
+
+		// set stop bits
+		switch (config.getStopBits())
+		{
+			case 1:
+				settings.c_cflag &= ~CSTOPB; break;
+			case 2:
+				settings.c_cflag |= CSTOPB; break;
+			default:
+				assert(false && "invalid stop bits");
+		}
+
+		// enable the receiver and set local mode
+		//settings.c_cflag |= (CLOCAL | CREAD);
+
+		// ignore parity errors
+		//settings.c_iflag |= IGNPAR;
+
+		// enable canonical mode
+		//settings.c_lflag |= ICANON;
+
+		// generate signals
+		//settings.c_lflag |= ISIG;
+
+		// enable new settings
+		if (tcsetattr(fd, TCSANOW, &settings) != 0)
+			logger.errorX() << unixError("tcsetattr") << endOfMsg();
+
+		autoClose.disable();
 	}
-	cfsetospeed(&settings, speed);
-	cfsetispeed(&settings, speed);
-	
-	// set parity
-	switch (config.getParity())
-	{
-		case PortConfig::NONE:
-			settings.c_cflag &= ~PARENB;
-			break;
-		case PortConfig::ODD:
-			settings.c_cflag |= PARENB;
-			settings.c_cflag |= PARODD;
-			break;
-		case PortConfig::EVEN:
-			settings.c_cflag |= PARENB;
-			settings.c_cflag &= ~PARODD;
-			break;
-		default:
-			assert(false && "invalid parity");
-	}
+	else
+		fd = 0;
 
-	// set data bits
-	tcflag_t cs;
-	switch (config.getDataBits())
-	{
-		case 5:
-			cs = CS5; break;
-		case 6:
-			cs = CS6; break;
-		case 7:
-			cs = CS7; break;
-		case 8:
-			cs = CS8; break;
-		default:
-			assert(false && "invalid data bits");
-	}
-	settings.c_cflag &= ~CSIZE;
-	settings.c_cflag |= cs;
-
-	// set stop bits
-	switch (config.getStopBits())
-	{
-		case 1:
-			settings.c_cflag &= ~CSTOPB; break;
-		case 2:
-			settings.c_cflag |= CSTOPB; break;
-		default:
-			assert(false && "invalid stop bits");
-	}
-
-	// enable the receiver and set local mode
-	//settings.c_cflag |= (CLOCAL | CREAD);
-
-	// ignore parity errors	
-	//settings.c_iflag |= IGNPAR;  
-
-	// enable canonical mode
-	//settings.c_lflag |= ICANON;
-
-	// generate signals
-	//settings.c_lflag |= ISIG;
-
-	// enable new settings
-	if (tcsetattr(fd, TCSANOW, &settings) != 0)
-		logger.errorX() << unixError("tcsetattr") << endOfMsg();
-
-	autoClose.disable();
 	logger.info() << "Serial port " << config.getName() << " open" << endOfMsg();
 	handlerState.operational = true;
 
@@ -202,12 +217,16 @@ void PortHandler::close()
 	if (fd < 0)
 		return;
 
-	tcsetattr(fd, TCSANOW, &oldSettings);
-	::close(fd);
+	if (config.getInputItemId() == "")
+	{
+		tcsetattr(fd, TCSANOW, &oldSettings);
+		::close(fd);
+	}
+
 	fd = -1;
 	lastOpenTry = 0;
 	lastDataReceipt = 0;
-	msgData.clear();
+	streamData.clear();
 
 	logger.info() << "Serial port " << config.getName() << " closed" << endOfMsg();
 	handlerState.operational = false;
@@ -216,40 +235,58 @@ void PortHandler::close()
 void PortHandler::receiveData()
 {
 	// receive data
-	char buffer[256];
-	int rc = ::read(fd, buffer, sizeof(buffer));
-	if (rc < 0)
-		if (errno == EWOULDBLOCK || errno == EAGAIN)
-			return;
-		else
-			logger.errorX() << unixError("read") << endOfMsg();
-	if (rc == 0)
-		logger.errorX() << "Data transmission stopped" << endOfMsg();
-	string receivedData = string(buffer, rc);
+	string receivedData;
+	if (config.getInputItemId() == "")
+	{
+		char buffer[256];
+		int rc = ::read(fd, buffer, sizeof(buffer));
+		if (rc < 0)
+			if (errno == EWOULDBLOCK || errno == EAGAIN)
+				return;
+			else
+				logger.errorX() << unixError("read") << endOfMsg();
+		if (rc == 0)
+			logger.errorX() << "Data transmission stopped" << endOfMsg();
+		receivedData = string(buffer, rc);
+	}
+	else
+	{
+		receivedData = inputData;
+		inputData.clear();
+	}
 
-	// trace received data
-	if (config.getLogRawData())
-		if (config.getLogRawDataInHex())
-			logger.debug() << "R " << cnvToHexStr(receivedData) << endOfMsg();
-		else
+	if (receivedData.length())
+	{
+		// hex handling?
+		if (config.getConvertToHex())
+			receivedData = cnvToHexStr(receivedData);
+
+		// trace received data
+		if (config.getLogRawData())
 			logger.debug() << "R " << receivedData << endOfMsg();
 
-	// append received data to overall data
-	msgData += receivedData;
+		// append received data to overall data
+		streamData += receivedData;
 
-	// remember time of data receipt
-	lastDataReceipt = std::time(0);
+		// remember time of data receipt
+		lastDataReceipt = std::time(0);
+	}
 }
 
 long PortHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
 {
-	if (fd != -1)
+	if (config.getInputItemId() == "")
 	{
-		FD_SET(fd, readFds);
-		*maxFd = std::max(*maxFd, fd);
-	}
+		if (fd != -1)
+		{
+			FD_SET(fd, readFds);
+			*maxFd = std::max(*maxFd, fd);
+		}
 
-	return -1;
+		return -1;
+	}
+	else
+		return inputData.length() ? 0 : -1;
 }
 
 Events PortHandler::receive(const Items& items)
@@ -288,29 +325,36 @@ Events PortHandler::receiveX()
 
 	// analyze available data
 	std::smatch match;
-	while (std::regex_search(msgData, match, config.getMsgPattern()))
+	while (std::regex_search(streamData, match, config.getMsgPattern()) && match.size() == 2)
 	{
 		// complete message available
-		string msg = match[0];
+		string msg = match[1];
 		string binMsg = cnvToBinStr(msg);
-		msgData = match.suffix();
+		streamData = match.suffix();
 
 		// analyze message
-		for (auto& bindingPair : config.getBindings())
-		{
-			auto& binding = bindingPair.second;
-
+		for (auto& [itemId, binding] : config.getBindings())
 			if (  (binding.binMatching && std::regex_search(binMsg, match, binding.pattern) && match.size() == 2)
 			   || (!binding.binMatching && std::regex_search(msg, match, binding.pattern) && match.size() == 2)
 			   )
-				events.add(Event(id, binding.itemId, EventType::STATE_IND, Value::newString(match[1])));
-		}
+				events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(match[1])));
 	}
 
 	// detect wrong data
-	if (msgData.length() > 2 * config.getMaxMsgSize())
-		logger.errorX() << "Data " << msgData << " does not match message pattern" << endOfMsg();
+	if (streamData.length() > 2 * config.getMaxMsgSize())
+		logger.errorX() << "Data " << streamData << " does not match message pattern" << endOfMsg();
 
 	return events;
 }
 
+Events PortHandler::send(const Items& items, const Events& events)
+{
+	for (auto& event : events)
+		if (event.getItemId() == config.getInputItemId())
+			if (config.getConvertToHex())
+				inputData += cnvFromHexStr(event.getValue().getString());
+			else
+				inputData += event.getValue().getString();
+
+	return Events();
+}

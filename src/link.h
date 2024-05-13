@@ -29,7 +29,11 @@ struct Modifier
 	// Indicates if passed values are rounded or.
 	bool round = false;
 
-	// JSON Pointer which is applied on inbound values to extract normalized values.
+	// Inbound strings are assumed to be SML files transporting a smart meter property
+	// which is identified by its hexadecimal OBIS code.
+	string inObisCode;
+
+	// JSON pointer which is applied on inbound values to extract normalized values.
 	string inJsonPointer;
 
 	// Regular expression which is applied on inbound values to extract normalized values.

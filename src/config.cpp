@@ -161,7 +161,7 @@ std::regex getRegEx(const rapidjson::Value& value, string name, string dfltValue
 	string pattern = dfltValue != "" ? getString(value, name, dfltValue) : getString(value, name);
 	try
 	{
-		return std::regex(pattern, std::regex_constants::extended);
+		return std::regex(pattern, std::regex_constants::extended | std::regex_constants::optimize);
 	}
 	catch (const std::regex_error& ex)
 	{
@@ -347,6 +347,7 @@ Links Config::getLinks(const Items& items, Log& log) const
 				modifier.summand = getFloat(modifierValue, "summand", 0.0);
 				modifier.round = getBool(modifierValue, "round", false);
 
+				modifier.inObisCode = getString(modifierValue, "inObisCode", "");
 				modifier.inJsonPointer = getString(modifierValue, "inJsonPointer", "");
 				modifier.inPattern = getRegEx(modifierValue, "inPattern", "^(.*)$");
 				if (hasMember(modifierValue, "inMappings"))
@@ -538,11 +539,14 @@ PortConfig Config::getPortConfig(const rapidjson::Value& value) const
 	int timeoutInterval = getInt(value, "timeoutInterval", 60);
 	int reopenInterval = getInt(value, "reopenInterval", 60);
 
+	bool convertToHex = getBool(value, "convertToHex", false);
+
 	std::regex msgPattern = getRegEx(value, "msgPattern");
 	int maxMsgSize = getInt(value, "maxMsgSize", 1024);
 
 	bool logRawData = getBool(value, "logRawData", false);
-	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
+
+	ItemId inputItemId = getString(value, "inputItemId", "");
 
 	PortConfig::Bindings bindings;
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
@@ -550,11 +554,12 @@ PortConfig Config::getPortConfig(const rapidjson::Value& value) const
 		std::regex pattern = getRegEx(bindingValue, "pattern");
 		bool binMatching = getBool(bindingValue, "binMatching", false);
 
-		bindings.add(PortConfig::Binding(getString(bindingValue, "itemId"), pattern, binMatching));
+		for (string itemId : getStrings(bindingValue, "itemId"))
+			bindings.add(PortConfig::Binding(itemId, pattern, binMatching));
 	}
 
 	return PortConfig(name, baudRate, dataBits, stopBits, parity, timeoutInterval,
-			reopenInterval, msgPattern, maxMsgSize, logRawData, logRawDataInHex, bindings);
+			reopenInterval, convertToHex, msgPattern, maxMsgSize, logRawData, inputItemId, bindings);
 }
 
 GeneratorConfig Config::getGeneratorConfig(const rapidjson::Value& value) const

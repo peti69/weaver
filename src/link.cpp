@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "link.h"
+#include "sml.h"
 
 string Modifier::mapOutbound(string value) const
 {
@@ -43,7 +44,7 @@ Value Modifier::convertInbound(const Value& value) const
 		Number num = (value.getNumber() + summand) * factor;
 		if (round)
 			num = std::round(num);
-		return Value::newNumber(num);
+		return Value::newNumber(num, value.getUnit());
 	}
 	else
 		return value;
@@ -228,7 +229,63 @@ Events Link::receive(Items& items)
 				continue;
 			}
 
-			// convert event value (JSON Pointer extraction)
+			// convert event value (OBIS code based extraction from SML file)
+			if (value.isString() && modifier && modifier->inObisCode != "")
+			{
+				SmlFile file;
+				if (!file.parse(cnvFromHexStr(value.getString())))
+				{
+					logger.error() << "Event value conversion for item " << item.getId() << " - SML parse error in '"
+					               << value.getString() << "'" << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+				auto sequence = file.searchSequence(cnvFromHexStr(modifier->inObisCode));
+				if (!sequence)
+				{
+					logger.error() << "Event value conversion for item " << item.getId() << " - Sequence for OBIS code "
+					               << modifier->inObisCode << " not found in '" << value.getString() << "'" << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+				if (sequence->size() < 6)
+				{
+					logger.error() << "Event value conversion for item " << item.getId() << " - Sequence for OBIS code "
+					               << modifier->inObisCode << " too short in '" << value.getString() << "'" << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+				auto smlUnit = std::get_if<SmlNode::Integer>(&sequence->at(3)->value);
+				auto smlScaler = std::get_if<SmlNode::Integer>(&sequence->at(4)->value);
+				auto smlNumber = std::get_if<SmlNode::Integer>(&sequence->at(5)->value);
+				if (!smlUnit || !smlScaler || !smlNumber)
+				{
+					logger.error() << "Event value conversion for item " << item.getId() << " - Sequence for OBIS code "
+					               << modifier->inObisCode << " invalid in '" << value.getString() << "'" << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+				Unit unit = Unit::UNKNOWN;
+				if (*smlUnit == 30)
+					unit = Unit::WATTHOUR;
+				else if (*smlUnit == 27)
+					unit = Unit::WATT;
+				else
+				{
+					logger.error() << "Event value conversion for item " << item.getId() << " - Unknown OBIS unit "
+					               << *smlUnit << endOfMsg();
+
+					eventPos = events.erase(eventPos);
+					continue;
+				}
+				value = Value::newNumber(std::pow(10.0, *smlScaler) * (*smlNumber), unit);
+			}
+
+			// convert event value (JSON pointer extraction)
 			if (value.isString() && modifier && modifier->inJsonPointer != "")
 			{
 				rapidjson::Document document;
@@ -377,10 +434,6 @@ Events Link::receive(Items& items)
 				continue;
 			}
 
-			// convert event value (type preserving manipulations - general)
-			if (modifier)
-				value = modifier->convertInbound(value);
-
 			// convert event value (type preserving manipulations - unit)
 			if (value.isNumber())
 			{
@@ -402,6 +455,10 @@ Events Link::receive(Items& items)
 					continue;
 				}
 			}
+
+			// convert event value (type preserving manipulations - general)
+			if (modifier)
+				value = modifier->convertInbound(value);
 
 			event.setValue(value);
 		}
@@ -468,6 +525,10 @@ void Link::send(Items& items, const Events& events)
 				continue;
 			}
 
+			// convert event value (type preserving manipulations - general)
+			if (modifier)
+				value = modifier->convertOutbound(value);
+
 			// convert event value (type preserving manipulations - unit)
 			if (value.isNumber())
 			{
@@ -487,10 +548,6 @@ void Link::send(Items& items, const Events& events)
 					continue;
 				}
 			}
-
-			// convert event value (type preserving manipulations - general)
-			if (modifier)
-				value = modifier->convertOutbound(value);
 
 			// convert event value (type)
 			if (value.isNumber() && numberAsString)

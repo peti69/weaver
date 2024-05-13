@@ -35,18 +35,21 @@ private:
 	Parity parity;
 	int timeoutInterval;
 	int reopenInterval;
+	bool convertToHex;
 	std::regex msgPattern;
 	int maxMsgSize;
 	bool logRawData;
-	bool logRawDataInHex;
+	ItemId inputItemId;
 	Bindings bindings;
 
 public:
-	PortConfig(string _name, int _baudRate, int _dataBits, int _stopBits, Parity _parity, int _timeoutInterval,
-		int _reopenInterval, std::regex _msgPattern, int _maxMsgSize, bool _logRawData, bool _logRawDataInHex, Bindings _bindings) :
-		name(_name), baudRate(_baudRate), dataBits(_dataBits), stopBits(_stopBits), parity(_parity), 
-		timeoutInterval(_timeoutInterval), reopenInterval(_reopenInterval), msgPattern(_msgPattern),
-		maxMsgSize(_maxMsgSize), logRawData(_logRawData), logRawDataInHex(_logRawDataInHex), bindings(_bindings)
+	PortConfig(string name, int baudRate, int dataBits, int stopBits, Parity parity, int timeoutInterval,
+		int reopenInterval, bool convertToHex, std::regex msgPattern, int maxMsgSize, bool logRawData,
+		ItemId inputItemId, Bindings bindings) :
+		name(name), baudRate(baudRate), dataBits(dataBits), stopBits(stopBits), parity(parity),
+		timeoutInterval(timeoutInterval), reopenInterval(reopenInterval), convertToHex(convertToHex),
+		msgPattern(msgPattern), maxMsgSize(maxMsgSize), logRawData(logRawData), inputItemId(inputItemId),
+		bindings(bindings)
 	{}
 	string getName() const { return name; }
 	int getBaudRate() const { return baudRate; }
@@ -55,10 +58,11 @@ public:
 	Parity getParity() const { return parity; }
 	int getTimeoutInterval() const { return timeoutInterval; }
 	int getReopenInterval() const { return reopenInterval; }
+	bool getConvertToHex() const { return convertToHex; }
 	const std::regex& getMsgPattern() const { return msgPattern; }
 	int getMaxMsgSize() const { return maxMsgSize; }
 	bool getLogRawData() const { return logRawData; }
-	bool getLogRawDataInHex() const { return logRawDataInHex; }
+	ItemId getInputItemId() const { return inputItemId; }
 	const Bindings& getBindings() const { return bindings; }
 
 	static bool isValidBaudRate(int baudRate);
@@ -73,7 +77,8 @@ private:
 	string id;
 	PortConfig config;
 	Logger logger;
-	string msgData;
+	string streamData;
+	string inputData;
 	int fd;
 	std::time_t lastOpenTry;
 	std::time_t lastDataReceipt;
@@ -87,7 +92,7 @@ public:
 	virtual HandlerState getState() const override { return handlerState; }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override;
 	virtual Events receive(const Items& items) override;
-	virtual Events send(const Items& items, const Events& events) override { return Events(); }
+	virtual Events send(const Items& items, const Events& events) override;
 
 private:
 	bool open();
