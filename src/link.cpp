@@ -31,7 +31,7 @@ Value Modifier::convertOutbound(const Value& value) const
 		Number num = (value.getNumber() / factor) - summand;
 		if (round)
 			num = std::round(num);
-		return Value::newNumber(num);
+		return Value::newNumber(num, value.getUnit());
 	}
 	else
 		return value;
