@@ -201,6 +201,11 @@ ByteString DatapointType::exportValue(const Value& value) const
 				return ByteString({0x00, i});
 			}
 		}
+		else if (mainNo == 20)
+		{
+			uint8_t i = d;
+			return ByteString({0x00, i});
+		}
 	}
 	return ByteString();
 }
@@ -243,6 +248,8 @@ Value DatapointType::importValue(ByteString bytes) const
 			return Value::newString(cnvToAsciiStr(bytes.substr(1, pos)));
 	}
 	else if (mainNo == 17 && bytes.length() == 2)
+		return Value::newNumber(1.0 * bytes[1]);
+	else if (mainNo == 20 && bytes.length() == 2)
 		return Value::newNumber(1.0 * bytes[1]);
 	return Value();
 }
