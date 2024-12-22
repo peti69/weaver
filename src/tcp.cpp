@@ -8,9 +8,11 @@
 #include "finally.h"
 #include "tcp.h"
 
-TcpHandler::TcpHandler(string _id, TcpConfig _config, Logger _logger) :
-	id(_id), config(_config), logger(_logger), socket(-1), lastConnectTry(0)
+TcpHandler::TcpHandler(string id, TcpConfig config, Logger logger) :
+	id(id), config(config), logger(logger), socket(-1), lastConnectTry(0), lastDataReceipt(0)
 {
+	handlerState.errorCounter = 0;
+	handlerState.operational = false;
 }
 
 TcpHandler::~TcpHandler()
@@ -46,6 +48,7 @@ bool TcpHandler::open()
 	if (lastConnectTry + config.getReconnectInterval() > now)
 		return false;
 	lastConnectTry = now;
+	lastDataReceipt = now;
 
 	addrinfo hints;
 	addrinfo* addrs;
@@ -74,7 +77,9 @@ bool TcpHandler::open()
 		logger.errorX() << unixError("fcntl") << endOfMsg();
 
 	autoClose.disable();
+
 	logger.info() << "Connected to " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+	handlerState.operational = true;
 
 	return true;
 }
@@ -87,8 +92,10 @@ void TcpHandler::close()
 	::close(socket);
 	socket = -1;
 	lastConnectTry = 0;
+	lastDataReceipt = 0;
 
 	logger.info() << "Disconnected from " << config.getHostname() << ":" << config.getPort() << endOfMsg();
+	handlerState.operational = false;
 }
 
 void TcpHandler::receiveData()
@@ -105,17 +112,22 @@ void TcpHandler::receiveData()
 		logger.errorX() << "Disconnect by remote party" << endOfMsg();
 	string receivedData = string(buffer, rc);
 
-	// remove 0x00 bytes from received data
-	string::size_type pos;
-	while ((pos = receivedData.find('\x00')) != string::npos)
-		receivedData.erase(pos);
+	if (receivedData.length())
+	{
+		// hex handling?
+		if (config.getConvertToHex())
+			receivedData = cnvToHexStr(receivedData);
 
-	// trace received data
-	if (config.getLogRawData())
-		if (config.getLogRawDataInHex())
-			logger.debug() << "R " << cnvToHexStr(receivedData) << endOfMsg();
-		else
+		// trace received data
+		if (config.getLogRawData())
 			logger.debug() << "R " << receivedData << endOfMsg();
+
+		// append received data to overall data
+		msgData += receivedData;
+
+		// remember time of data receipt
+		lastDataReceipt = std::time(0);
+	}
 
 	// append received data to overall data
 	msgData += receivedData;
@@ -140,6 +152,8 @@ Events TcpHandler::receive(const Items& items)
 	}
 	catch (const std::exception& ex)
 	{
+		handlerState.errorCounter++;
+
 		logger.error() << ex.what() << endOfMsg();
 	}
 
@@ -149,30 +163,41 @@ Events TcpHandler::receive(const Items& items)
 
 Events TcpHandler::receiveX()
 {
+	std::time_t now = std::time(0);
+
 	Events events;
 
 	// try to connect to the remote site
 	if (!open())
 		return events;
 
+	// detect data timeout
+	if (lastDataReceipt + config.getTimeoutInterval() <= now)
+		logger.errorX() << "Data transmission timed out" << endOfMsg();
+
 	// read all available data
 	receiveData();
 
-	// break received data into messages
+	// analyze available data
 	std::smatch match;
-	while (std::regex_search(msgData, match, config.getMsgPattern()))
+	while (std::regex_search(msgData, match, config.getMsgPattern()) && match.size() == 2)
 	{
-		string msg = match[0];
+		// complete message available
+		string msg = match[1];
+		string binMsg = cnvToBinStr(msg);
 		msgData = match.suffix();
 
-		for (auto& bindingPair : config.getBindings())
-		{
-			auto& binding = bindingPair.second;
-
-			if (std::regex_search(msg, match, binding.pattern) && match.size() == 2)
-				events.add(Event(id, binding.itemId, EventType::STATE_IND, Value::newString(match[1])));
-		}
+		// analyze message
+		for (auto& [itemId, binding] : config.getBindings())
+			if (  (binding.binMatching && std::regex_search(binMsg, match, binding.pattern) && match.size() == 2)
+			   || (!binding.binMatching && std::regex_search(msg, match, binding.pattern) && match.size() == 2)
+			   )
+				events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(match[1])));
 	}
+
+	// detect wrong data
+	if (msgData.length() > 2 * config.getMaxMsgSize())
+		logger.errorX() << "Data " << msgData << " does not match message pattern" << endOfMsg();
 
 	return events;
 }

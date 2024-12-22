@@ -646,22 +646,28 @@ TcpConfig Config::getTcpConfig(const rapidjson::Value& value) const
 	string hostname = getString(value, "hostname");
 	int port = getInt(value, "port");
 
+	bool convertToHex = getBool(value, "convertToHex", false);
+
 	std::regex msgPattern = getRegEx(value, "msgPattern");
+	int maxMsgSize = getInt(value, "maxMsgSize", 1024);
 
 	bool logRawData = getBool(value, "logRawData", false);
-	bool logRawDataInHex = getBool(value, "logRawDataInHex", false);
 
+	int timeoutInterval = getInt(value, "timeoutInterval", 60);
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
 
 	TcpConfig::Bindings bindings;
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
 	{
 		std::regex pattern = getRegEx(bindingValue, "pattern");
+		bool binMatching = getBool(bindingValue, "binMatching", false);
 
-		bindings.add(TcpConfig::Binding(getString(bindingValue, "itemId"), pattern));
+		for (string itemId : getStrings(bindingValue, "itemId"))
+			bindings.add(TcpConfig::Binding(itemId, pattern, binMatching));
 	}
 
-	return TcpConfig(hostname, port, reconnectInterval, msgPattern, logRawData, logRawDataInHex, bindings);
+	return TcpConfig(hostname, port, timeoutInterval, reconnectInterval, convertToHex,
+			msgPattern, maxMsgSize, logRawData, bindings);
 }
 
 storage::Config Config::getStorageConfig(const rapidjson::Value& value) const
