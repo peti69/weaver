@@ -653,7 +653,7 @@ TcpConfig Config::getTcpConfig(const rapidjson::Value& value) const
 
 	bool logRawData = getBool(value, "logRawData", false);
 
-	int timeoutInterval = getInt(value, "timeoutInterval", 60);
+	int timeoutInterval = getInt(value, "timeoutInterval", 0);
 	int reconnectInterval = getInt(value, "reconnectInterval", 60);
 
 	TcpConfig::Bindings bindings;

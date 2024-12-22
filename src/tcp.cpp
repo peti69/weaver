@@ -172,7 +172,7 @@ Events TcpHandler::receiveX()
 		return events;
 
 	// detect data timeout
-	if (lastDataReceipt + config.getTimeoutInterval() <= now)
+	if (config.getTimeoutInterval() && lastDataReceipt + config.getTimeoutInterval() <= now)
 		logger.errorX() << "Data transmission timed out" << endOfMsg();
 
 	// read all available data
