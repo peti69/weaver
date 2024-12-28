@@ -4,13 +4,14 @@
 
 const std::map<UnitType, string> UnitType::details{
 	{UnitType::UNKNOWN, "unknown"},
-	{UnitType::PERIOD,  "period"},
-	{UnitType::SPEED,  "speed"},
-	{UnitType::TEMPERATURE,  "temperature"},
-	{UnitType::VOLUME,  "volume"},
-	{UnitType::ILLUMINANCE,  "illuminance"},
-	{UnitType::CURRENT,  "current"},
-	{UnitType::ENERGY,  "energy"}};
+	{UnitType::PERIOD, "period"},
+	{UnitType::SPEED, "speed"},
+	{UnitType::TEMPERATURE, "temperature"},
+	{UnitType::VOLUME, "volume"},
+	{UnitType::ILLUMINANCE, "illuminance"},
+	{UnitType::CURRENT, "current"},
+	{UnitType::ENERGY, "energy"},
+	{UnitType::VOLTAGE, "voltage"}};
 
 string UnitType::toStr() const
 {
@@ -39,6 +40,8 @@ const std::map<Unit, Unit::Detail> Unit::details{
 	{Unit::LITER_PER_MINUTE, {UnitType::UNKNOWN, "l/min", true}},
 	{Unit::MILLIAMPERE, {UnitType::CURRENT, "mA", true}},
 	{Unit::AMPERE, {UnitType::CURRENT, "A", true}},
+	{Unit::MILLIVOLT, {UnitType::VOLTAGE, "mV", true}},
+	{Unit::VOLT, {UnitType::VOLTAGE, "V", true}},
 	{Unit::MILLIMETER, {UnitType::UNKNOWN, "mm", true}},
 	{Unit::EURO, {UnitType::UNKNOWN, "€", true}},
 	{Unit::HOUR, {UnitType::PERIOD, "h", true}},
@@ -183,6 +186,18 @@ Number Unit::convertTo(Number value, Unit targetUnit) const
 			switch (targetUnit)
 			{
 				case MILLIAMPERE: return value * 1000;
+			}
+			break;
+		case MILLIVOLT:
+			switch (targetUnit)
+			{
+				case VOLT: return value / 1000;
+			}
+			break;
+		case VOLT:
+			switch (targetUnit)
+			{
+				case MILLIVOLT: return value * 1000;
 			}
 			break;
 	}

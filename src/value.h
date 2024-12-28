@@ -30,6 +30,7 @@ public:
 	static constexpr Code CURRENT = 6;
 	static constexpr Code ENERGY = 7;
 	static constexpr Code POWER = 8;
+	static constexpr Code VOLTAGE = 8;
 };
 
 class Unit
@@ -83,6 +84,8 @@ public:
 	static constexpr Code AMPERE = 21;
 	static constexpr Code WATTHOUR = 22;
 	static constexpr Code KILOWATT = 23;
+	static constexpr Code VOLT = 24;
+	static constexpr Code MILLIVOLT = 25;
 };
 
 class ValueType
