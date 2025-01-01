@@ -93,44 +93,10 @@ void TcpHandler::close()
 	socket = -1;
 	lastConnectTry = 0;
 	lastDataReceipt = 0;
+	streamData.clear();
 
 	logger.info() << "Disconnected from " << config.getHostname() << ":" << config.getPort() << endOfMsg();
 	handlerState.operational = false;
-}
-
-void TcpHandler::receiveData()
-{
-	// receive data
-	char buffer[256];
-	int rc = ::read(socket, buffer, sizeof(buffer));
-	if (rc < 0)
-		if (errno == EWOULDBLOCK || errno == EAGAIN)
-			return;
-		else
-			logger.errorX() << unixError("read") << endOfMsg();
-	if (rc == 0)
-		logger.errorX() << "Disconnect by remote party" << endOfMsg();
-	string receivedData = string(buffer, rc);
-
-	if (receivedData.length())
-	{
-		// hex handling?
-		if (config.getConvertToHex())
-			receivedData = cnvToHexStr(receivedData);
-
-		// trace received data
-		if (config.getLogRawData())
-			logger.debug() << "R " << receivedData << endOfMsg();
-
-		// append received data to overall data
-		msgData += receivedData;
-
-		// remember time of data receipt
-		lastDataReceipt = std::time(0);
-	}
-
-	// append received data to overall data
-	msgData += receivedData;
 }
 
 long TcpHandler::collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd)
@@ -180,25 +146,59 @@ Events TcpHandler::receiveX()
 
 	// analyze available data
 	std::smatch match;
-	while (std::regex_search(msgData, match, config.getMsgPattern()) && match.size() == 2)
+	while (std::regex_search(streamData, match, config.getMsgPattern()) && match.size() == 2)
 	{
 		// complete message available
 		string msg = match[1];
 		string binMsg = cnvToBinStr(msg);
-		msgData = match.suffix();
 
-		// analyze message
+		// process message
 		for (auto& [itemId, binding] : config.getBindings())
 			if (  (binding.binMatching && std::regex_search(binMsg, match, binding.pattern) && match.size() == 2)
 			   || (!binding.binMatching && std::regex_search(msg, match, binding.pattern) && match.size() == 2)
 			   )
 				events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(match[1])));
+
+		// discard processed message
+		streamData = match.suffix();
 	}
 
 	// detect wrong data
-	if (msgData.length() > 2 * config.getMaxMsgSize())
-		logger.errorX() << "Data " << msgData << " does not match message pattern" << endOfMsg();
+	if (streamData.length() > 2 * config.getMaxMsgSize())
+		logger.errorX() << "Data " << streamData << " does not match message pattern" << endOfMsg();
 
 	return events;
+}
+
+void TcpHandler::receiveData()
+{
+	// receive data
+	char buffer[256];
+	int rc = ::read(socket, buffer, sizeof(buffer));
+	if (rc < 0)
+		if (errno == EWOULDBLOCK || errno == EAGAIN)
+			return;
+		else
+			logger.errorX() << unixError("read") << endOfMsg();
+	if (rc == 0)
+		logger.errorX() << "Disconnect by remote party" << endOfMsg();
+	string receivedData = string(buffer, rc);
+
+	if (receivedData.length())
+	{
+		// hex handling?
+		if (config.getConvertToHex())
+			receivedData = cnvToHexStr(receivedData);
+
+		// trace received data
+		if (config.getLogRawData())
+			logger.debug() << "R " << receivedData << endOfMsg();
+
+		// append received data to overall data
+		streamData += receivedData;
+
+		// remember time of data receipt
+		lastDataReceipt = std::time(0);
+	}
 }
 

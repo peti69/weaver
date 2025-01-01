@@ -59,7 +59,7 @@ private:
 	string id;
 	TcpConfig config;
 	Logger logger;
-	string msgData;
+	string streamData;
 	int socket;
 	std::time_t lastConnectTry;
 	std::time_t lastDataReceipt;
