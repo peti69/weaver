@@ -1,6 +1,6 @@
 FROM alpine:3.12
 
-LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, HTTP(S), plain TCP, MQTT and serial devices"
+LABEL maintainer="Peter Weiss" description="Home automation gateway for KNX, HTTP(S), plain TCP, Modbus, MQTT and serial devices"
 
 RUN set -x && \
 	apk --no-cache add \
