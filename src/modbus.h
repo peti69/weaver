@@ -14,11 +14,14 @@ public:
 	{
 		string itemId;
 		Byte unitId;
-		int firstRegister;
-		int lastRegister;
+		int valueRegister;
+		int valueRegisterCount;
 		int factorRegister;
-		Binding(string itemId, Byte unitId, int firstRegister, int lastRegister, int factorRegister) :
-			itemId(itemId), unitId(unitId), firstRegister(firstRegister), lastRegister(lastRegister), factorRegister(factorRegister) {};
+		Binding(string itemId, Byte unitId, int valueRegister, int valueRegisterCount, int factorRegister) :
+			itemId(itemId), unitId(unitId), valueRegister(valueRegister),
+			valueRegisterCount(valueRegisterCount), factorRegister(factorRegister) {};
+		int firstRegister() const { return std::min(valueRegister, factorRegister); }
+		int lastRegister() const { return std::max(valueRegister + valueRegisterCount - 1, factorRegister); }
 	};
 	class Bindings: public std::map<string, Binding>
 	{
@@ -57,8 +60,8 @@ private:
 	Config config;
 	Logger logger;
 	ByteString streamData;
-	int socket;
-	Byte transactionId;
+	int socket = -1;
+	Byte lastTransactionId = 0;
 	TimePoint lastConnectTry;
 	TimePoint lastDataReceipt;
 	HandlerState handlerState;

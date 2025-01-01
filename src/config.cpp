@@ -697,20 +697,12 @@ modbus::Config Config::getModbusConfig(const rapidjson::Value& value) const
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
 	{
 		Byte unitId = getByte(bindingValue, "unitId");
-		int firstRegister = getInt(bindingValue, "firstRegister");
-		int lastRegister = getInt(bindingValue, "lastRegister");
+		int valueRegister = getInt(bindingValue, "valueRegister");
+		int valueRegisterCount = getInt(bindingValue, "valueRegisterCount", 1);
 		int factorRegister = getInt(bindingValue, "factorRegister", -1);
 
 		for (string itemId : getStrings(bindingValue, "itemId"))
-		{
-			if (firstRegister > lastRegister)
-				throw std::runtime_error("Item " + itemId + " has invalid register query range");
-			if (factorRegister > -1)
-				if (factorRegister < firstRegister || factorRegister > lastRegister)
-					throw std::runtime_error("Item " + itemId + " has factor register outside of register query range");
-
-			bindings.add(modbus::Config::Binding(itemId, unitId, firstRegister, lastRegister, factorRegister));
-		}
+			bindings.add(modbus::Config::Binding(itemId, unitId, valueRegister, valueRegisterCount, factorRegister));
 	}
 
 	return modbus::Config(hostname, port, reconnectInterval, logRawData, logMsgs, bindings);

@@ -12,7 +12,7 @@ namespace modbus
 {
 
 Handler::Handler(string id, Config config, Logger logger) :
-	id(id), config(config), logger(logger), socket(-1), transactionId(0)
+	id(id), config(config), logger(logger)
 {
 	handlerState.errorCounter = 0;
 	handlerState.operational = false;
@@ -166,27 +166,36 @@ Events Handler::receiveX(const Items& items)
 				logger.debug() << "Response " <<  static_cast<int>(receivedTransactionId) << "," << static_cast<int>(msg[6]) << "," << cnvToHexStr(data) << endOfMsg();
 
 			// process response
-			if (auto pos = requests.find(receivedTransactionId); pos != requests.end())
+			if (auto requestPos = requests.find(receivedTransactionId); requestPos != requests.end())
 			{
 				// matching request with binding found
-				auto& [itemId, binding] = *pos->second.second;
+				auto& [itemId, binding] = *requestPos->second.second;
 
 				// verify response against binding definition
-				if (data.length() != (binding.lastRegister - binding.firstRegister + 1) * 2)
+				if (data.length() != (binding.lastRegister() - binding.firstRegister() + 1) * 2)
 					logger.errorX() << "Response " + cnvToHexStr(msg) + " does not match binding definition of item " + itemId << endOfMsg();
 
 				auto convert = [](ByteString data)
 				{
-					assert(data.length() == 2);
+					assert(data.length() <= sizeof(uint64_t));
+					uint64_t value = 0;
 					if (data[0] & 0x80)
-						return -1.0 * ((~data[0] & 0xFF) << 8 | (~data[1] & 0XFF)) - 1;
+					{
+						for (int i = 0; i < data.length(); i++)
+							value = (value << 8) | (~data[i] & 0xFF);
+						return -1.0 * value - 1;
+					}
 					else
-						return 1.0 * (data[0] << 8 | data[1]);
+					{
+						for (int i = 0; i < data.length(); i++)
+							value = (value << 8) | data[i];
+						return 1.0 * value;
+					}
 				};
 
 				auto addEvent = [&](ByteString data, int baseRegister, ItemId itemId, const Config::Binding& binding)
 				{
-					ByteString registerData = data.substr((binding.firstRegister - baseRegister) * 2, 2);
+					ByteString registerData = data.substr((binding.valueRegister - baseRegister) * 2, binding.valueRegisterCount * 2);
 					if (items.get(itemId).hasValueType(ValueType::NUMBER))
 					{
 						Number num = convert(registerData);
@@ -199,19 +208,22 @@ Events Handler::receiveX(const Items& items)
 				};
 
 				// generate event for binding
-				addEvent(data, binding.firstRegister, itemId, binding);
+				addEvent(data, binding.firstRegister(), itemId, binding);
 
 				// generate events for other bindings if possible
 				for (auto& [otherItemId, otherBinding] : config.getBindings())
 					if (itemId != otherItemId && binding.unitId == otherBinding.unitId)
 					{
 						// verify that register range of other binding is covered
-						if (otherBinding.firstRegister < binding.firstRegister || otherBinding.lastRegister > binding.lastRegister)
+						if (otherBinding.firstRegister() < binding.firstRegister() || otherBinding.lastRegister() > binding.lastRegister())
 							continue;
 
 						// generate event for other binding
-						addEvent(data, binding.firstRegister, otherItemId, otherBinding);
+						addEvent(data, binding.firstRegister(), otherItemId, otherBinding);
 					}
+
+				// discard request information
+				requests.erase(requestPos);
 			}
 			else
 				logger.errorX() << "No matching pending request for received response " + cnvToHexStr(msg) << endOfMsg();
@@ -223,10 +235,18 @@ Events Handler::receiveX(const Items& items)
 			break;
 	}
 
-	// check for respone timeouts
-	for (auto& [transactionId, request] : requests)
+	// check for response timeouts
+	for (auto requestPos = requests.begin(); requestPos != requests.end();)
+	{
+		auto& request = requestPos->second;
 		if (Clock::now() > request.first + config.getResponseTimeout())
+		{
 			logger.warn() << "No response within expected time span for " + request.second->first + " query request" << endOfMsg();
+			requestPos = requests.erase(requestPos);
+		}
+		else
+			requestPos++;
+	}
 
 	return events;
 }
@@ -291,29 +311,29 @@ void Handler::sendX(const Items& items, const Events& events)
 
 			if (event.getType() == EventType::READ_REQ)
 			{
-				transactionId++;
+				lastTransactionId++;
 
 				// trace request
 				if (config.getLogMsgs())
-					logger.debug() << "Request " <<  static_cast<int>(transactionId) << "," << static_cast<int>(binding.unitId) << ","
-					               << binding.firstRegister << "," << binding.lastRegister << endOfMsg();
+					logger.debug() << "Request " <<  static_cast<int>(lastTransactionId) << "," << static_cast<int>(binding.unitId) << ","
+					               << binding.valueRegister << "," << binding.factorRegister << endOfMsg();
 
 				// build request to be sent
 				Byte length = 6;
 				Byte mbapHeader[7];
-				mbapHeader[0] = (transactionId >> 8) & 0xFF;
-				mbapHeader[1] = transactionId & 0xFF;
+				mbapHeader[0] = (lastTransactionId >> 8) & 0xFF;
+				mbapHeader[1] = lastTransactionId & 0xFF;
 				mbapHeader[2] = 0x00;
 				mbapHeader[3] = 0x00;
 				mbapHeader[4] = (length >> 8) & 0xFF;
 				mbapHeader[5] = length & 0xFF;
 				mbapHeader[6] = binding.unitId;
-				int address = binding.firstRegister - 1;
+				int address = binding.firstRegister() - 1;
 				Byte data[4];
 				data[0] = (address >> 8) & 0xFF;
 				data[1] = address & 0xFF;
 				data[2] = 0x00;
-				data[3] = binding.lastRegister - binding.firstRegister + 1;
+				data[3] = binding.lastRegister() - binding.firstRegister() + 1;
 				ByteString msg = ByteString(mbapHeader, sizeof(mbapHeader)) + ByteString({0x03}) + ByteString(data, sizeof(data));
 
 				// trace request to be sent
@@ -328,7 +348,7 @@ void Handler::sendX(const Items& items, const Events& events)
 					logger.errorX() << "Disconnect by remote party" << endOfMsg();
 
 				// remember request
-				requests[transactionId] = {Clock::now(), bindingPos};
+				requests[lastTransactionId] = {Clock::now(), bindingPos};
 			}
 		}
 }
