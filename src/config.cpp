@@ -12,6 +12,7 @@
 #include "tr064.h"
 #include "http.h"
 #include "tcp.h"
+#include "modbus.h"
 #include "storage.h"
 #include "finally.h"
 
@@ -169,6 +170,16 @@ std::regex getRegEx(const rapidjson::Value& value, string name, string dfltValue
 		stream << "Invalid value " << pattern << " for field " << name << " in configuration (error code = " << ex.code() << ", error string = " << ex.what() << ")";
 		throw std::runtime_error(stream.str());
 	}
+}
+
+Byte getByte(const rapidjson::Value& value, string name)
+{
+	auto iter = value.FindMember(name.c_str());
+	if (iter == value.MemberEnd())
+		throw std::runtime_error("Field " + name + " not found");
+	if (!iter->value.IsInt())
+		throw std::runtime_error("Field " + name + " is not an integer");
+	return iter->value.GetInt();
 }
 
 void Config::read(string fileName)
@@ -378,6 +389,8 @@ Links Config::getLinks(const Items& items, Log& log) const
 			handler.reset(new HttpHandler(id, getHttpConfig(getObject(linkValue, "http")), logger));
 		else if (hasMember(linkValue, "tcp"))
 			handler.reset(new TcpHandler(id, getTcpConfig(getObject(linkValue, "tcp")), logger));
+		else if (hasMember(linkValue, "modbus"))
+			handler.reset(new modbus::Handler(id, getModbusConfig(getObject(linkValue, "modbus")), logger));
 		else if (hasMember(linkValue, "generator"))
 			handler.reset(new Generator(id, getGeneratorConfig(getObject(linkValue, "generator")), logger));
 		else if (hasMember(linkValue, "calculator"))
@@ -668,6 +681,39 @@ TcpConfig Config::getTcpConfig(const rapidjson::Value& value) const
 
 	return TcpConfig(hostname, port, timeoutInterval, reconnectInterval, convertToHex,
 			msgPattern, maxMsgSize, logRawData, bindings);
+}
+
+modbus::Config Config::getModbusConfig(const rapidjson::Value& value) const
+{
+	string hostname = getString(value, "hostname");
+	int port = getInt(value, "port", 502);
+
+	bool logRawData = getBool(value, "logRawData", false);
+	bool logMsgs = getBool(value, "logMessages", false);
+
+	Seconds reconnectInterval(getInt(value, "reconnectInterval", 60));
+
+	modbus::Config::Bindings bindings;
+	for (auto& bindingValue : getArray(value, "bindings").GetArray())
+	{
+		Byte unitId = getByte(bindingValue, "unitId");
+		int firstRegister = getInt(bindingValue, "firstRegister");
+		int lastRegister = getInt(bindingValue, "lastRegister");
+		int factorRegister = getInt(bindingValue, "factorRegister", -1);
+
+		for (string itemId : getStrings(bindingValue, "itemId"))
+		{
+			if (firstRegister > lastRegister)
+				throw std::runtime_error("Item " + itemId + " has invalid register query range");
+			if (factorRegister > -1)
+				if (factorRegister < firstRegister || factorRegister > lastRegister)
+					throw std::runtime_error("Item " + itemId + " has factor register outside of register query range");
+
+			bindings.add(modbus::Config::Binding(itemId, unitId, firstRegister, lastRegister, factorRegister));
+		}
+	}
+
+	return modbus::Config(hostname, port, reconnectInterval, logRawData, logMsgs, bindings);
 }
 
 storage::Config Config::getStorageConfig(const rapidjson::Value& value) const

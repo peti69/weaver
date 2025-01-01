@@ -21,6 +21,10 @@ class Config;
 class Tr064Config;
 class HttpConfig;
 class TcpConfig;
+namespace modbus
+{
+class Config;
+}
 namespace calculator
 {
 class Config;
@@ -65,6 +69,7 @@ private:
 	storage::Config getStorageConfig(const rapidjson::Value& value) const;
 	HttpConfig getHttpConfig(const rapidjson::Value& value) const;
 	TcpConfig getTcpConfig(const rapidjson::Value& value) const;
+	modbus::Config getModbusConfig(const rapidjson::Value& value) const;
 
 public:
 	Config() {}
