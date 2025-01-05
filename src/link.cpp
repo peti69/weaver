@@ -30,7 +30,7 @@ Value Modifier::convertOutbound(const Value& value) const
 	{
 		Number num = (value.getNumber() / factor) - summand;
 		if (round)
-			num = std::round(num);
+			num = std::round(num * pow(10, roundPrecision)) / pow(10, roundPrecision);
 		return Value::newNumber(num, value.getUnit());
 	}
 	else
@@ -43,7 +43,7 @@ Value Modifier::convertInbound(const Value& value) const
 	{
 		Number num = (value.getNumber() + summand) * factor;
 		if (round)
-			num = std::round(num);
+			num = std::round(num * pow(10, roundPrecision)) / pow(10, roundPrecision);
 		return Value::newNumber(num, value.getUnit());
 	}
 	else

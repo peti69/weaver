@@ -26,8 +26,11 @@ struct Modifier
 	// which will be sent to the handler.
 	Number summand = 0.0;
 
-	// Indicates if passed values are rounded or.
+	// Indicates if passed values are rounded or not.
 	bool round = false;
+
+	// Defines the number of decimal places in case of value rounding.
+	int roundPrecision = 0;
 
 	// Inbound strings are assumed to be SML files transporting a smart meter property
 	// which is identified by its hexadecimal OBIS code.

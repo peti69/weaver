@@ -356,7 +356,9 @@ Links Config::getLinks(const Items& items, Log& log) const
 
 				modifier.factor = getFloat(modifierValue, "factor", 1.0);
 				modifier.summand = getFloat(modifierValue, "summand", 0.0);
-				modifier.round = getBool(modifierValue, "round", false);
+				modifier.round = hasMember(modifierValue, "round");
+				if (modifier.round)
+					modifier.roundPrecision = getInt(getObject(modifierValue, "round"), "precision", 0);
 
 				modifier.inObisCode = getString(modifierValue, "inObisCode", "");
 				modifier.inJsonPointer = getString(modifierValue, "inJsonPointer", "");
