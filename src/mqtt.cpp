@@ -114,11 +114,18 @@ void Handler::validate(Items& items)
 				auto& binding = bindingPos->second;
 				item.setReadable(!binding.readTopic.empty());
 				item.setWritable(!binding.writeTopic.empty());
+
+				if (binding.stateTopics.empty() && binding.writeTopic.empty() &&
+						config.getInStateTopicPattern().isNull() && config.getOutWriteTopicPattern().isNull())
+					throw std::runtime_error("Item " + itemId + " has no state and no write topic for link " + id);
 			}
 			else
 			{
 				item.setReadable(!config.getOutReadTopicPattern().isNull());
 				item.setWritable(!config.getOutWriteTopicPattern().isNull());
+
+				if (config.getInStateTopicPattern().isNull() && config.getOutWriteTopicPattern().isNull())
+					throw std::runtime_error("Item " + itemId + " has no state and no write topic for link " + id);
 			}
 
 	auto validateTopic = [&](string topic)
