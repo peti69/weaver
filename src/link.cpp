@@ -449,7 +449,7 @@ Events Link::receive(Items& items)
 				{
 					logger.error() << "Event value unit " << sourceUnit.toStr()
 					               << " can not be converted to unit " << targetUnit.toStr()
-					               << " of item " << item.getId() << endOfMsg();
+					               << " for item " << item.getId() << endOfMsg();
 
 					eventPos = events.erase(eventPos);
 					continue;
@@ -542,7 +542,7 @@ void Link::send(Items& items, const Events& events)
 				{
 					logger.error() << "Event value unit " << sourceUnit.toStr()
 					               << " can not be converted to unit " << targetUnit.toStr()
-					               << " of item " << item.getId() << endOfMsg();
+					               << " for item " << item.getId() << endOfMsg();
 
 					eventPos = modifiedEvents.erase(eventPos);
 					continue;
@@ -601,7 +601,7 @@ void Link::send(Items& items, const Events& events)
 
 				static const string valueTag = "%EventValue%";
 				if (auto pos = str.find(valueTag); pos != string::npos)
-					str.replace(pos, valueTag.length(), value.toStr());
+					str.replace(pos, valueTag.length(), value.getString());
 
 				value = Value::newString(str);
 			}
