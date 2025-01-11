@@ -183,4 +183,16 @@ public:
 	bool operator==(const Value& x) const;
 };
 
+class ValueRange
+{
+private:
+	Value lowerBound;
+	Value upperBound;
+
+public:
+	ValueRange(const Value& lowerBound, const Value& upperBound);
+
+	bool contains(const Value& x) const;
+};
+
 #endif

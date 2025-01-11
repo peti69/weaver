@@ -45,19 +45,16 @@ struct Modifier
 	// Maps inbound values to normalized values.
 	std::map<string, string> inMappings;
 
-	// printf() format to convert normalized values to outbound values.
-	string outPattern;
-
 	// Maps normalized values to outbound values.
-	std::map<string, string> outMappings;
+	std::list<std::pair<ValueRange, Value>> outMappings;
 
 	Modifier() : factor(1.0), summand(0.0) {}
 
 	void addInMapping(string from, string to) { inMappings[from] = to; }
-	void addOutMapping(string from, string to) { outMappings[from] = to; }
+	void addOutMapping(const ValueRange& from, const Value& to) { outMappings.push_back({from, to}); }
 
 	string mapInbound(string value) const;
-	string mapOutbound(string value) const;
+	Value mapOutbound(const Value& value) const;
 
 	Value convertOutbound(const Value& value) const;
 	Value convertInbound(const Value& value) const;

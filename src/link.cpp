@@ -6,19 +6,37 @@
 #include "link.h"
 #include "sml.h"
 
-string Modifier::mapOutbound(string value) const
+Value Modifier::mapOutbound(const Value& value) const
 {
-	auto pos = outMappings.find(value);
-	if (pos != outMappings.end())
-		return pos->second;
-	else
-		return value;
+	for (const auto& [valueRange, newValue] : outMappings)
+		if (valueRange.contains(value))
+			if (newValue.isString())
+			{
+				string str = newValue.getString();
+
+				static const string timeTag = "%Time%";
+				if (auto pos = str.find(timeTag); pos != string::npos)
+					str.replace(pos, timeTag.length(), cnvToStr(std::time(0)));
+
+				static const string valueTag = "%EventValue%";
+				if (auto pos = str.find(valueTag); pos != string::npos)
+					if (value.isString())
+						str.replace(pos, valueTag.length(), value.getString());
+					else if (value.isNumber())
+						str.replace(pos, valueTag.length(), cnvToStr(value.getNumber()));
+					else
+						return Value();
+
+				return Value::newString(str);
+			}
+			else
+				return newValue;
+	return value;
 }
 
 string Modifier::mapInbound(string value) const
 {
-	auto pos = inMappings.find(value);
-	if (pos != inMappings.end())
+	if (auto pos = inMappings.find(value); pos != inMappings.end())
 		return pos->second;
 	else
 		return value;
@@ -525,11 +543,11 @@ void Link::send(Items& items, const Events& events)
 				continue;
 			}
 
-			// convert event value (type preserving manipulations - general)
+			// convert event value (type preserving - general)
 			if (modifier)
 				value = modifier->convertOutbound(value);
 
-			// convert event value (type preserving manipulations - unit)
+			// convert event value (type preserving - unit)
 			if (value.isNumber())
 			{
 				Unit sourceUnit = value.getUnit();
@@ -549,7 +567,7 @@ void Link::send(Items& items, const Events& events)
 				}
 			}
 
-			// convert event value (type)
+			// convert event value (type changing - generic)
 			if (value.isNumber() && numberAsString)
 				value = Value::newString(cnvToStr(value.getNumber()));
 			else if (value.isBoolean() && booleanAsString)
@@ -569,41 +587,18 @@ void Link::send(Items& items, const Events& events)
 			else if (value.isUndefined() && undefinedAsString)
 				value = Value::newString(undefinedValue);
 
-			// convert event value (mapping)
-			if (value.isString() && modifier)
-				value = Value::newString(modifier->mapOutbound(value.getString()));
-
-			// convert event value (formatting)
-			if (value.isString() && modifier)
+			// convert event value (type changing - specific)
+			if (modifier)
 			{
-//				string pattern = modifier->outPattern;
-//				string::size_type pos = pattern.find("%time");
-//				if (pos != string::npos)
-//					pattern.replace(pos, 5, cnvToStr(std::time(0)));
-//
-//				string str;
-//				str.resize(100);
-//				int n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
-//				if (n >= str.capacity())
-//				{
-//					str.resize(n + 1);
-//					n = snprintf(&str[0], str.capacity(), pattern.c_str(), value.getString().c_str());
-//				}
-//				str.resize(n);
-//
-//				value = Value::newString(str);
+				value = modifier->mapOutbound(value);
+				if (value.isNull())
+				{
+					logger.error() << "Event value " << value.toStr() << " for item "
+					               << item.getId() << " cannot be mapped " << endOfMsg();
 
-				string str = modifier->outPattern;
-
-				static const string timeTag = "%Time%";
-				if (auto pos = str.find(timeTag); pos != string::npos)
-					str.replace(pos, timeTag.length(), cnvToStr(std::time(0)));
-
-				static const string valueTag = "%EventValue%";
-				if (auto pos = str.find(valueTag); pos != string::npos)
-					str.replace(pos, valueTag.length(), value.getString());
-
-				value = Value::newString(str);
+					eventPos = modifiedEvents.erase(eventPos);
+					continue;
+				}
 			}
 
 			event.setValue(value);

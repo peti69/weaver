@@ -182,6 +182,23 @@ Byte getByte(const rapidjson::Value& value, string name)
 	return iter->value.GetInt();
 }
 
+Value getValue(const rapidjson::Value& value, string name)
+{
+	auto iter = value.FindMember(name.c_str());
+	if (iter == value.MemberEnd())
+		throw std::runtime_error("Field " + name + " not found");
+	if (iter->value.IsBool())
+		return Value::newBoolean(iter->value.GetBool());
+	else if (iter->value.IsString())
+		return Value::newString(iter->value.GetString());
+	else if (iter->value.IsInt())
+		return Value::newNumber(iter->value.GetInt());
+	else if (iter->value.IsNumber())
+		return Value::newNumber(iter->value.GetFloat());
+	else
+		throw std::runtime_error("Field " + name + " has unsupported type");
+}
+
 void Config::read(string fileName)
 {
 	FILE* file = fopen(fileName.c_str(), "r");
@@ -367,10 +384,31 @@ Links Config::getLinks(const Items& items, Log& log) const
 					for (auto& mappingValue : getArray(modifierValue, "inMappings").GetArray())
 						modifier.addInMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
 
-				modifier.outPattern = getString(modifierValue, "outPattern", "%EventValue%");
-				if (hasMember(modifierValue, "outMappings"))
-					for (auto& mappingValue : getArray(modifierValue, "outMappings").GetArray())
-						modifier.addOutMapping(getString(mappingValue, "from"), getString(mappingValue, "to"));
+				if (hasMember(modifierValue, "outMapping"))
+					modifier.addOutMapping(ValueRange(Value(), Value()), Value::newString(getString(modifierValue, "outMapping")));
+				else if (hasMember(modifierValue, "outMappings"))
+					for (const auto& mappingValue : getArray(modifierValue, "outMappings").GetArray())
+					{
+						Value lowerBound;
+						Value upperBound;
+						auto fromIter = mappingValue.FindMember("from");
+						if (fromIter == mappingValue.MemberEnd())
+							throw std::runtime_error("Field from not found");
+						if (fromIter->value.IsObject())
+						{
+							auto& from = getObject(mappingValue, "from");
+							if (from.HasMember("lowerBound"))
+								lowerBound = getValue(from, "lowerBound");
+							if (from.HasMember("upperBound"))
+								upperBound = getValue(from, "upperBound");
+						}
+						else
+							lowerBound = upperBound = getValue(mappingValue, "from");
+						Value to = getValue(mappingValue, "to");
+						if (!lowerBound.isNull() && !upperBound.isNull() && lowerBound.getType() != upperBound.getType())
+							throw std::runtime_error("Field from defines boundaries with different types");
+						modifier.addOutMapping(ValueRange(lowerBound, upperBound), to);
+					}
 
 				for (string itemId : getStrings(modifierValue, "itemId"))
 				{

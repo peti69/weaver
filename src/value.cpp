@@ -289,3 +289,21 @@ bool Value::operator==(const Value& x) const
 			&& x.number == number && x.unit == unit && x.timePoint == timePoint;
 }
 
+ValueRange::ValueRange(const Value& lowerBound, const Value& upperBound) :
+	lowerBound(lowerBound), upperBound(upperBound)
+{
+	assert(lowerBound.isNull() || upperBound.isNull() || lowerBound.getType() == upperBound.getType());
+}
+
+bool ValueRange::contains(const Value& x) const
+{
+	if (lowerBound.isNull() && upperBound.isNull())
+		return true;
+	else if (lowerBound.getType() == x.getType() && lowerBound == upperBound)
+		return lowerBound == x;
+	else if ((lowerBound.isNumber() || upperBound.isNumber()) && x.isNumber())
+		return (lowerBound.isNull() || lowerBound.getNumber() <= x.getNumber()) &&
+			(upperBound.isNull() || x.getNumber() <= upperBound.getNumber());
+	else
+		return false;
+}
