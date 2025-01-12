@@ -31,6 +31,7 @@ public:
 	static constexpr Code ENERGY = 7;
 	static constexpr Code POWER = 8;
 	static constexpr Code VOLTAGE = 8;
+	static constexpr Code FREQUENCY = 9;
 };
 
 class Unit
@@ -86,6 +87,7 @@ public:
 	static constexpr Code KILOWATT = 23;
 	static constexpr Code VOLT = 24;
 	static constexpr Code MILLIVOLT = 25;
+	static constexpr Code HERTZ = 26;
 };
 
 class ValueType

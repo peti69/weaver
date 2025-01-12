@@ -8,6 +8,7 @@ const std::map<UnitType, string> UnitType::details{
 	{UnitType::SPEED, "speed"},
 	{UnitType::TEMPERATURE, "temperature"},
 	{UnitType::VOLUME, "volume"},
+	{UnitType::FREQUENCY, "frequency"},
 	{UnitType::ILLUMINANCE, "illuminance"},
 	{UnitType::CURRENT, "current"},
 	{UnitType::ENERGY, "energy"},
@@ -47,6 +48,7 @@ const std::map<Unit, Unit::Detail> Unit::details{
 	{Unit::HOUR, {UnitType::PERIOD, "h", true}},
 	{Unit::KILOMETER_PER_HOUR, {UnitType::SPEED, "km/h", true}},
 	{Unit::MILES_PER_HOUR, {UnitType::SPEED, "mi/h", true}},
+	{Unit::HERTZ, {UnitType::FREQUENCY, "Hz", true}},
 	{Unit::FAHRENHEIT, {UnitType::TEMPERATURE, "°F", true}}};
 
 string Unit::toStr() const
