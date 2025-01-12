@@ -210,14 +210,14 @@ Events Link::receive(Items& items)
 		}
 
 		// remove STATE_IND with void values
-		if (event.getType() == EventType::STATE_IND && event.getValue().getType() == ValueType::VOID)
-		{
-			logger.warn() << event.getType().toStr() << " event received which has "
-			              << event.getValue().getType().toStr() <<  " value" << endOfMsg();
-
-			eventPos = events.erase(eventPos);
-			continue;
-		}
+//		if (event.getType() == EventType::STATE_IND && event.getValue().getType() == ValueType::VOID)
+//		{
+//			logger.warn() << event.getType().toStr() << " event received which has "
+//			              << event.getValue().getType().toStr() <<  " value" << endOfMsg();
+//
+//			eventPos = events.erase(eventPos);
+//			continue;
+//		}
 
 		// remove READ_REQ in case the item is not readable
 //		if (event.getType() == EventType::READ_REQ && !item.isReadable())
