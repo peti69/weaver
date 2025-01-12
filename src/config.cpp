@@ -199,6 +199,13 @@ Value getValue(const rapidjson::Value& value, string name)
 		throw std::runtime_error("Field " + name + " has unsupported type");
 }
 
+Value getValue(const rapidjson::Value& value, string name, Value dfltValue)
+{
+	if (!hasMember(value, name))
+		return dfltValue;
+	return getValue(value, name);
+}
+
 void Config::read(string fileName)
 {
 	FILE* file = fopen(fileName.c_str(), "r");
@@ -755,16 +762,7 @@ storage::Config Config::getStorageConfig(const rapidjson::Value& value) const
 	storage::Bindings bindings;
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
 	{
-		Value initialValue;
-		if (hasMember(bindingValue, "initialBoolean"))
-			initialValue = Value::newBoolean(getBool(bindingValue, "initialBoolean"));
-		else if (hasMember(bindingValue, "initialNumber"))
-			initialValue = Value::newNumber(getFloat(bindingValue, "initialNumber"));
-		else if (hasMember(bindingValue, "initialString"))
-			initialValue = Value::newString(getString(bindingValue, "initialString"));
-		else
-			initialValue = Value::newUndefined();
-
+		Value initialValue = getValue(bindingValue, "initialValue", Value::newUndefined());
 		bool persistent = getBool(bindingValue, "persistent", true);
 
 		bindings.add(storage::Binding(getString(bindingValue, "itemId"), initialValue, persistent));
