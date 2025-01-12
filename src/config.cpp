@@ -195,6 +195,8 @@ Value getValue(const rapidjson::Value& value, string name)
 		return Value::newNumber(iter->value.GetInt());
 	else if (iter->value.IsNumber())
 		return Value::newNumber(iter->value.GetFloat());
+	else if (iter->value.IsNull())
+		return Value::newVoid();
 	else
 		throw std::runtime_error("Field " + name + " has unsupported type");
 }
@@ -627,7 +629,7 @@ GeneratorConfig Config::getGeneratorConfig(const rapidjson::Value& value) const
 	GeneratorConfig::Bindings bindings;
 	for (auto& bindingValue : getArray(value, "bindings").GetArray())
 	{
-		string value = getString(bindingValue, "value");
+		Value value = getValue(bindingValue, "value");
 		int interval = getInt(bindingValue, "interval");
 		EventType eventType;
 		if (string str = getString(bindingValue, "eventType"); !EventType::fromStr(str, eventType))

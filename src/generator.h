@@ -13,10 +13,10 @@ public:
 	{
 		string itemId;
 		EventType eventType;
-		string value;
+		Value value;
 		int interval;
-		Binding(string _itemId, EventType _eventType, string _value, int _interval) : 
-			itemId(_itemId), eventType(_eventType), value(_value), interval(_interval) {};
+		Binding(string itemId, EventType eventType, Value value, int interval) :
+			itemId(itemId), eventType(eventType), value(value), interval(interval) {};
 	};
 	struct Bindings: public std::map<string, Binding>
 	{
@@ -27,7 +27,7 @@ private:
 	Bindings bindings;
 
 public:
-	GeneratorConfig(Bindings _bindings) : bindings(_bindings) {}
+	GeneratorConfig(Bindings bindings) : bindings(bindings) {}
 	const Bindings& getBindings() const { return bindings; }
 };
 
@@ -40,7 +40,7 @@ private:
 	std::map<string, std::time_t> lastGeneration;
 
 public:
-	Generator(string _id, GeneratorConfig _config, Logger _logger);
+	Generator(string id, GeneratorConfig config, Logger logger);
 	virtual void validate(Items& items) override;
 	virtual HandlerState getState() const override { return HandlerState(); }
 	virtual long collectFds(fd_set* readFds, fd_set* writeFds, fd_set* excpFds, int* maxFd) override { return -1; };

@@ -1,7 +1,7 @@
 #include "generator.h"
 
-Generator::Generator(string _id, GeneratorConfig _config, Logger _logger) : 
-	id(_id), config(_config), logger(_logger)
+Generator::Generator(string id, GeneratorConfig config, Logger logger) :
+	id(id), config(config), logger(logger)
 {
 }
 
@@ -16,6 +16,7 @@ void Generator::validate(Items& items)
 	for (auto& [itemId, binding] : bindings)
 	{
 		auto& item = items.validate(itemId);
+		item.validateValueType(binding.value.getType());
 		if (item.getOwnerId() == id)
 		{
 			item.setReadable(false);
@@ -43,9 +44,9 @@ Events Generator::receive(const Items& items)
 			if (binding.eventType == EventType::READ_REQ && !owner)
 				events.add(Event(id, itemId, EventType::READ_REQ, Value::newVoid()));
 			else if (binding.eventType == EventType::WRITE_REQ && !owner)
-				events.add(Event(id, itemId, EventType::WRITE_REQ, Value::newString(binding.value)));
+				events.add(Event(id, itemId, EventType::WRITE_REQ, binding.value));
 			else if (binding.eventType == EventType::STATE_IND && owner)
-				events.add(Event(id, itemId, EventType::STATE_IND, Value::newString(binding.value)));
+				events.add(Event(id, itemId, EventType::STATE_IND, binding.value));
 		}
 	}
 
