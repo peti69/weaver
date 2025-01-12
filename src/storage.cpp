@@ -85,12 +85,12 @@ Events Handler::receiveX(const Items& items)
 			// verify item identifier
 			auto itemPos = items.find(itemId);
 			if (itemPos == items.end())
-				logger.errorX() << "Item " << itemId << " is unknown" << endOfMsg();
+				logger.errorX() << "Item " << itemId << " from file " << config.getFileName() << " is unknown" << endOfMsg();
 			auto& item = itemPos->second;
 
 			// verify that the item is owned
 			if (item.getOwnerId() != id)
-				logger.errorX() << "Item " << itemId << " is not owned by the link" << endOfMsg();
+				logger.errorX() << "Item " << itemId << " from file " << config.getFileName() << " is not owned by the link" << endOfMsg();
 
 			// determine item value
 			Value value;
@@ -105,10 +105,10 @@ Events Handler::receiveX(const Items& items)
 				value = Value::newBoolean(iter->value.GetBool());
 			else if (iter->value.IsNumber() && item.hasValueType(ValueType::NUMBER))
 				value = Value::newNumber(iter->value.GetDouble());
-			else if (iter->value.IsNull() && item.hasValueType(ValueType::UNDEFINED))
-				value = Value::newUndefined();
+			else if (iter->value.IsNull() && item.hasValueType(ValueType::VOID))
+				value = Value::newVoid();
 			if (value.isNull())
-				logger.errorX() << "Value for item " << itemId << " is not supported" << endOfMsg();
+				logger.errorX() << "JSON value for item " << itemId << " from file " << config.getFileName() << " is not supported" << endOfMsg();
 
 			// generate STATE_IND for item
 			newEvents.add(Event(id, itemId, EventType::STATE_IND, value));
@@ -180,8 +180,10 @@ Events Handler::send(const Items& items, const Events& events)
 					jsonValue.SetString(value.getTimePoint().toStr(), allocator);
 				else if (value.isNumber())
 					jsonValue.SetDouble(value.getNumber());
-				else if (value.isUndefined())
+				else if (value.isVoid())
 					jsonValue.SetNull();
+				else
+					continue;
 				rapidjson::Value memberName(itemId, allocator);
 				document.AddMember(memberName, jsonValue, allocator);
 			}
