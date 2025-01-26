@@ -694,7 +694,7 @@ HttpConfig Config::getHttpConfig(const rapidjson::Value& value) const
 		auto headers = getStrings(bindingValue, "header", dfltHeaders);
 
 		string request = getString(bindingValue, "request", "");
-		std::regex responsePattern = getRegEx(bindingValue, "responsePattern", "^.*$");
+		std::regex responsePattern = getRegEx(bindingValue, "responsePattern");
 
 		for (string itemId : getStrings(bindingValue, "itemId"))
 			bindings.add(HttpConfig::Binding(itemId, url, headers, request, responsePattern));

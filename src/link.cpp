@@ -357,20 +357,17 @@ Events Link::receive(Items& items)
 						if (i < match.size()) // this should always be true
 							value = Value::newString(match[i]);
 					}
-//					else
-//						// ... but no content found
-//						if (item.hasType(ValueType::BOOLEAN))
-//							value = Value::newBoolean(true);
-//						else
-//							value = Value::newVoid();
+					else
+						// ... but no content found
+						if (item.hasValueType(ValueType::BOOLEAN))
+							value = Value::newBoolean(true);
 				}
-//				else
-//				{
-//					// no match
-//					if (item.hasType(ValueType::BOOLEAN))
-//						// special handling for boolean items
-//						value = Value::newBoolean(false);
-//				}
+				else
+				{
+					// no match
+					if (item.hasValueType(ValueType::BOOLEAN))
+						value = Value::newBoolean(false);
+				}
 			}
 
 			// convert event value (mapping)
